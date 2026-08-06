@@ -149,7 +149,18 @@ app.use('/api/admin', adminRouter);
 /* ------------------------------------------------------------------ static */
 
 const PUBLIC = resolve(ROOT, 'public');
-app.use(express.static(PUBLIC, { index: 'index.html', maxAge: '1h' }));
+/**
+ * maxAge 0 + ETag: peramban tetap bertanya pada setiap permintaan dan hampir
+ * selalu menerima 304 kosong, jadi biayanya nyaris nol — tetapi pembaruan
+ * antarmuka langsung terlihat tanpa perlu hard refresh.
+ *
+ * Cache satu jam sempat dipakai di sini dan itu keliru untuk aplikasi tanpa
+ * proses build: berkasnya tidak ber-hash, sehingga app.css lama dan app.js
+ * lama bisa bertahan satu jam setelah pemasangan versi baru — dan yang paling
+ * membingungkan, sebagian berkas ter-refresh sementara sisanya tidak,
+ * menghasilkan tampilan campuran yang tidak pernah ada di mana pun.
+ */
+app.use(express.static(PUBLIC, { index: 'index.html', maxAge: 0, etag: true }));
 
 app.get(/^\/(?!api).*/, (_req, res) => {
   const index = resolve(PUBLIC, 'index.html');
