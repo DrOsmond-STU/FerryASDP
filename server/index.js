@@ -18,6 +18,8 @@ import {
   sessionCookie, clearCookie, decorate,
 } from './auth.js';
 import { engineRouter } from './engine.js';
+import { publicRouter } from './public.js';
+import { subscriptionSummary, clearTenancyCache } from './tenancy.js';
 import { dashboardRouter } from './dashboards.js';
 import { adminRouter } from './admin.js';
 
@@ -27,6 +29,7 @@ const PORT = Number(process.env.PORT || 3000);
 migrate();
 seedRoles();
 clearPermissionCache();
+clearTenancyCache();
 
 const app = express();
 app.disable('x-powered-by');
@@ -74,7 +77,11 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Belum masuk.' });
-  res.json({ user: publicUser(req.user), permissions: permissionSummary(req.user) });
+  res.json({
+    user: publicUser(req.user),
+    permissions: permissionSummary(req.user),
+    subscription: subscriptionSummary(req.user),
+  });
 });
 
 app.post('/api/auth/password', requireAuth, (req, res, next) => {
@@ -124,6 +131,7 @@ app.get('/api/meta', requireAuth, (req, res) => {
     emissionFactors: EMISSION_FACTORS,
     user: publicUser(req.user),
     permissions: permissionSummary(req.user),
+    subscription: subscriptionSummary(req.user),
   });
 });
 
@@ -133,6 +141,7 @@ app.get('/api/health', (_req, res) => {
 
 /* ----------------------------------------------------------------- routers */
 
+app.use('/api/public', publicRouter);
 app.use('/api', engineRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/admin', adminRouter);

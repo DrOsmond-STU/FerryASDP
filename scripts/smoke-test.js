@@ -5,7 +5,9 @@
  *   npm run check       (terminal 2)
  *
  * Verifies authentication, RBAC boundaries, row-level security, the generic
- * CRUD engine, workflow transitions, CAPA linkage and every dashboard.
+ * CRUD engine, workflow transitions, CAPA linkage, every dashboard, and the
+ * SaaS layer: public marketing endpoints, plan-based module entitlement and
+ * the commercial dashboard.
  */
 const BASE = process.env.QHSE_URL || 'http://localhost:3000';
 const PASSWORD = process.env.QHSE_SEED_PASSWORD || 'Asdp#2026Qhse';
@@ -61,7 +63,7 @@ async function login(username) {
 section('1. Ketersediaan layanan');
 const health = await (await fetch(`${BASE}/api/health`)).json();
 check('Server merespons /api/health', health.status === 'ok');
-check('Seluruh modul termuat (93)', health.modules === 93, `modules=${health.modules}`);
+check('Seluruh modul termuat (98)', health.modules === 98, `modules=${health.modules}`);
 
 section('2. Autentikasi');
 const anon = client();
@@ -77,8 +79,8 @@ check('Profil sesi terbaca', me.json?.user?.role_key === 'corporate_qhse');
 
 section('3. Metadata registry');
 const meta = (await corporate('/api/meta')).json;
-check('Katalog modul dikirim', meta.modules.length === 93, `${meta.modules.length}`);
-check('Kelompok fungsi lengkap', meta.groups.length === 13, `${meta.groups.length}`);
+check('Katalog modul dikirim', meta.modules.length === 98, `${meta.modules.length}`);
+check('Kelompok fungsi lengkap', meta.groups.length === 14, `${meta.groups.length}`);
 check('Setiap modul memiliki workflow', meta.modules.every((m) => m.workflow?.length > 0));
 check('Setiap modul memiliki isian', meta.modules.every((m) => m.fields?.length > 0));
 check('Faktor emisi tersedia', Object.keys(meta.emissionFactors).length > 0);
@@ -191,7 +193,7 @@ check('Ekspor CSV menghasilkan berkas', csv.status === 200 && csv.text.includes(
 const users = await corporate('/api/admin/users');
 check('Daftar pengguna terbaca oleh corporate QHSE', users.status === 200 && users.json.users.length >= 11);
 const perms = await corporate('/api/admin/permissions/operator');
-check('Matriks hak akses terbaca', perms.json.permissions.length === 93);
+check('Matriks hak akses terbaca', perms.json.permissions.length === 98);
 const permWrite = await corporate('/api/admin/permissions/operator', { method: 'PUT', body: { permissions: [] } });
 check('Perubahan hak akses dibatasi untuk administrator', permWrite.status === 403);
 
@@ -205,6 +207,61 @@ check('Administrator sistem dapat menghapus rekaman', adminDelete.status === 200
 const afterDelete = await admin(`/api/modules/near_miss/records/${record.id}`);
 check('Rekaman terhapus tidak lagi terbaca (soft delete)', afterDelete.status === 404);
 await admin(`/api/modules/capa/records/${capa.json.record.id}`, { method: 'DELETE' });
+
+section('12. Model SaaS: halaman publik & langganan');
+const publicClient = client();
+const overview = await publicClient('/api/public/overview');
+check('Ikhtisar produk dapat diakses tanpa sesi', overview.status === 200 && overview.json.product.moduleCount > 0);
+check('Kelompok komersial tidak diiklankan sebagai modul', !overview.json.groups.some((g) => g.key === 'saas'));
+
+const publicPlans = await publicClient('/api/public/plans');
+check('Paket langganan terbuka untuk publik', publicPlans.status === 200 && publicPlans.json.plans.length === 3);
+const essential = publicPlans.json.plans.find((p) => p.name === 'Esensial');
+const enterprise = publicPlans.json.plans.find((p) => p.name === 'Maritim Enterprise');
+check('Paket memuat harga bulanan', essential?.monthlyPrice > 0, String(essential?.monthlyPrice));
+check('Paket lebih tinggi memuat lebih banyak modul', enterprise.moduleCount > essential.moduleCount, `${enterprise.moduleCount} vs ${essential.moduleCount}`);
+
+const lead = await publicClient('/api/public/trial-request', {
+  method: 'POST',
+  body: { organisation: 'Cabang Uji Smoke Test', contact_name: 'Petugas Uji', email: 'smoke@asdp.id', plan_interest: 'Profesional' },
+});
+check('Permintaan uji coba publik tercatat', lead.status === 201 && /^LEAD\//.test(lead.json.code || ''), lead.json?.error);
+const badLead = await publicClient('/api/public/trial-request', { method: 'POST', body: { organisation: 'X' } });
+check('Permintaan uji coba tidak lengkap ditolak', badLead.status === 400);
+
+section('13. Pembatasan modul berdasarkan paket');
+const ketapang = await login('qhse.ketapang');
+const ketapangMe = await ketapang('/api/auth/me');
+check('Ringkasan langganan tersedia bagi pengguna cabang', ketapangMe.json.subscription?.planName === 'Profesional', ketapangMe.json.subscription?.planName);
+check('Modul aktif lebih sedikit dari total platform',
+  ketapangMe.json.subscription.moduleCount < ketapangMe.json.subscription.totalModules,
+  `${ketapangMe.json.subscription.moduleCount}/${ketapangMe.json.subscription.totalModules}`);
+
+const inPlan = await ketapang('/api/modules/incident/records');
+check('Modul dalam paket dapat diakses', inPlan.status === 200);
+const outOfPlan = await ketapang('/api/modules/ferry_safety_checklist/records');
+check('Modul di luar paket ditolak dengan 402', outOfPlan.status === 402, String(outOfPlan.status));
+check('Pesan penolakan menyebutkan nama paket', /Profesional/.test(outOfPlan.json?.error || ''), outOfPlan.json?.error);
+const outOfPlanWrite = await ketapang('/api/modules/marine_incident/records', { method: 'POST', body: { title: 'x' } });
+check('Penulisan modul di luar paket juga ditolak', outOfPlanWrite.status === 402);
+const platformModule = await ketapang('/api/modules/subscription_plan/records');
+check('Modul pengelola platform tertutup bagi tenant', platformModule.status === 403);
+const ownInvoice = await ketapang('/api/modules/invoice/records');
+check('Cabang tetap dapat melihat tagihannya sendiri', ownInvoice.status === 200 && ownInvoice.json.total > 0, String(ownInvoice.json?.total));
+
+const enterpriseTenant = await login('port.manager');
+const maritimeOk = await enterpriseTenant('/api/modules/ferry_safety_checklist/records');
+check('Cabang paket Enterprise mengakses modul maritim', maritimeOk.status === 200);
+
+section('14. Dashboard komersial');
+const commercial = await corporate('/api/dashboard/subscription');
+check('Dashboard langganan tersedia bagi pengelola platform', commercial.status === 200, commercial.json?.error);
+check('MRR terhitung dari langganan aktif', commercial.json.cards.mrr > 0, String(commercial.json?.cards?.mrr));
+check('ARR setara 12 kali MRR', commercial.json.cards.arr === commercial.json.cards.mrr * 12);
+check('Portofolio cabang terisi', commercial.json.tenants.length >= 5, String(commercial.json?.tenants?.length));
+check('Piutang tertunggak terdeteksi', commercial.json.cards.outstanding > 0, String(commercial.json?.cards?.outstanding));
+const commercialDenied = await ketapang('/api/dashboard/subscription');
+check('Dashboard komersial tertutup bagi cabang', commercialDenied.status === 403);
 
 console.log(`\n${'─'.repeat(56)}`);
 console.log(`  ${passed} lulus, ${failed} gagal`);

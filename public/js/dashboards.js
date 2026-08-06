@@ -16,6 +16,7 @@ export const DASHBOARDS = [
   { key: 'port', name: 'Port Dashboard', icon: '⚓', path: '/api/dashboard/port', render: port, requires: 'port' },
   { key: 'contractor', name: 'Contractor Dashboard', icon: '🤝', path: '/api/dashboard/contractor', render: contractor, requires: 'contractor' },
   { key: 'asset', name: 'Asset Dashboard', icon: '🛠', path: '/api/dashboard/asset', render: asset, requires: 'asset' },
+  { key: 'subscription', name: 'Langganan & Pendapatan', icon: '💳', path: '/api/dashboard/subscription', render: subscription, platformOnly: true },
 ];
 
 export async function renderDashboard(container, def) {
@@ -404,4 +405,110 @@ function asset(d) {
       card('Jenis Pemeliharaan', barList(d.maintenance.byType, { format: num })),
       card('Status Sertifikat', donut(d.certificates.byStatus, { format: num }))),
     alertsCard(d.certificates.expiring));
+}
+
+/* --------------------------------------------- langganan (khusus platform) */
+
+const STATUS_TONE = {
+  active: 'b-ok', trial: 'b-warn', past_due: 'b-danger',
+  suspended: 'b-danger', ended: 'b-draft',
+};
+const STATUS_LABEL = {
+  active: 'Aktif', trial: 'Uji Coba', past_due: 'Menunggak',
+  suspended: 'Ditangguhkan', ended: 'Berhenti',
+};
+
+/**
+ * Tabel data sederhana.
+ * headers: [{label, right}], rows: array data, cells: (row) => [Node|string]
+ */
+function dataTable(headers, rows, cells, { onRow, empty = 'Belum ada data.' } = {}) {
+  if (!rows?.length) return emptyState(empty);
+  const head = h('tr', {}, ...headers.map((c) => h(c.right ? 'th.right' : 'th', { text: c.label })));
+  const body = rows.map((row) => {
+    const tr = h(onRow ? 'tr.clickable' : 'tr', onRow ? { onclick: () => onRow(row) } : {});
+    for (const cell of cells(row)) {
+      tr.appendChild(cell instanceof Node ? cell : h('td', { text: cell === null || cell === undefined ? '—' : String(cell) }));
+    }
+    return tr;
+  });
+  return h('div.table-wrap', {}, h('table', {}, h('thead', {}, head), h('tbody', {}, ...body)));
+}
+
+const badge = (tone, text) => h('td', {}, h('span.badge', { class: tone, text: text || '—' }));
+
+function subscription(d) {
+  const c = d.cards;
+
+  const tenantTable = dataTable(
+    [
+      { label: 'Cabang' }, { label: 'Paket' }, { label: 'Status' },
+      { label: 'Biaya/bulan', right: true }, { label: 'Pengguna', right: true },
+      { label: 'Utilisasi', right: true }, { label: 'Tagihan Berikutnya' },
+      { label: 'Kesehatan Akun' }, { label: 'NPS', right: true },
+    ],
+    d.tenants,
+    (t) => [
+      h('td', { text: t.branch || '—' }),
+      h('td.small', { text: t.plan || '—' }),
+      badge(STATUS_TONE[t.status] || 'b-draft', STATUS_LABEL[t.status] || t.status),
+      h('td.right', { text: fmtCurrency(t.fee) }),
+      h('td.right', { text: `${num(t.activeUsers)} / ${t.seats ? num(t.seats) : '∞'}` }),
+      h('td.right', { text: t.utilisation ? `${dec(t.utilisation, 0)}%` : '—' }),
+      h('td.small', { text: fmtDate(t.nextBilling) }),
+      badge(t.health === 'Sehat' ? 'b-ok' : t.health === 'Berisiko Churn' ? 'b-danger' : 'b-warn', t.health),
+      h('td.right', { text: t.nps ?? '—' }),
+    ],
+    { onRow: (t) => { location.hash = `#/m/subscription/${t.id}`; }, empty: 'Belum ada langganan tercatat.' },
+  );
+
+  const adoptionTable = dataTable(
+    [{ label: 'Cabang' }, { label: 'Periode' }, { label: 'Pengguna Aktif', right: true }, { label: 'Skor Adopsi', right: true }, { label: 'Status' }],
+    (d.adoption || []).slice(0, 12),
+    (a) => [
+      h('td.small', { text: a.branch_name || '—' }),
+      h('td.small', { text: a.period }),
+      h('td.right', { text: num(a.active_users) }),
+      h('td.right', { text: a.adoption_score ? `${dec(a.adoption_score, 0)}%` : '—' }),
+      badge(a.adoption_status === 'Sangat Baik' ? 'b-ok' : a.adoption_status === 'Rendah' ? 'b-danger' : 'b-warn', a.adoption_status),
+    ],
+  );
+
+  const leadTable = dataTable(
+    [{ label: 'Cabang / Unit' }, { label: 'Kontak' }, { label: 'Paket Diminati' }, { label: 'Status' }],
+    (d.leads || []).slice(0, 12),
+    (l) => [
+      h('td.small', { text: l.organisation }),
+      h('td.small', { text: l.contact_name }),
+      h('td.small', { text: l.plan_interest || '—' }),
+      badge(l.status === 'converted' ? 'b-ok' : l.status === 'lost' ? 'b-danger' : 'b-progress', l.status),
+    ],
+    { onRow: (l) => { location.hash = `#/m/trial_request/${l.id}`; }, empty: 'Belum ada permintaan uji coba.' },
+  );
+
+  return h('div', {},
+    h('div.grid.cols-4', {},
+      stat('MRR', fmtCurrency(c.mrr), { sub: 'pendapatan berulang bulanan', tone: 'ok' }),
+      stat('ARR', fmtCurrency(c.arr), { sub: 'proyeksi tahunan' }),
+      stat('Cabang Berlangganan', num(c.activeTenants), { sub: `${num(c.trialTenants)} dalam uji coba` }),
+      stat('ARPA', fmtCurrency(c.arpa), { sub: 'rata-rata per cabang' }),
+      stat('Pipeline Uji Coba', fmtCurrency(c.trialPipeline), { sub: 'potensi bila seluruhnya berlanjut' }),
+      stat('Tagihan Terkumpul', fmtCurrency(c.collected), { sub: '12 bulan terakhir', tone: 'ok' }),
+      stat('Piutang Berjalan', fmtCurrency(c.outstanding), { sub: `${num(c.overdueCount)} tagihan lewat jatuh tempo`, tone: c.overdueCount ? 'warn' : 'ok' }),
+      stat('Churn', `${dec(c.churnRate, 1)}%`, { sub: `${num(c.churnedTenants)} cabang berhenti`, tone: c.churnedTenants ? 'warn' : 'ok' })),
+
+    h('div.grid.cols-2', { style: 'margin-top:1rem' },
+      card('Pendapatan Tertagih per Bulan', lineChart(d.revenueByMonth, { color: PALETTE[6], format: (v) => fmtCurrency(v) })),
+      card('Umur Piutang', barList(d.aging, { format: (v) => fmtCurrency(v), color: PALETTE[2] }))),
+
+    h('div.grid.cols-3', { style: 'margin-top:1rem' },
+      card('Cabang per Paket', donut(d.byPlan, { format: num })),
+      card('Status Langganan', barList(d.byStatus, { format: num, color: PALETTE[1] })),
+      card('Corong Prospek', barList(d.leadFunnel, { format: num, color: PALETTE[3] }))),
+
+    card('Portofolio Cabang', tenantTable),
+
+    h('div.grid.cols-2', { style: 'margin-top:1rem' },
+      card('Adopsi Pemakaian per Cabang', adoptionTable),
+      card('Permintaan Uji Coba Terbaru', leadTable)));
 }

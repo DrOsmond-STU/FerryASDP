@@ -1,11 +1,12 @@
 /**
  * Application shell: authentication, layout, navigation and the hash router.
  */
-import { api, state, loadMeta, can, mod } from './api.js';
+import { api, state, loadMeta, can, mod, entitled } from './api.js';
 import { h, mount, clear, toast, initials, modal } from './ui.js';
 import { renderModuleList, renderRecordForm, renderRecordDetail } from './module.js';
 import { renderDashboard, DASHBOARDS } from './dashboards.js';
 import { renderAdmin, ADMIN_PAGES } from './admin.js';
+import { renderLanding } from './landing.js';
 
 const root = document.getElementById('app');
 
@@ -16,47 +17,7 @@ const ready = () => root.classList.remove('app-loading');
 
 function renderLogin(message) {
   ready();
-  document.title = 'Masuk — QHSE ASDP';
-  const error = h('div.alert.err', { class: message ? '' : 'hidden', text: message || '' });
-  const username = h('input', { name: 'username', autocomplete: 'username', required: true, placeholder: 'mis. corporate.qhse' });
-  const password = h('input', { name: 'password', type: 'password', autocomplete: 'current-password', required: true });
-  const submit = h('button.btn-primary', { type: 'submit', style: 'width:100%;justify-content:center', text: 'Masuk' });
-
-  const form = h('form', {
-    onsubmit: async (e) => {
-      e.preventDefault();
-      submit.disabled = true;
-      submit.textContent = 'Memeriksa…';
-      try {
-        await api.post('/api/auth/login', { username: username.value.trim(), password: password.value });
-        await start();
-      } catch (err) {
-        error.textContent = err.message;
-        error.classList.remove('hidden');
-        submit.disabled = false;
-        submit.textContent = 'Masuk';
-      }
-    },
-  },
-    error,
-    h('div.field.required', {}, h('label', { for: 'username', text: 'Nama Pengguna' }), username),
-    h('div.field.required', {}, h('label', { for: 'password', text: 'Kata Sandi' }), password),
-    submit);
-
-  mount(root,
-    h('div.login-wrap', {},
-      h('div.login-card', {},
-        h('div.login-brand', {},
-          h('div.mark', { text: '⚓' }),
-          h('div', {},
-            h('strong', { text: 'QHSE ASDP' }),
-            h('span.small.muted', { text: 'Enterprise Integrated QHSE Management System' }))),
-        h('p.small.muted', { text: 'PT ASDP Indonesia Ferry (Persero) — mutu, kesehatan, keselamatan kerja, lingkungan, keselamatan pelayaran dan keamanan dalam satu platform.' }),
-        form,
-        h('div.login-hint', {},
-          h('div', { text: 'Akun demo: admin · corporate.qhse · regional.qhse · port.manager · nakhoda · dept.head · supervisor · operator · kontraktor · auditor' }),
-          h('div', { style: 'margin-top:.3rem', text: 'Kata sandi awal disediakan oleh administrator sistem (lihat README).' })))));
-  username.focus();
+  renderLanding(root, { onLoggedIn: start, message });
 }
 
 /* ----------------------------------------------------------------- layout */
@@ -70,16 +31,24 @@ function navigation() {
 
   const dashGroup = h('details.nav-group', { open: true },
     h('summary', {}, h('span', { text: '▾' }), 'Dashboard'),
-    ...DASHBOARDS.filter((d) => !d.requires || can(d.requires, 'view'))
+    ...DASHBOARDS
+      .filter((d) => (!d.requires || (can(d.requires, 'view') && entitled(d.requires))))
+      .filter((d) => !d.platformOnly || state.subscription?.platform)
       .map((d) => link(`#/dashboard/${d.key}`, d.icon, d.name)));
   nav.appendChild(dashGroup);
 
   for (const group of state.groups) {
     const modules = group.modules.map(mod).filter((m) => m && can(m.key, 'view'));
     if (!modules.length) continue;
+    const locked = modules.filter((m) => !entitled(m.key)).length;
     const details = h('details.nav-group', { open: group.code === 'E' },
-      h('summary', {}, h('span', { text: '▾' }), `${group.code}. ${group.name}`),
-      ...modules.map((m) => link(`#/m/${m.key}`, m.icon, m.nameId)));
+      h('summary', {},
+        h('span', { text: '▾' }),
+        `${group.code}. ${group.name}`,
+        locked === modules.length ? h('span.nav-lock', { title: 'Di luar paket langganan', text: '🔒' }) : null),
+      ...modules.map((m) => (entitled(m.key)
+        ? link(`#/m/${m.key}`, m.icon, m.nameId)
+        : lockedLink(m))));
     nav.appendChild(details);
   }
 
@@ -93,6 +62,16 @@ function navigation() {
   function link(href, icon, label) {
     return h('a', { href, dataset: { label: label.toLowerCase() } },
       h('span.ic', { text: icon || '•' }), h('span', { text: label }));
+  }
+
+  /** Modul di luar paket tetap terlihat - terkunci, sebagai jalur peningkatan. */
+  function lockedLink(m) {
+    return h('a.locked', {
+      href: '#',
+      dataset: { label: m.nameId.toLowerCase() },
+      title: 'Tidak termasuk paket langganan cabang Anda',
+      onclick: (e) => { e.preventDefault(); upgradeDialog(m); },
+    }, h('span.ic', { text: '🔒' }), h('span', { text: m.nameId }));
   }
 
   function filter(query) {
@@ -109,6 +88,71 @@ function navigation() {
   }
 
   return { nav, search };
+}
+
+/** Ajakan meningkatkan paket ketika modul di luar langganan dibuka. */
+function upgradeDialog(m) {
+  const sub = state.subscription;
+  modal({
+    title: `${m.icon} ${m.nameId}`,
+    body: h('div', {},
+      h('div.alert.info', { text: `Modul ini tidak termasuk paket ${sub?.planName || 'langganan cabang Anda'}.` }),
+      h('p', { text: `${m.nameId} berada pada kelompok ${m.groupCode}. ${m.groupName}. Modul ini mendukung pemenuhan ${(m.standards || []).join(', ') || 'persyaratan sistem manajemen'}.` }),
+      m.regulations?.length
+        ? h('div', {}, h('div.small.muted', { text: 'Regulasi terkait:' }), h('div.chips', {}, ...m.regulations.map((r) => h('span.chip.reg', { text: r }))))
+        : null,
+      h('p.small.muted', { style: 'margin-top:.8rem', text: 'Peningkatan paket dapat diaktifkan tanpa migrasi ulang - seluruh data cabang tetap utuh. Hubungi pengelola platform melalui kantor pusat.' })),
+  });
+}
+
+/** Ringkasan langganan cabang pada bilah atas. */
+function subscriptionChip() {
+  const sub = state.subscription;
+  if (!sub) return null;
+
+  const tone = sub.platform ? 'b-progress'
+    : sub.status === 'active' ? 'b-ok'
+      : sub.status === 'trial' ? 'b-warn'
+        : ['past_due', 'suspended', 'ended'].includes(sub.status) ? 'b-danger' : 'b-draft';
+
+  const label = sub.platform
+    ? 'Pengelola Platform'
+    : `${sub.planName || 'Tanpa paket'} · ${sub.statusLabel}`;
+
+  return h('span.badge', {
+    class: `${tone} clickable`,
+    style: 'cursor:pointer',
+    title: 'Rincian langganan cabang',
+    text: label,
+    onclick: () => subscriptionDialog(),
+  });
+}
+
+function subscriptionDialog() {
+  const sub = state.subscription;
+  const row = (label, value) => h('div.dl-item', {}, h('dt', { text: label }), h('dd', { text: value ?? '—' }));
+  const money = (v) => (v ? `Rp ${Number(v).toLocaleString('id-ID')}` : '—');
+
+  modal({
+    title: 'Langganan Cabang',
+    body: h('div', {},
+      sub.platform
+        ? h('div.alert.info', { text: 'Anda masuk sebagai pengelola platform: seluruh modul dan seluruh tenant dapat diakses.' })
+        : sub.reason ? h('div.alert.err', { text: sub.reason }) : null,
+      h('div.detail-grid', {},
+        row('Cabang', sub.branch),
+        row('Paket', sub.planName),
+        row('Status', sub.statusLabel),
+        row('Biaya bulanan', money(sub.monthlyFee)),
+        row('Kuota pengguna', sub.seats ? `${sub.activeUsers ?? 0} dari ${sub.seats}` : 'Tanpa batas'),
+        row('Modul aktif', `${sub.moduleCount} dari ${sub.totalModules}`),
+        row('Tagihan berikutnya', sub.nextBilling),
+        row('Akhir uji coba', sub.trialEnd),
+        row('Akhir kontrak', sub.contractEnd)),
+      h('div.progress', { style: 'margin-top:.9rem' },
+        h('span', { style: `width:${Math.round((sub.moduleCount / sub.totalModules) * 100)}%` })),
+      h('p.small.muted', { style: 'margin-top:.4rem', text: `${Math.round((sub.moduleCount / sub.totalModules) * 100)}% dari seluruh modul platform aktif untuk cabang ini.` })),
+  });
 }
 
 function userMenu() {
@@ -213,6 +257,7 @@ function renderShell() {
           h('button.menu-toggle.btn-ghost', { onclick: () => sidebar.classList.toggle('open'), text: '☰' }),
           crumb,
           h('div.spacer'),
+          subscriptionChip(),
           h('span.badge.small', { text: state.meta.app.organisation }),
           userMenu()),
         content)));
@@ -270,6 +315,14 @@ async function route() {
       if (!can(module.key, 'view')) {
         mount(shell.content, h('div.card', {}, h('h2', { text: 'Akses ditolak' }),
           h('p.muted', { text: `Peran ${state.user.role_name} tidak memiliki hak baca pada modul ini.` })));
+        return;
+      }
+      if (!entitled(module.key)) {
+        setCrumb(module.groupName, module.nameId, 'Di luar paket');
+        mount(shell.content, h('div.card', {},
+          h('h2', {}, h('span', { text: '🔒 ' }), module.nameId),
+          h('p.muted', { text: `Modul ini tidak termasuk paket ${state.subscription?.planName || 'langganan cabang Anda'}.` }),
+          h('button.btn-primary', { onclick: () => upgradeDialog(module), text: 'Lihat rincian modul & peningkatan paket' })));
         return;
       }
       setCrumb(module.groupName, module.nameId, parts[2] ? (parts[2] === 'new' ? 'Rekaman baru' : `#${parts[2]}`) : null);

@@ -7,10 +7,20 @@
  */
 import { Router } from 'express';
 import { all, get, run, nextCode, logAudit, tx } from './db.js';
-import { MODULE_BY_KEY, moduleOrThrow, MODULES } from './registry/index.js';
+import { MODULE_BY_KEY, moduleOrThrow, MODULES, REF_FIELD_TYPES } from './registry/index.js';
 import { applyComputed } from './compute.js';
 import { assertCan, can, scopeClause, canTransition } from './rbac.js';
+import { assertEntitled, isEntitled } from './tenancy.js';
 import { requireAuth } from './auth.js';
+
+/**
+ * Penjaga tunggal: kewenangan peran (RBAC) DAN hak paket langganan (SaaS).
+ * Keduanya harus terpenuhi sebelum sebuah operasi modul dijalankan.
+ */
+function guard(user, mod, action) {
+  assertCan(user, mod.key, action);
+  assertEntitled(user, mod, action);
+}
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const nowIso = () => new Date().toISOString();
@@ -29,16 +39,13 @@ function coerce(field, value) {
       return value === true || value === 1 || value === '1' || value === 'true' ? 1 : 0;
     case 'multiselect':
       return JSON.stringify(Array.isArray(value) ? value : [value]);
-    case 'region':
-    case 'branch':
-    case 'port':
-    case 'vessel':
-    case 'employee':
-    case 'asset':
-    case 'contractor':
-      { const id = Number(value); return Number.isInteger(id) ? id : null; }
-    default:
+    default: {
+      if (REF_FIELD_TYPES.includes(field.type)) {
+        const id = Number(value);
+        return Number.isInteger(id) ? id : null;
+      }
       return String(value);
+    }
   }
 }
 
@@ -203,7 +210,7 @@ engineRouter.get('/modules/:key/options', withModule, (req, res) => {
 
 engineRouter.get('/modules/:key/stats', withModule, (req, res) => {
   const mod = req.mod;
-  assertCan(req.user, mod.key, 'view');
+  guard(req.user, mod, 'view');
   const { whereSql, params } = buildList(mod, req.user, req.query);
   const byStatus = all(`SELECT status, COUNT(*) AS n FROM "${mod.table}" t WHERE ${whereSql} GROUP BY status`, params);
   const total = byStatus.reduce((a, r) => a + r.n, 0);
@@ -212,7 +219,7 @@ engineRouter.get('/modules/:key/stats', withModule, (req, res) => {
 
 engineRouter.get('/modules/:key/records', withModule, (req, res) => {
   const mod = req.mod;
-  assertCan(req.user, mod.key, 'view');
+  guard(req.user, mod, 'view');
   const { whereSql, params, sort, dir } = buildList(mod, req.user, req.query);
 
   const size = Math.min(Math.max(Number(req.query.size) || 25, 1), 200);
@@ -235,7 +242,7 @@ engineRouter.get('/modules/:key/records', withModule, (req, res) => {
 
 engineRouter.get('/modules/:key/export', withModule, (req, res) => {
   const mod = req.mod;
-  assertCan(req.user, mod.key, 'view');
+  guard(req.user, mod, 'view');
   const { whereSql, params, sort, dir } = buildList(mod, req.user, req.query);
   const rows = all(`SELECT t.* FROM "${mod.table}" t WHERE ${whereSql} ORDER BY t."${sort}" ${dir} LIMIT 10000`, params);
 
@@ -259,7 +266,7 @@ engineRouter.get('/modules/:key/export', withModule, (req, res) => {
 
 engineRouter.get('/modules/:key/records/:id', withModule, (req, res) => {
   const mod = req.mod;
-  assertCan(req.user, mod.key, 'view');
+  guard(req.user, mod, 'view');
   const row = get(`SELECT * FROM "${mod.table}" WHERE id = ? AND deleted_at IS NULL`, [Number(req.params.id)]);
   if (!row) return res.status(404).json({ error: 'Rekaman tidak ditemukan.' });
 
@@ -279,7 +286,7 @@ engineRouter.get('/modules/:key/records/:id', withModule, (req, res) => {
 engineRouter.post('/modules/:key/records', withModule, (req, res, next) => {
   try {
     const mod = req.mod;
-    assertCan(req.user, mod.key, 'create');
+    guard(req.user, mod, 'create');
     const { row, errors } = validate(mod, req.body || {});
     if (errors.length) return res.status(400).json({ error: 'Validasi gagal.', details: errors });
 
@@ -325,7 +332,7 @@ engineRouter.post('/modules/:key/records', withModule, (req, res, next) => {
 engineRouter.put('/modules/:key/records/:id', withModule, (req, res, next) => {
   try {
     const mod = req.mod;
-    assertCan(req.user, mod.key, 'edit');
+    guard(req.user, mod, 'edit');
     const id = Number(req.params.id);
     const current = get(`SELECT * FROM "${mod.table}" WHERE id = ? AND deleted_at IS NULL`, [id]);
     if (!current) return res.status(404).json({ error: 'Rekaman tidak ditemukan.' });
@@ -363,6 +370,7 @@ engineRouter.put('/modules/:key/records/:id', withModule, (req, res, next) => {
 engineRouter.post('/modules/:key/records/:id/status', withModule, (req, res, next) => {
   try {
     const mod = req.mod;
+    assertEntitled(req.user, mod, 'edit');
     const id = Number(req.params.id);
     const target = String(req.body?.status || '');
     const record = get(`SELECT * FROM "${mod.table}" WHERE id = ? AND deleted_at IS NULL`, [id]);
@@ -396,7 +404,7 @@ engineRouter.post('/modules/:key/records/:id/status', withModule, (req, res, nex
 engineRouter.delete('/modules/:key/records/:id', withModule, (req, res, next) => {
   try {
     const mod = req.mod;
-    assertCan(req.user, mod.key, 'delete');
+    guard(req.user, mod, 'delete');
     const id = Number(req.params.id);
     const record = get(`SELECT * FROM "${mod.table}" WHERE id = ? AND deleted_at IS NULL`, [id]);
     if (!record) return res.status(404).json({ error: 'Rekaman tidak ditemukan.' });
@@ -412,9 +420,9 @@ engineRouter.delete('/modules/:key/records/:id', withModule, (req, res, next) =>
 engineRouter.post('/modules/:key/records/:id/capa', withModule, (req, res, next) => {
   try {
     const mod = req.mod;
-    assertCan(req.user, mod.key, 'view');
-    assertCan(req.user, 'capa', 'create');
+    guard(req.user, mod, 'view');
     const capa = MODULE_BY_KEY.get('capa');
+    guard(req.user, capa, 'create');
     const id = Number(req.params.id);
     const source = get(`SELECT * FROM "${mod.table}" WHERE id = ? AND deleted_at IS NULL`, [id]);
     if (!source) return res.status(404).json({ error: 'Rekaman sumber tidak ditemukan.' });
@@ -462,7 +470,7 @@ engineRouter.post('/modules/:key/records/:id/capa', withModule, (req, res, next)
 
 engineRouter.post('/modules/:key/records/:id/comments', withModule, (req, res) => {
   const mod = req.mod;
-  assertCan(req.user, mod.key, 'view');
+  guard(req.user, mod, 'view');
   const body = String(req.body?.body || '').trim();
   if (!body) return res.status(400).json({ error: 'Isi catatan tidak boleh kosong.' });
   run('INSERT INTO comments (module_key, record_id, user_id, username, body, created_at) VALUES (?, ?, ?, ?, ?, ?)', [
@@ -473,7 +481,7 @@ engineRouter.post('/modules/:key/records/:id/comments', withModule, (req, res) =
 
 engineRouter.post('/modules/:key/records/:id/attachments', withModule, (req, res) => {
   const mod = req.mod;
-  assertCan(req.user, mod.key, 'edit');
+  guard(req.user, mod, 'edit');
   const { filename, mime, dataBase64 } = req.body || {};
   if (!filename || !dataBase64) return res.status(400).json({ error: 'Nama berkas dan konten wajib diisi.' });
   const buffer = Buffer.from(dataBase64, 'base64');
@@ -509,7 +517,7 @@ engineRouter.delete('/attachments/:id', (req, res) => {
 engineRouter.get('/my/tasks', (req, res) => {
   const tasks = [];
   for (const mod of MODULES) {
-    if (!can(req.user, mod.key, 'view')) continue;
+    if (!can(req.user, mod.key, 'view') || !isEntitled(req.user, mod.key)) continue;
     const terminal = new Set(mod.workflow.filter((s) => s.terminal).map((s) => s.key));
     const open = mod.statuses.filter((s) => !terminal.has(s));
     if (!open.length) continue;

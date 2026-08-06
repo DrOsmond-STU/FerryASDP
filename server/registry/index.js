@@ -15,6 +15,7 @@ import contractorSafety, { group as gContractor } from './contractor.js';
 import maritime, { group as gMaritime } from './maritime.js';
 import portSafety, { group as gPortSafety } from './portsafety.js';
 import continuity, { group as gContinuity } from './continuity.js';
+import saas, { group as gSaas } from './saas.js';
 
 const SOURCES = [
   [gGovernance, governance],
@@ -30,6 +31,7 @@ const SOURCES = [
   [gMaritime, maritime],
   [gPortSafety, portSafety],
   [gContinuity, continuity],
+  [gSaas, saas],
 ];
 
 /** Organisational columns injected into every module table. */
@@ -52,7 +54,11 @@ export const REF_TYPES = {
   employee: 'employee',
   asset: 'asset',
   contractor: 'contractor',
+  plan: 'subscription_plan',
+  subscription: 'subscription',
 };
+
+export const REF_FIELD_TYPES = Object.keys(REF_TYPES);
 
 export const GROUPS = [];
 export const MODULES = [];
@@ -74,6 +80,8 @@ for (const [group, modules] of SOURCES) {
       labelField: raw.labelField || (raw.fields.some((f) => f.name === 'title') ? 'title' : 'name'),
       orgFields: raw.orgFields || orgDefault.fields,
       orgRequired: raw.orgRequired || orgDefault.required,
+      platformOnly: !!raw.platformOnly,
+      tenantVisible: !!raw.tenantVisible,
       statuses: raw.workflow.map((s) => s.key),
       initialStatus: (raw.workflow.find((s) => s.initial) || raw.workflow[0]).key,
       master: !!raw.master,
@@ -130,6 +138,8 @@ export function catalogue() {
       codePrefix: m.codePrefix,
       scope: m.scope,
       master: m.master,
+      platformOnly: m.platformOnly,
+      tenantVisible: m.tenantVisible,
       singleton: !!m.singleton,
       capa: !!m.capa,
       standards: m.standards,

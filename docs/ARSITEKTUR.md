@@ -89,10 +89,30 @@ dikompilasi saat pemasangan. Mode WAL diaktifkan. Untuk produksi dengan banyak p
 bersamaan, lapisan `db.js` merupakan satu-satunya berkas yang perlu disesuaikan bila
 berpindah ke PostgreSQL — kueri dibangun dari metadata, bukan ditulis manual di 93 tempat.
 
-## 7. Pengujian
+## 7. Multi-tenancy & langganan
 
-`scripts/smoke-test.js` menjalankan 59 pemeriksaan terhadap server yang berjalan, meliputi
+Model bisnis: satu **cabang** = satu tenant. `server/tenancy.js` menyelesaikan tiga hal:
+
+1. **Siapa tenant-nya** - pengguna dengan `branch_id` terikat pada langganan cabang itu;
+   pengguna tanpa cabang (sysadmin, corporate QHSE, auditor) adalah pengelola platform.
+2. **Modul apa yang aktif** - paket menyimpan daftar *kelompok* modul, bukan daftar modul,
+   sehingga modul baru otomatis masuk ke paket yang relevan tanpa penyesuaian data.
+3. **Boleh menulis atau tidak** - hanya status `trial`, `active` dan `past_due` yang
+   memperbolehkan perubahan data; `suspended` dan `ended` menjadi hanya-baca.
+
+`assertEntitled()` dipanggil berdampingan dengan `assertCan()` pada setiap operasi modul
+melalui satu fungsi `guard()`. Penolakan paket memakai **HTTP 402**, dibedakan dari 403
+milik RBAC, agar antarmuka dapat menampilkannya sebagai ajakan peningkatan paket alih-alih
+kesalahan kewenangan.
+
+Kelompok `governance` selalu termasuk paket apa pun karena berisi data rujukan
+(pelabuhan, kapal, aset) yang dibutuhkan formulir modul lain.
+
+## 8. Pengujian
+
+`scripts/smoke-test.js` menjalankan 81 pemeriksaan terhadap server yang berjalan, meliputi
 autentikasi, batas RBAC per peran, keamanan tingkat baris, CRUD, perhitungan nilai turunan,
-transisi alur kerja, keterkaitan CAPA, seluruh dashboard, ekspor dan penghapusan. Pengujian
+transisi alur kerja, keterkaitan CAPA, seluruh dashboard, ekspor, penghapusan, endpoint
+publik halaman depan, pembatasan modul berdasarkan paket, dan dashboard komersial. Pengujian
 menggunakan sesi terpisah per peran sehingga benar-benar memverifikasi perilaku produksi,
 bukan sekadar memanggil fungsi internal.

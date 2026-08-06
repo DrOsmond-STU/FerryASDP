@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MODULES } from './registry/index.js';
+import { MODULES, REF_FIELD_TYPES } from './registry/index.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const DB_PATH = process.env.QHSE_DB || resolve(ROOT, 'data', 'qhse.db');
@@ -41,7 +41,7 @@ export function tx(fn) {
 export function sqlType(field) {
   if (field.type === 'number' || field.type === 'currency') return 'REAL';
   if (field.type === 'bool') return 'INTEGER';
-  if (['region', 'branch', 'port', 'vessel', 'employee', 'asset', 'contractor'].includes(field.type)) return 'INTEGER';
+  if (REF_FIELD_TYPES.includes(field.type)) return 'INTEGER';
   return 'TEXT';
 }
 

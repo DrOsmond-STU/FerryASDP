@@ -8,6 +8,7 @@ import { Router } from 'express';
 import { all, get } from './db.js';
 import { MODULE_BY_KEY, MODULES } from './registry/index.js';
 import { scopeClause, can } from './rbac.js';
+import { isEntitled, tenantOverview, tenantContext } from './tenancy.js';
 import { requireAuth } from './auth.js';
 import { EMISSION_FACTORS, round } from './compute.js';
 
@@ -31,7 +32,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 /** Base WHERE for a module honouring soft-delete and the user's scope. */
 function base(user, key) {
   const mod = MODULE_BY_KEY.get(key);
-  if (!mod || !can(user, key, 'view')) return null;
+  if (!mod || !can(user, key, 'view') || !isEntitled(user, key)) return null;
   const scope = scopeClause(user, mod);
   return {
     mod,
@@ -171,7 +172,7 @@ export function collectAlerts(user, { days = 60, limit = 200 } = {}) {
   const alerts = [];
 
   for (const mod of MODULES) {
-    if (!can(user, mod.key, 'view')) continue;
+    if (!can(user, mod.key, 'view') || !isEntitled(user, mod.key)) continue;
     const scope = scopeClause(user, mod);
     const where = `t.deleted_at IS NULL${scope.sql ? ` AND ${scope.sql}` : ''}`;
 
@@ -614,6 +615,109 @@ dashboardRouter.get('/contractor', (req, res) => {
       active: countWhere(req.user, 'contractor_permit', "t.status IN ('approved','active')"),
       total: countWhere(req.user, 'contractor_permit'),
     },
+  });
+});
+
+/* ------------------------------------------------- langganan (model SaaS) */
+
+/**
+ * Dashboard komersial: hanya untuk pengelola platform. Cabang tenant melihat
+ * ringkasan langganannya sendiri melalui /api/meta dan modul tagihan.
+ */
+dashboardRouter.get('/subscription', (req, res) => {
+  const ctx = tenantContext(req.user);
+  if (!ctx.platform) return res.status(403).json({ error: 'Dashboard komersial hanya untuk pengelola platform.' });
+
+  const subs = tenantOverview();
+  const active = subs.filter((s) => ['active', 'past_due'].includes(s.status));
+  const trial = subs.filter((s) => s.status === 'trial');
+  const churned = subs.filter((s) => s.status === 'ended');
+  const mrr = active.reduce((a, s) => a + (s.effective_fee || 0), 0);
+  const trialPipeline = trial.reduce((a, s) => a + (s.effective_fee || 0), 0);
+
+  const inv = base(req.user, 'invoice');
+  const invoiceRows = inv ? all(`SELECT t.* FROM "${inv.mod.table}" t WHERE ${inv.where}`, inv.params) : [];
+  const paid = invoiceRows.filter((i) => i.status === 'paid');
+  const outstanding = invoiceRows.filter((i) => ['issued', 'overdue'].includes(i.status));
+  const collected = paid.reduce((a, i) => a + (i.total || 0), 0);
+
+  const aging = [
+    { label: 'Belum jatuh tempo', value: outstanding.filter((i) => (i.days_overdue || 0) === 0).reduce((a, i) => a + i.total, 0) },
+    { label: '1–30 hari', value: outstanding.filter((i) => i.days_overdue > 0 && i.days_overdue <= 30).reduce((a, i) => a + i.total, 0) },
+    { label: '31–60 hari', value: outstanding.filter((i) => i.days_overdue > 30 && i.days_overdue <= 60).reduce((a, i) => a + i.total, 0) },
+    { label: '> 60 hari', value: outstanding.filter((i) => i.days_overdue > 60).reduce((a, i) => a + i.total, 0) },
+  ];
+
+  const revenueByMonth = monthsBack(12).map((m) => ({
+    label: m,
+    value: round(paid.filter((i) => i.period === m).reduce((a, i) => a + i.total, 0), 0),
+  }));
+
+  const byPlan = new Map();
+  for (const s of active) {
+    const entry = byPlan.get(s.plan_name) || { label: s.plan_name || 'Tanpa paket', value: 0, mrr: 0 };
+    entry.value += 1;
+    entry.mrr += s.effective_fee || 0;
+    byPlan.set(s.plan_name, entry);
+  }
+
+  const usage = base(req.user, 'subscription_usage');
+  const adoption = usage
+    ? all(
+      `SELECT t.branch_id, t.period, t.active_users, t.adoption_score, t.adoption_status, b.name AS branch_name
+         FROM "${usage.mod.table}" t LEFT JOIN m_branch b ON b.id = t.branch_id
+        WHERE ${usage.where} ORDER BY t.period DESC LIMIT 60`,
+      usage.params,
+    )
+    : [];
+
+  const leads = base(req.user, 'trial_request');
+  const leadRows = leads ? all(`SELECT t.* FROM "${leads.mod.table}" t WHERE ${leads.where} ORDER BY t.id DESC`, leads.params) : [];
+
+  const totalTenants = active.length + trial.length;
+  res.json({
+    year: yearNow(),
+    cards: {
+      mrr: round(mrr, 0),
+      arr: round(mrr * 12, 0),
+      activeTenants: active.length,
+      trialTenants: trial.length,
+      churnedTenants: churned.length,
+      churnRate: subs.length ? round((churned.length / subs.length) * 100, 1) : 0,
+      arpa: totalTenants ? round(mrr / Math.max(1, active.length), 0) : 0,
+      trialPipeline: round(trialPipeline, 0),
+      collected: round(collected, 0),
+      outstanding: round(outstanding.reduce((a, i) => a + i.total, 0), 0),
+      overdueCount: outstanding.filter((i) => i.days_overdue > 0).length,
+      newLeads: leadRows.filter((l) => l.status === 'new').length,
+    },
+    revenueByMonth,
+    byPlan: [...byPlan.values()],
+    byStatus: ['trial', 'active', 'past_due', 'suspended', 'ended'].map((s) => ({
+      label: { trial: 'Uji Coba', active: 'Aktif', past_due: 'Menunggak', suspended: 'Ditangguhkan', ended: 'Berhenti' }[s],
+      value: subs.filter((x) => x.status === s).length,
+    })).filter((x) => x.value > 0),
+    aging,
+    tenants: subs.map((s) => ({
+      id: s.id,
+      code: s.code,
+      branch: s.branch_name,
+      plan: s.plan_name,
+      status: s.status,
+      fee: s.effective_fee,
+      seats: s.user_seats,
+      activeUsers: s.active_users,
+      utilisation: s.seat_utilization,
+      nextBilling: s.next_billing_date,
+      health: s.health_status,
+      nps: s.nps_score,
+    })),
+    adoption,
+    leads: leadRows.slice(0, 20),
+    leadFunnel: ['new', 'contacted', 'demo', 'trial', 'converted', 'lost'].map((s) => ({
+      label: { new: 'Permintaan Baru', contacted: 'Dihubungi', demo: 'Demo', trial: 'Uji Coba', converted: 'Berlangganan', lost: 'Tidak Lanjut' }[s],
+      value: leadRows.filter((l) => l.status === s).length,
+    })),
   });
 });
 

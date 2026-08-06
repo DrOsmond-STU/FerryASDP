@@ -59,6 +59,16 @@ export function defaultPermissions(roleKey, mod) {
   const rw = { view: 1, create: 1, edit: 1, approve: 0, delete: 0 };
   const full = { view: 1, create: 1, edit: 1, approve: 1, delete: 1 };
 
+  // Modul komersial (langganan & penagihan) dikelola pengelola platform.
+  // Peran cabang hanya boleh membaca tagihan dan pemakaian miliknya sendiri.
+  if (mod.group === 'saas') {
+    if (roleKey === 'sysadmin') return full;
+    if (roleKey === 'corporate_qhse') return { ...full, delete: 0 };
+    if (roleKey === 'auditor') return mod.platformOnly ? none : ro;
+    if (['contractor', 'operator'].includes(roleKey)) return none;
+    return mod.platformOnly ? none : ro;
+  }
+
   switch (roleKey) {
     case 'sysadmin':
       return full;
@@ -183,6 +193,13 @@ export function scopeClause(user, mod, alias = 't') {
   if (scope === 'global' || mod.master) return { sql: '', params: [] };
 
   const ownSql = `(${alias}.created_by = ? OR ${alias}.owner_id = ?)`;
+
+  // Rekaman yang memang milik cabang (langganan, tagihan, pemakaian) dilihat
+  // per cabang, walaupun cakupan peran penggunanya lebih sempit dari cabang.
+  if (mod.scope === 'branch' && user.branch_id) {
+    return { sql: `${alias}.branch_id = ?`, params: [user.branch_id] };
+  }
+
   switch (scope) {
     case 'region':
       return user.region_id

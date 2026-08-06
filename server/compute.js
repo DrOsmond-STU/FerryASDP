@@ -200,6 +200,45 @@ const COMPUTED = {
     return n(r.gm_value) >= min ? 1 : 0;
   },
 
+  /* ------------------------------------------------------- langganan SaaS */
+
+  annualSaving: (r) => {
+    if (!has(r.monthly_price) || !has(r.annual_price) || n(r.monthly_price) === 0) return null;
+    const full = n(r.monthly_price) * 12;
+    return round(((full - n(r.annual_price)) / full) * 100, 1);
+  },
+  effectiveFee: (r) => {
+    if (!has(r.list_price)) return null;
+    return round(n(r.list_price) * (1 - n(r.discount_percent) / 100), 2);
+  },
+  seatUtilization: (r) => pct(r.active_users, r.user_seats),
+  usageSeatUtilization: (r) => pct(r.active_users, r.licensed_users),
+
+  // PPN 11% sesuai UU No. 7 Tahun 2021 (HPP), dihitung setelah diskon.
+  invoiceTax: (r) => round((n(r.subtotal) - n(r.discount)) * 0.11, 2),
+  invoiceTotal: (r) => round((n(r.subtotal) - n(r.discount)) * 1.11, 2),
+  daysOverdue: (r) => {
+    if (!has(r.due_date)) return null;
+    if (has(r.paid_date)) return Math.max(0, daysBetween(r.due_date, r.paid_date));
+    return Math.max(0, daysBetween(r.due_date, today()));
+  },
+
+  adoptionScore: (r) => {
+    const seat = pct(r.active_users, r.licensed_users);
+    const modules = pct(r.modules_used, r.modules_available);
+    const parts = [seat, modules].filter((v) => v !== null);
+    if (!parts.length) return null;
+    return round(parts.reduce((a, b) => a + b, 0) / parts.length, 1);
+  },
+  adoptionStatus: (r) => {
+    const score = COMPUTED.adoptionScore(r);
+    if (score === null) return null;
+    if (score >= 75) return 'Sangat Baik';
+    if (score >= 55) return 'Baik';
+    if (score >= 35) return 'Perlu Pendampingan';
+    return 'Rendah';
+  },
+
   energyReduction: (r) => {
     if (!has(r.baseline_consumption) || n(r.baseline_consumption) === 0) return null;
     return round(((n(r.baseline_consumption) - n(r.actual_consumption)) / n(r.baseline_consumption)) * 100, 2);

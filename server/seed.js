@@ -233,6 +233,9 @@ const USERS = [
   { username: 'kontraktor', full_name: 'Rina Kartika', role_key: 'contractor', position: 'HSE Officer PT Bahari Teknik', region: 'Regional I - Sumatera', branch: 'Cabang Merak', port: 'Pelabuhan Merak' },
   { username: 'auditor', full_name: 'Tri Handoko', role_key: 'auditor', position: 'Lead Auditor SMT' },
   { username: 'qhse.ketapang', full_name: 'Made Suardana', role_key: 'port_manager', position: 'General Manager Pelabuhan Ketapang', region: 'Regional II - Jawa & Bali', branch: 'Cabang Ketapang', port: 'Pelabuhan Ketapang' },
+  // Cabang Bajoe masih dalam masa uji coba paket Esensial - memperlihatkan
+  // bagaimana modul di luar paket terkunci bagi pengguna tenant.
+  { username: 'qhse.bajoe', full_name: 'Andi Mappaseng', role_key: 'port_manager', position: 'General Manager Pelabuhan Bajoe', region: 'Regional III - Indonesia Timur', branch: 'Cabang Bajoe', port: 'Pelabuhan Bajoe' },
 ];
 
 const userIds = {};
@@ -2510,6 +2513,249 @@ if (!hasRows('external_regulation')) {
       status_regulation: 'Berlaku',
       summary: `${title} menjadi acuan pemenuhan persyaratan pada bidang ${domain.toLowerCase()}.`,
     }, { status: 'active', org: CORPORATE });
+  });
+}
+
+/* ------------------------------------------- langganan SaaS per cabang */
+
+console.log('  Memuat paket langganan & data komersial ...');
+
+const PLANS = [
+  {
+    name: 'Esensial',
+    tagline: 'Fondasi QHSE untuk cabang yang baru memulai digitalisasi.',
+    sort_order: 1,
+    monthly_price: 7_500_000,
+    annual_price: 75_000_000,
+    max_users: 25,
+    storage_gb: 50,
+    included_groups: ['governance', 'document', 'quality', 'safety', 'audit'],
+    support_level: 'Email (hari kerja)',
+    sla_uptime: '99,0%',
+    onboarding_included: true,
+    training_included: false,
+    api_access: false,
+    dedicated_report: false,
+    recommended: false,
+    highlights: ['Dashboard eksekutif & ESG', 'Jejak audit menyeluruh', 'Peringatan kedaluwarsa sertifikat', 'Ekspor laporan regulator'],
+    description: 'Mencakup pengendalian dokumen, sasaran mutu, pelaporan insiden dan K3 (ISO 9001 & ISO 45001), serta audit internal — cukup untuk memenuhi kewajiban dasar SMK3 PP 50/2012.',
+  },
+  {
+    name: 'Profesional',
+    tagline: 'QHSE terintegrasi penuh untuk cabang dengan operasi pelabuhan aktif.',
+    sort_order: 2,
+    monthly_price: 14_500_000,
+    annual_price: 145_000_000,
+    max_users: 75,
+    storage_gb: 200,
+    included_groups: ['governance', 'document', 'quality', 'health', 'safety', 'environment', 'audit', 'risk', 'assetsafety', 'contractorsafety'],
+    support_level: 'Email & Telepon (hari kerja)',
+    sla_uptime: '99,5%',
+    onboarding_included: true,
+    training_included: true,
+    api_access: false,
+    dedicated_report: false,
+    recommended: true,
+    highlights: ['Peta panas risiko ISO 31000', 'Perhitungan jejak karbon otomatis', 'Kelola kontraktor (CSMS)', 'Peringatan kedaluwarsa sertifikat', 'Dashboard eksekutif & ESG'],
+    description: 'Menambahkan kesehatan kerja, lingkungan & energi (ISO 14001 & ISO 50001), manajemen risiko ISO 31000, keselamatan aset ISO 55001 dan pengelolaan kontraktor — pilihan bagi mayoritas cabang.',
+  },
+  {
+    name: 'Maritim Enterprise',
+    tagline: 'Seluruh modul, termasuk keselamatan pelayaran dan pelabuhan penyeberangan.',
+    sort_order: 3,
+    monthly_price: 24_000_000,
+    annual_price: 240_000_000,
+    max_users: 0,
+    storage_gb: 1000,
+    included_groups: ['governance', 'document', 'quality', 'health', 'safety', 'environment', 'audit', 'risk', 'assetsafety', 'contractorsafety', 'maritime', 'portsafety', 'continuity'],
+    support_level: 'Prioritas 24/7 dengan Account Manager',
+    sla_uptime: '99,9%',
+    onboarding_included: true,
+    training_included: true,
+    api_access: true,
+    dedicated_report: true,
+    recommended: false,
+    highlights: ['Checklist pra-berlayar digital', 'Keselamatan muat kendaraan', 'Manajemen insiden pelayaran', 'Manajemen kepadatan angkutan puncak', 'Kelangsungan usaha (BCM)', 'Perhitungan jejak karbon otomatis'],
+    description: 'Paket lengkap 98 modul: keselamatan kapal dan pelabuhan penyeberangan, barang berbahaya IMDG, ISPS, kelangsungan usaha ISO 22301 dan keamanan informasi ISO 27001, dengan integrasi API dan dukungan 24/7.',
+  },
+];
+
+const planIds = {};
+if (!hasRows('subscription_plan')) {
+  for (const plan of PLANS) {
+    planIds[plan.name] = insert('subscription_plan', {
+      ...plan,
+      is_public: true,
+      module_count: plan.included_groups.length,
+    }, { status: 'active', org: CORPORATE });
+  }
+  // Jumlah modul aktif per paket dihitung dari registry, bukan angka manual.
+  const { GROUPS } = await import('./registry/index.js');
+  for (const plan of PLANS) {
+    const count = plan.included_groups.reduce(
+      (a, key) => a + (GROUPS.find((g) => g.key === key)?.modules.length || 0), 0,
+    );
+    run('UPDATE m_subscription_plan SET module_count = ? WHERE id = ?', [count, planIds[plan.name]]);
+  }
+} else {
+  for (const row of all('SELECT id, name FROM m_subscription_plan')) planIds[row.name] = row.id;
+}
+
+/**
+ * Portofolio langganan cabang. Sengaja dibuat beragam agar dashboard komersial
+ * memperlihatkan kondisi nyata: aktif, menunggak, uji coba, dan berhenti.
+ */
+const SUBSCRIPTIONS = [
+  { branch: 'Cabang Merak', plan: 'Maritim Enterprise', status: 'active', months: 14, seats: 120, active_users: 96, discount: 0, cycle: 'Tahunan', health: 'Sehat', nps: 62 },
+  { branch: 'Cabang Bakauheni', plan: 'Maritim Enterprise', status: 'active', months: 12, seats: 110, active_users: 88, discount: 5, cycle: 'Tahunan', health: 'Sehat', nps: 58 },
+  { branch: 'Cabang Ketapang', plan: 'Profesional', status: 'active', months: 9, seats: 75, active_users: 51, discount: 0, cycle: 'Bulanan', health: 'Sehat', nps: 45 },
+  { branch: 'Cabang Gilimanuk', plan: 'Profesional', status: 'past_due', months: 7, seats: 75, active_users: 38, discount: 0, cycle: 'Bulanan', health: 'Perlu Perhatian', nps: 28 },
+  { branch: 'Cabang Bajoe', plan: 'Esensial', status: 'trial', months: 1, seats: 25, active_users: 14, discount: 0, cycle: 'Bulanan', health: 'Perlu Perhatian', nps: null },
+];
+
+const subscriptionIds = {};
+if (!hasRows('subscription')) {
+  for (const s of SUBSCRIPTIONS) {
+    const plan = PLANS.find((p) => p.name === s.plan);
+    const org = { region_id: null, branch_id: branchIds[s.branch], owner_id: userIds['corporate.qhse'] };
+    org.region_id = get('SELECT region_id FROM m_branch WHERE id = ?', [org.branch_id])?.region_id ?? null;
+    const start = daysAgo(s.months * 30);
+    subscriptionIds[s.branch] = insert('subscription', {
+      plan: planIds[s.plan],
+      start_date: start,
+      trial_end: s.status === 'trial' ? daysAhead(randInt(3, 21)) : null,
+      billing_cycle: s.cycle,
+      list_price: plan.monthly_price,
+      discount_percent: s.discount,
+      user_seats: s.seats,
+      active_users: s.active_users,
+      next_billing_date: s.status === 'trial' ? daysAhead(randInt(3, 21)) : daysAhead(randInt(2, 28)),
+      contract_end: daysAhead(randInt(60, 400)),
+      auto_renew: s.status !== 'trial',
+      po_number: `PO/${randInt(100, 999)}/ASDP/${new Date().getFullYear()}`,
+      account_manager: 'Dwi Rahmawati',
+      onboarding_status: s.status === 'trial' ? 'Migrasi Data' : 'Berjalan Penuh',
+      go_live_date: s.status === 'trial' ? null : daysAgo(s.months * 30 - 21),
+      health_status: s.health,
+      nps_score: s.nps,
+      notes: s.status === 'past_due'
+        ? 'Tagihan dua bulan terakhir belum dibayar; pengingat sudah dikirim ke bagian keuangan cabang.'
+        : 'Adopsi berjalan sesuai rencana implementasi.',
+    }, { status: s.status, org, createdAt: `${start}T08:00:00.000Z` });
+  }
+}
+
+if (!hasRows('invoice')) {
+  for (const s of SUBSCRIPTIONS) {
+    if (s.status === 'trial') continue;
+    const plan = PLANS.find((p) => p.name === s.plan);
+    const fee = plan.monthly_price * (1 - s.discount / 100);
+    const branchId = branchIds[s.branch];
+    const regionId = get('SELECT region_id FROM m_branch WHERE id = ?', [branchId])?.region_id ?? null;
+    const months = Math.min(s.months, 12);
+
+    for (let back = months - 1; back >= 0; back--) {
+      const period = monthKey(back);
+      const issue = `${period}-01`;
+      const due = `${period}-15`;
+      // Dua periode terakhir cabang menunggak sengaja dibiarkan belum lunas.
+      const unpaid = s.status === 'past_due' && back <= 1;
+      const paidDate = unpaid ? null : `${period}-${String(randInt(5, 20)).padStart(2, '0')}`;
+      const status = unpaid ? (back === 1 ? 'overdue' : 'issued') : 'paid';
+
+      insert('invoice', {
+        invoice_number: `INV/${period.replace('-', '')}/${s.branch.split(' ')[1].toUpperCase().slice(0, 3)}/${randInt(100, 999)}`,
+        subscription_ref: subscriptionIds[s.branch] ?? null,
+        period,
+        issue_date: issue,
+        due_date: due,
+        plan_name: s.plan,
+        quantity_months: 1,
+        subtotal: fee,
+        discount: 0,
+        paid_date: paidDate,
+        paid_amount: paidDate ? Math.round(fee * 1.11) : null,
+        payment_method: paidDate ? pick(['Transfer Bank', 'Virtual Account', 'Potong Anggaran Cabang'], back) : null,
+        payment_ref: paidDate ? `TRX${randInt(100000, 999999)}` : null,
+        tax_invoice_number: `010.000-${new Date().getFullYear() % 100}.${randInt(10000000, 99999999)}`,
+        notes: unpaid ? 'Menunggu konfirmasi pembayaran dari bagian keuangan cabang.' : null,
+      }, {
+        status,
+        org: { region_id: regionId, branch_id: branchId, owner_id: userIds['corporate.qhse'] },
+        createdAt: `${issue}T08:00:00.000Z`,
+      });
+    }
+  }
+}
+
+if (!hasRows('subscription_usage')) {
+  const { GROUPS } = await import('./registry/index.js');
+  for (const s of SUBSCRIPTIONS) {
+    const plan = PLANS.find((p) => p.name === s.plan);
+    const available = plan.included_groups.reduce(
+      (a, key) => a + (GROUPS.find((g) => g.key === key)?.modules.length || 0), 0,
+    );
+    const branchId = branchIds[s.branch];
+    const regionId = get('SELECT region_id FROM m_branch WHERE id = ?', [branchId])?.region_id ?? null;
+    const months = Math.min(s.months, 6);
+
+    for (let back = months - 1; back >= 0; back--) {
+      // Adopsi tumbuh seiring waktu; cabang menunggak sengaja dibuat stagnan.
+      const growth = s.status === 'past_due' ? 0.45 : 0.55 + (months - back) * 0.06;
+      insert('subscription_usage', {
+        period: monthKey(back),
+        licensed_users: s.seats,
+        active_users: Math.round(s.active_users * Math.min(1, growth + rnd() * 0.1)),
+        logins: randInt(300, 4200),
+        records_created: randInt(120, 2600),
+        modules_used: Math.round(available * Math.min(0.95, growth)),
+        modules_available: available,
+        storage_mb: randInt(400, 12000),
+        top_module: pick(['Kecelakaan Kerja / Insiden', 'Checklist Keselamatan Sebelum Berlayar', 'Inspeksi Umum K3L', 'Patroli Keselamatan Pelabuhan'], back),
+        support_tickets: randInt(0, 9),
+        notes: back === 0 ? 'Sesi pendampingan bulanan terjadwal bersama tim QHSE cabang.' : null,
+      }, {
+        status: 'validated',
+        org: { region_id: regionId, branch_id: branchId, owner_id: userIds['corporate.qhse'] },
+        createdAt: `${monthKey(back)}-28T08:00:00.000Z`,
+      });
+    }
+  }
+}
+
+if (!hasRows('trial_request')) {
+  const LEADS = [
+    ['Cabang Lembar', 'Putu Ardana', 'Manager Operasi', 'Profesional', 'demo'],
+    ['Cabang Padangbai', 'Komang Sari', 'Kepala QHSE', 'Maritim Enterprise', 'contacted'],
+    ['Cabang Kayangan', 'Lalu Firdaus', 'Supervisor K3', 'Esensial', 'new'],
+    ['Cabang Ujung Kamal', 'Slamet Widodo', 'Kepala Cabang', 'Profesional', 'trial'],
+    ['Cabang Sibolga', 'Marlina Hutapea', 'Staf QHSE', 'Esensial', 'new'],
+    ['Cabang Kariangau', 'Rahmat Hidayat', 'Manager Teknik', 'Maritim Enterprise', 'converted'],
+    ['Cabang Tanjung Kalian', 'Dedi Kurniawan', 'Kepala Operasi', 'Profesional', 'lost'],
+  ];
+  LEADS.forEach(([organisation, contact, position, plan, status], i) => {
+    insert('trial_request', {
+      organisation,
+      contact_name: contact,
+      position,
+      email: `${contact.split(' ')[0].toLowerCase()}@asdp.id`,
+      phone: `08${randInt(1000000000, 9999999999)}`,
+      plan_interest: plan,
+      employee_count: randInt(15, 90),
+      priority_area: pick([
+        'Keselamatan Pelayaran & Checklist Kapal', 'Keselamatan Kerja (K3) & SMK3',
+        'Pengelolaan Lingkungan & Limbah B3', 'Manajemen Risiko & Audit', 'Pelaporan ESG & Keberlanjutan',
+      ], i),
+      message: 'Kami membutuhkan sistem QHSE terintegrasi untuk memenuhi audit SMK3 dan pelaporan lingkungan semesteran.',
+      source: pick(['Halaman Depan Aplikasi', 'Rapat Koordinasi', 'Sosialisasi Kantor Pusat', 'Rujukan Cabang Lain'], i),
+      request_date: daysAgo(randInt(5, 120)),
+      assigned_to: 'Dwi Rahmawati',
+      follow_up_date: daysAhead(randInt(-10, 30)),
+      qualification: pick(['Tinggi', 'Sedang', 'Kritis', 'Rendah'], i),
+      outcome_note: status === 'converted'
+        ? 'Berlangganan paket Maritim Enterprise mulai periode berikutnya.'
+        : status === 'lost' ? 'Anggaran cabang belum tersedia pada tahun berjalan.' : null,
+    }, { status, org: CORPORATE });
   });
 }
 

@@ -4,8 +4,13 @@
 
 Satu platform digital yang mengelola Quality, Health, Occupational Safety, Environment,
 Maritime Safety, Port Safety, Operational Risk, Asset Safety, Contractor Safety,
-Compliance, Audit dan Management Review — **93 modul fungsional dalam 13 kelompok**,
+Compliance, Audit dan Management Review — **98 modul fungsional dalam 14 kelompok**,
 terintegrasi dengan standar ISO dan regulasi Indonesia yang berlaku.
+
+Dijalankan sebagai **layanan berlangganan (SaaS)**: setiap cabang ASDP adalah satu
+tenant yang berlangganan bulanan, dengan paket yang menentukan modul aktif dan
+kuota pengguna. Halaman depan berisi prolog produk, rincian paket dan formulir
+permintaan uji coba.
 
 ---
 
@@ -13,9 +18,9 @@ terintegrasi dengan standar ISO dan regulasi Indonesia yang berlaku.
 
 ```bash
 npm install          # hanya memerlukan Express; basis data memakai node:sqlite bawaan Node 22
-npm run seed         # memuat master data, 11 akun demo dan ±1.350 rekaman contoh
+npm run seed         # memuat master data, 12 akun demo dan ±1.500 rekaman contoh
 npm start            # http://localhost:3000
-npm run check        # 59 pemeriksaan end-to-end terhadap server yang sedang berjalan
+npm run check        # 81 pemeriksaan end-to-end terhadap server yang sedang berjalan
 ```
 
 Prasyarat: **Node.js 22.5 atau lebih baru** (menggunakan modul inti `node:sqlite`,
@@ -40,9 +45,53 @@ Seluruh akun memakai kata sandi yang sama: `Asdp#2026Qhse`
 | 8 | `operator` | Petugas/Operator | Rekaman sendiri |
 | 9 | `kontraktor` | Kontraktor | Modul terbatas, rekaman sendiri |
 | 10 | `auditor` | Auditor Internal & Eksternal | Nasional, hanya baca |
+| 4 | `qhse.ketapang` | Port Manager (tenant paket **Profesional**) | Pelabuhan Ketapang |
+| 4 | `qhse.bajoe` | Port Manager (tenant **masa uji coba**) | Pelabuhan Bajoe |
 
 Masuk sebagai peran berbeda memperlihatkan bagaimana RBAC dan row-level security bekerja:
-angka pada dashboard yang sama akan berbeda mengikuti cakupan pengguna.
+angka pada dashboard yang sama akan berbeda mengikuti cakupan pengguna. Masuk sebagai
+`qhse.ketapang` memperlihatkan modul di luar paket yang terkunci, sementara
+`corporate.qhse` bertindak sebagai pengelola platform dengan dashboard komersial.
+
+---
+
+## Model bisnis SaaS
+
+Setiap **cabang** adalah satu tenant berlangganan. Paket menentukan kelompok modul
+yang aktif dan kuota pengguna; status langganan menentukan apakah cabang masih boleh
+menulis data.
+
+| Paket | Harga per cabang/bulan | Modul aktif | Pengguna | Cakupan |
+|---|---|---|---|---|
+| **Esensial** | Rp 7.500.000 | 39 | 25 | Governance, dokumen, mutu, K3, audit |
+| **Profesional** | Rp 14.500.000 | 69 | 75 | + kesehatan, lingkungan & energi, risiko, aset, kontraktor |
+| **Maritim Enterprise** | Rp 24.000.000 | 93 | tanpa batas | + keselamatan pelayaran, port safety, kelangsungan usaha & keamanan informasi |
+
+Berlangganan tahunan setara sepuluh bulan (hemat ±16,7%). Harga belum termasuk PPN 11%.
+Angka di atas adalah **ilustrasi rancangan**, bukan tarif resmi.
+
+Penegakan paket berlapis dan seluruhnya di sisi server:
+
+- Modul di luar paket ditolak dengan **HTTP 402** beserta pesan yang menyebut nama paket
+  — dibedakan dari 403 (kewenangan peran) agar dapat ditangani sebagai jalur peningkatan.
+- Modul komersial (paket, prospek) hanya untuk pengelola platform; tagihan dan pemakaian
+  tetap dapat dilihat cabang pemiliknya.
+- Langganan berstatus *Ditangguhkan* atau *Berhenti* membuat cabang menjadi hanya-baca.
+- Antarmuka menampilkan modul terkunci dengan ikon gembok beserta ajakan peningkatan,
+  bukan menyembunyikannya — sekaligus menjadi jalur penjualan.
+
+Modul komersial (kelompok O): paket langganan, langganan cabang, tagihan, pemakaian,
+dan permintaan uji coba. Dashboard **Langganan & Pendapatan** menghitung MRR, ARR, ARPA,
+churn, umur piutang, adopsi pemakaian per cabang dan corong prospek.
+
+### Halaman depan
+
+Halaman sebelum masuk berisi prolog pemasaran: alasan cabang membutuhkan QHSE
+terintegrasi, enam pilar keunggulan, cakupan 13 kelompok modul beserta standar dan
+regulasi yang dipenuhi, tabel paket yang **diambil langsung dari basis data** (sehingga
+selalu sama dengan yang ditagihkan), tanya jawab, dan formulir permintaan uji coba yang
+langsung menjadi rekaman prospek di modul Permintaan Uji Coba. Endpoint publik dibatasi
+laju 5 permintaan per jam per alamat IP.
 
 ---
 
@@ -54,13 +103,15 @@ alur kerja, hak akses dan antarmuka dari deklarasi tersebut.
 
 ```
 server/
-  registry/          deklarasi 93 modul (defs.js berisi helper & preset workflow)
+  registry/          deklarasi 98 modul (defs.js berisi helper & preset workflow)
   db.js              node:sqlite — skema dibangkitkan dari registry, migrasi aditif
   rbac.js            10 level peran, matriks hak akses, klausa row-level security
   auth.js            scrypt, sesi httpOnly, penguncian akun, kebijakan kata sandi
   compute.js         seluruh nilai turunan (LTIFR, CO2e, matriks risiko, CSMS, GM …)
   engine.js          REST generik: CRUD, workflow, komentar, lampiran, CAPA, ekspor CSV
-  dashboards.js      12 dashboard analitik, dihitung melalui filter akses yang sama
+  dashboards.js      13 dashboard analitik, dihitung melalui filter akses yang sama
+  tenancy.js         resolusi tenant, hak paket langganan, ringkasan berlangganan
+  public.js          endpoint publik halaman depan (paket & permintaan uji coba)
   admin.js           pengguna, matriks hak akses, jejak audit, informasi sistem
   index.js           bootstrap Express, header keamanan, penyajian antarmuka
   seed.js            master data + rekaman contoh yang realistis
@@ -68,7 +119,8 @@ server/
 public/
   js/api.js          klien REST + cache metadata
   js/module.js       daftar, formulir dan detail rekaman — generik untuk semua modul
-  js/dashboards.js   12 tampilan dashboard
+  js/dashboards.js   13 tampilan dashboard
+  js/landing.js      halaman depan pemasaran + panel masuk
   js/charts.js       grafik SVG tanpa pustaka pihak ketiga
   js/admin.js        layar administrasi
   css/app.css        tema terang & gelap
@@ -79,7 +131,7 @@ Tabel, endpoint, validasi, hak akses, formulir dan tampilan daftar mengikuti oto
 
 ### Mengapa metadata-driven
 
-93 modul dengan rata-rata 20 isian berarti sekitar 1.900 definisi field. Menulis
+98 modul dengan rata-rata 20 isian berarti sekitar 2.000 definisi field. Menulis
 CRUD manual untuk masing-masing modul akan menghasilkan ribuan baris kode berulang
 yang mustahil dijaga konsistensinya. Dengan pendekatan ini, aturan seperti
 "setiap perubahan tercatat pada jejak audit" atau "nilai risiko tidak boleh dikirim
@@ -148,6 +200,7 @@ MARPOL Annex I/IV/V/VI, STCW (jam istirahat awak kapal).
 | **K. Maritime Safety** | 15 | Inspeksi keselamatan kapal, checklist pra-berlayar, SPB, mooring, ramp door, muat kendaraan, keselamatan penumpang, pengikatan muatan, barang berbahaya, LSA, FFA, stabilitas, cuaca, insiden pelayaran, inspeksi fasilitas pelabuhan |
 | **M. Port Safety (ASDP)** | 4 | Patroli keselamatan pelabuhan, manajemen kepadatan & angkutan puncak, keamanan ISPS, kebersihan & lingkungan pelabuhan |
 | **N. Continuity, Energy & Security** | 5 | Business Impact Analysis, rencana kelangsungan usaha, tinjauan energi, keamanan informasi, pelatihan & kompetensi |
+| **O. Langganan & Penagihan** | 5 | Paket langganan, langganan cabang, tagihan, pemakaian, permintaan uji coba |
 
 ### Yang membedakan dari QHSE manufaktur
 

@@ -36,6 +36,8 @@ export const state = {
   meta: null,
   user: null,
   permissions: {},
+  subscription: null,
+  entitled: new Set(),
   moduleByKey: new Map(),
   groups: [],
   optionCache: new Map(),
@@ -46,6 +48,8 @@ export async function loadMeta() {
   state.meta = meta;
   state.user = meta.user;
   state.permissions = meta.permissions || {};
+  state.subscription = meta.subscription || null;
+  state.entitled = new Set(meta.subscription?.entitledModules || meta.modules.map((m) => m.key));
   state.groups = meta.groups;
   state.moduleByKey = new Map(meta.modules.map((m) => [m.key, m]));
   state.optionCache.clear();
@@ -55,6 +59,12 @@ export async function loadMeta() {
 export const mod = (key) => state.moduleByKey.get(key);
 
 export const can = (moduleKey, action) => !!state.permissions?.[moduleKey]?.[action];
+
+/** Termasuk dalam paket langganan cabang? */
+export const entitled = (moduleKey) => state.entitled.has(moduleKey);
+
+/** Boleh dilihat pada navigasi: punya hak baca DAN termasuk paket. */
+export const visible = (moduleKey) => can(moduleKey, 'view');
 
 /** Reference dropdown values, cached because forms request them repeatedly. */
 export async function options(moduleKey) {
