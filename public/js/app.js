@@ -9,9 +9,13 @@ import { renderAdmin, ADMIN_PAGES } from './admin.js';
 
 const root = document.getElementById('app');
 
+/** The boot placeholder carries loading-only styling; drop it on first render. */
+const ready = () => root.classList.remove('app-loading');
+
 /* ------------------------------------------------------------------ login */
 
 function renderLogin(message) {
+  ready();
   document.title = 'Masuk — QHSE ASDP';
   const error = h('div.alert.err', { class: message ? '' : 'hidden', text: message || '' });
   const username = h('input', { name: 'username', autocomplete: 'username', required: true, placeholder: 'mis. corporate.qhse' });
@@ -187,6 +191,7 @@ async function logout() {
 }
 
 function renderShell() {
+  ready();
   const { nav, search } = navigation();
   const sidebar = h('aside.sidebar', {},
     h('div.sidebar-brand', {},
