@@ -248,6 +248,8 @@ dashboardRouter.get('/executive', (req, res) => {
       complaints: countWhere(req.user, 'customer_complaint', 't.complaint_date LIKE ?', like),
       trainings: countWhere(req.user, 'training_competency', 't.start_date LIKE ?', like),
       drills: countWhere(req.user, 'emergency_response', "t.record_type = 'Latihan (Drill)' AND t.event_date LIKE ?", like),
+      trainingCompliance: avgOf(req.user, 'skill_gap', 'compliance_percent'),
+      expiredCertificates: countWhere(req.user, 'employee_certification', 't.valid_until IS NOT NULL AND t.valid_until < ?', [todayIso()]),
     },
     incidentTrend: monthlySeries(req.user, 'incident', 'incident_date'),
     nearMissTrend: monthlySeries(req.user, 'near_miss', 'event_date'),
@@ -718,6 +720,165 @@ dashboardRouter.get('/subscription', (req, res) => {
       label: { new: 'Permintaan Baru', contacted: 'Dihubungi', demo: 'Demo', trial: 'Uji Coba', converted: 'Berlangganan', lost: 'Tidak Lanjut' }[s],
       value: leadRows.filter((l) => l.status === s).length,
     })),
+  });
+});
+
+/* ------------------------------------------------- kompetensi & pelatihan */
+
+/**
+ * Rata-rata sebuah kolom, dihitung hanya atas baris yang benar-benar terisi.
+ * Membagi dengan COUNT(*) akan menyeret rata-rata ke bawah setiap kali ada
+ * rekaman yang kolomnya kosong - itulah kekeliruan yang dihindari di sini.
+ */
+function avgOf(user, key, column, extraSql = '', extraParams = []) {
+  const b = base(user, key);
+  if (!b) return null;
+  const row = get(
+    `SELECT AVG(t."${column}") AS a FROM "${b.mod.table}" t
+      WHERE ${b.where} AND t."${column}" IS NOT NULL${extraSql ? ` AND ${extraSql}` : ''}`,
+    [...b.params, ...extraParams],
+  );
+  return row?.a === null || row?.a === undefined ? null : round(row.a, 2);
+}
+
+/** Kepatuhan pelatihan wajib per unit organisasi, dari analisis kesenjangan. */
+function complianceByOrg(user, column, joinTable) {
+  const b = base(user, 'skill_gap');
+  if (!b) return [];
+  return all(
+    `SELECT o.name AS label,
+            ROUND(AVG(t.compliance_percent), 1) AS value,
+            COUNT(*) AS employees,
+            SUM(t.gap_count) AS gaps
+       FROM "${b.mod.table}" t JOIN "${joinTable}" o ON o.id = t."${column}"
+      WHERE ${b.where} AND t.compliance_percent IS NOT NULL
+      GROUP BY o.name ORDER BY value ASC`,
+    b.params,
+  );
+}
+
+dashboardRouter.get('/training', (req, res) => {
+  const year = req.query.year || yearNow();
+  const like = [`${year}-%`];
+  const today = todayIso();
+
+  const catalogue = base(req.user, 'training_master');
+  const mandatoryCatalogue = catalogue
+    ? get(`SELECT COUNT(*) AS n FROM "${catalogue.mod.table}" t WHERE ${catalogue.where} AND t.mandatory LIKE 'Wajib%'`, catalogue.params)?.n || 0
+    : 0;
+
+  // Jam pelatihan per pegawai memakai jumlah pegawai yang terlihat oleh
+  // pengguna, bukan jumlah nasional, agar konsisten dengan angka lain di layar.
+  const employeeCount = countWhere(req.user, 'employee') || 0;
+  const trainingHours = sumOf(req.user, 'training_competency', 'duration_hours', 't.start_date LIKE ?', like);
+  const participants = sumOf(req.user, 'training_competency', 'actual_participants', 't.start_date LIKE ?', like);
+
+  const gap = base(req.user, 'skill_gap');
+  const gapRows = gap
+    ? all(
+      `SELECT t.id, t.code, t.employee_name, t.position, t.required_training_count, t.owned_training_count,
+              t.gap_count, t.compliance_percent, t.gap_status, t.priority, t.target_date
+         FROM "${gap.mod.table}" t WHERE ${gap.where} AND t.gap_count IS NOT NULL
+         ORDER BY t.gap_count DESC, t.compliance_percent ASC LIMIT 15`,
+      gap.params,
+    )
+    : [];
+
+  const cert = base(req.user, 'employee_certification');
+  const expiringCerts = cert
+    ? all(
+      `SELECT t.id, t.code, t.certificate_name, t.employee_name, t.certificate_type,
+              t.issuer, t.valid_until, t.cert_status, t.days_to_expiry
+         FROM "${cert.mod.table}" t
+        WHERE ${cert.where} AND t.valid_until IS NOT NULL AND t.valid_until <= ?
+        ORDER BY t.valid_until LIMIT 30`,
+      [...cert.params, new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10)],
+    )
+    : [];
+
+  const vendor = base(req.user, 'training_vendor');
+  const vendors = vendor
+    ? all(
+      `SELECT t.id, t.name, t.vendor_type, t.vendor_score, t.vendor_grade, t.training_count,
+              t.participant_count, t.accreditation_expiry, t.vendor_status
+         FROM "${vendor.mod.table}" t WHERE ${vendor.where} AND t.vendor_score IS NOT NULL
+         ORDER BY t.vendor_score DESC LIMIT 10`,
+      vendor.params,
+    )
+    : [];
+
+  const examTotal = countWhere(req.user, 'training_exam', 't.exam_date LIKE ?', like);
+  const examPassed = countWhere(req.user, 'training_exam', "t.exam_result = 'Lulus' AND t.exam_date LIKE ?", like);
+  const attendanceTotal = countWhere(req.user, 'training_attendance', 't.session_date LIKE ?', like);
+  const attendancePresent = countWhere(req.user, 'training_attendance', "t.attendance_status IN ('Hadir','Terlambat') AND t.session_date LIKE ?", like);
+
+  const plannedSchedules = countWhere(req.user, 'training_schedule', 't.start_date LIKE ?', like);
+  const completedSchedules = countWhere(req.user, 'training_schedule', "t.status = 'completed' AND t.start_date LIKE ?", like);
+
+  res.json({
+    year,
+    cards: {
+      catalogue: countWhere(req.user, 'training_master'),
+      mandatoryCatalogue,
+      trainingsThisYear: countWhere(req.user, 'training_competency', 't.start_date LIKE ?', like),
+      participants,
+      trainingHours,
+      hoursPerEmployee: employeeCount ? round(trainingHours / employeeCount, 2) : null,
+      mandatoryCompliance: avgOf(req.user, 'skill_gap', 'compliance_percent'),
+      gapEmployees: countWhere(req.user, 'skill_gap', 't.gap_count > 0'),
+      totalGaps: sumOf(req.user, 'skill_gap', 'gap_count'),
+      certificates: countWhere(req.user, 'employee_certification'),
+      certificatesExpired: countWhere(req.user, 'employee_certification', 't.valid_until IS NOT NULL AND t.valid_until < ?', [today]),
+      certificatesExpiring: countWhere(req.user, 'employee_certification', 't.valid_until IS NOT NULL AND t.valid_until >= ? AND t.valid_until <= ?', [today, new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10)]),
+      plannedSchedules,
+      completedSchedules,
+      planAchievement: plannedSchedules ? round((completedSchedules / plannedSchedules) * 100, 1) : null,
+      budget: sumOf(req.user, 'training_budget', 'total_budget', 't.period LIKE ?', [`${year}%`]),
+      actualCost: sumOf(req.user, 'training_budget', 'actual_cost', 't.period LIKE ?', [`${year}%`]),
+      costPerParticipant: avgOf(req.user, 'training_budget', 'cost_per_participant', 't.period LIKE ?', [`${year}%`]),
+      satisfaction: avgOf(req.user, 'training_evaluation', 'satisfaction_score', 't.evaluation_date LIKE ?', like),
+      knowledgeGain: avgOf(req.user, 'training_evaluation', 'knowledge_gain', 't.evaluation_date LIKE ?', like),
+      incidentReduction: avgOf(req.user, 'training_effectiveness', 'incident_reduction'),
+      examPassRate: examTotal ? round((examPassed / examTotal) * 100, 1) : null,
+      attendanceRate: attendanceTotal ? round((attendancePresent / attendanceTotal) * 100, 1) : null,
+      lmsCompletion: avgOf(req.user, 'learning_content', 'completion_rate'),
+      ojtActive: countWhere(req.user, 'ojt_program', "t.status NOT IN ('closed','rejected')"),
+      practicalNotCompetent: countWhere(req.user, 'practical_assessment', "t.result = 'Belum Kompeten'"),
+    },
+    deliveryTrend: monthlySeries(req.user, 'training_competency', 'start_date'),
+    hoursTrend: monthlySeries(req.user, 'training_competency', 'start_date', { agg: 'SUM(t.duration_hours)' }),
+    scheduleTrend: monthlySeries(req.user, 'training_schedule', 'start_date'),
+    byCategory: groupCount(req.user, 'training_master', 'category'),
+    byMandatory: groupCount(req.user, 'training_master', 'mandatory'),
+    byMethod: groupCount(req.user, 'training_schedule', 'method'),
+    scheduleByStatus: groupCount(req.user, 'training_schedule', 'status', 't.start_date LIKE ?', like),
+    registrationByStatus: groupCount(req.user, 'training_registration', 'status'),
+    attendanceByStatus: groupCount(req.user, 'training_attendance', 'attendance_status', 't.session_date LIKE ?', like),
+    attendanceByMethod: groupCount(req.user, 'training_attendance', 'attendance_method'),
+    certByStatus: groupCount(req.user, 'employee_certification', 'cert_status'),
+    certByType: groupCount(req.user, 'employee_certification', 'certificate_type'),
+    competencyByDivision: (() => {
+      const b = base(req.user, 'competency_matrix');
+      if (!b) return [];
+      return all(
+        `SELECT t.division AS label, ROUND(AVG(CAST(substr(t.current_level, 1, 1) AS REAL)), 2) AS value,
+                SUM(CASE WHEN t.gap_level > 0 THEN 1 ELSE 0 END) AS gaps, COUNT(*) AS total
+           FROM "${b.mod.table}" t WHERE ${b.where} AND t.division IS NOT NULL AND t.current_level IS NOT NULL
+          GROUP BY t.division ORDER BY value DESC`,
+        b.params,
+      );
+    })(),
+    competencyByType: groupCount(req.user, 'competency_matrix', 'competency_type'),
+    competencyGapStatus: groupCount(req.user, 'competency_matrix', 'gap_status'),
+    complianceByBranch: complianceByOrg(req.user, 'branch_id', 'm_branch'),
+    complianceByPort: complianceByOrg(req.user, 'port_id', 'm_port'),
+    topGaps: gapRows,
+    expiringCertificates: expiringCerts,
+    vendors,
+    requestBySource: groupCount(req.user, 'training_request', 'need_source'),
+    effectiveness: groupCount(req.user, 'training_effectiveness', 'effectiveness_level'),
+    behaviour: groupCount(req.user, 'training_effectiveness', 'behaviour_observed'),
+    costTrend: monthlySeries(req.user, 'training_budget', 'created_at', { agg: 'SUM(t.actual_cost)' }),
   });
 });
 

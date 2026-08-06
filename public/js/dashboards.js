@@ -16,6 +16,7 @@ export const DASHBOARDS = [
   { key: 'port', name: 'Port Dashboard', icon: '⚓', path: '/api/dashboard/port', render: port, requires: 'port' },
   { key: 'contractor', name: 'Contractor Dashboard', icon: '🤝', path: '/api/dashboard/contractor', render: contractor, requires: 'contractor' },
   { key: 'asset', name: 'Asset Dashboard', icon: '🛠', path: '/api/dashboard/asset', render: asset, requires: 'asset' },
+  { key: 'training', name: 'Training & Competency', icon: '🎓', path: '/api/dashboard/training', render: training, requires: 'training_master' },
   { key: 'subscription', name: 'Langganan & Pendapatan', icon: '💳', path: '/api/dashboard/subscription', render: subscription, platformOnly: true },
 ];
 
@@ -52,7 +53,12 @@ function executive(d) {
     stat('Insiden Pelayaran', num(c.marineIncidents), { tone: c.marineIncidents ? 'warn' : 'ok' }),
     stat('Audit Internal', num(c.internalAudits), { sub: `${num(c.majorNc)} ketidaksesuaian mayor` }),
     stat('Keluhan Pelanggan', num(c.complaints)),
-    stat('Pelatihan & Latihan Darurat', `${num(c.trainings)} / ${num(c.drills)}`, { sub: 'pelatihan · drill' })));
+    stat('Pelatihan & Latihan Darurat', `${num(c.trainings)} / ${num(c.drills)}`, { sub: 'pelatihan · drill' }),
+    stat('Kepatuhan Pelatihan Wajib', c.trainingCompliance === null ? '—' : `${dec(c.trainingCompliance, 1)}%`, {
+      sub: 'pemenuhan matriks kompetensi',
+      tone: (c.trainingCompliance ?? 100) >= 95 ? 'ok' : 'warn',
+    }),
+    stat('Sertifikat Kompetensi Kedaluwarsa', num(c.expiredCertificates), { tone: c.expiredCertificates ? 'danger' : 'ok' })));
 
   wrap.appendChild(h('div.grid.cols-2', { style: 'margin-top:1rem' },
     card('Tren Insiden 12 Bulan', lineChart(d.incidentTrend, { color: PALETTE[4] })),
@@ -405,6 +411,173 @@ function asset(d) {
       card('Jenis Pemeliharaan', barList(d.maintenance.byType, { format: num })),
       card('Status Sertifikat', donut(d.certificates.byStatus, { format: num }))),
     alertsCard(d.certificates.expiring));
+}
+
+/* -------------------------------------------------- kompetensi & pelatihan */
+
+const pct1 = (v) => (v === null || v === undefined ? '—' : `${dec(v, 1)}%`);
+
+function training(d) {
+  const c = d.cards;
+
+  const gapTable = dataTable(
+    [
+      { label: 'Pegawai' }, { label: 'Jabatan' },
+      { label: 'Wajib', right: true }, { label: 'Dimiliki', right: true }, { label: 'Gap', right: true },
+      { label: 'Pemenuhan', right: true }, { label: 'Status' }, { label: 'Target Tutup' },
+    ],
+    d.topGaps,
+    (g) => [
+      h('td', { text: g.employee_name || '—' }),
+      h('td.small', { text: g.position || '—' }),
+      h('td.right', { text: num(g.required_training_count) }),
+      h('td.right', { text: num(g.owned_training_count) }),
+      h('td.right', {}, h('strong', { text: num(g.gap_count) })),
+      h('td.right', { text: pct1(g.compliance_percent) }),
+      badge(
+        g.gap_status === 'Patuh Penuh' ? 'b-ok' : g.gap_status === 'Kritis' ? 'b-danger' : 'b-warn',
+        g.gap_status,
+      ),
+      h('td.small.nowrap', { text: fmtDate(g.target_date) }),
+    ],
+    {
+      onRow: (g) => { location.hash = `#/m/skill_gap/${g.id}`; },
+      empty: 'Belum ada analisis kesenjangan kompetensi.',
+    },
+  );
+
+  const certTable = dataTable(
+    [{ label: 'Sertifikat' }, { label: 'Pemegang' }, { label: 'Jenis' }, { label: 'Penerbit' }, { label: 'Berlaku Sampai' }, { label: 'Sisa Hari', right: true }],
+    d.expiringCertificates,
+    (s) => [
+      h('td.small', { text: s.certificate_name }),
+      h('td.small', { text: s.employee_name || '—' }),
+      h('td.small', { text: s.certificate_type || '—' }),
+      h('td.small.muted', { text: s.issuer || '—' }),
+      expiryCell(s.valid_until),
+      h('td.right', {}, h('span.badge', {
+        class: (s.days_to_expiry ?? 0) < 0 ? 'b-danger' : (s.days_to_expiry ?? 0) <= 30 ? 'b-warn' : 'b-progress',
+        text: (s.days_to_expiry ?? 0) < 0 ? `Lewat ${Math.abs(s.days_to_expiry)} hari` : `${s.days_to_expiry} hari`,
+      })),
+    ],
+    {
+      onRow: (s) => { location.hash = `#/m/employee_certification/${s.id}`; },
+      empty: 'Tidak ada sertifikat yang mendekati atau melewati masa berlaku.',
+    },
+  );
+
+  const vendorTable = dataTable(
+    [{ label: 'Lembaga Pelatihan' }, { label: 'Jenis' }, { label: 'Pelatihan', right: true }, { label: 'Peserta', right: true }, { label: 'Skor', right: true }, { label: 'Grade' }, { label: 'Akreditasi s.d.' }],
+    d.vendors,
+    (v) => [
+      h('td.small', { text: v.name }),
+      h('td.small.muted', { text: v.vendor_type || '—' }),
+      h('td.right', { text: num(v.training_count) }),
+      h('td.right', { text: num(v.participant_count) }),
+      h('td.right', { text: dec(v.vendor_score, 1) }),
+      h('td.small', { text: v.vendor_grade || '—' }),
+      expiryCell(v.accreditation_expiry),
+    ],
+    {
+      onRow: (v) => { location.hash = `#/m/training_vendor/${v.id}`; },
+      empty: 'Belum ada vendor pelatihan yang dinilai.',
+    },
+  );
+
+  // Nama cabang dan pelabuhan sudah memuat kata "Cabang"/"Pelabuhan", jadi
+  // tingkatannya cukup jadi kolom tersendiri - bukan awalan yang mengulang.
+  const complianceTable = dataTable(
+    [
+      { label: 'Tingkat' }, { label: 'Unit' },
+      { label: 'Pegawai Dianalisis', right: true }, { label: 'Total Kesenjangan', right: true },
+      { label: 'Kepatuhan', right: true },
+    ],
+    [
+      ...d.complianceByBranch.map((r) => ({ ...r, scope: 'Cabang' })),
+      ...d.complianceByPort.map((r) => ({ ...r, scope: 'Pelabuhan' })),
+    ],
+    (r) => [
+      h('td.small.muted', { text: r.scope }),
+      h('td', { text: r.label }),
+      h('td.right', { text: num(r.employees) }),
+      h('td.right', { text: num(r.gaps) }),
+      h('td.right', {}, h('span.badge', {
+        class: r.value >= 95 ? 'b-ok' : r.value >= 80 ? 'b-warn' : 'b-danger',
+        text: pct1(r.value),
+      })),
+    ],
+    { empty: 'Belum ada data kepatuhan per unit.' },
+  );
+
+  return h('div', {},
+    h('div.grid.cols-4', {},
+      stat('Katalog Pelatihan', num(c.catalogue), { sub: `${num(c.mandatoryCatalogue)} bersifat wajib` }),
+      stat('Kepatuhan Pelatihan Wajib', pct1(c.mandatoryCompliance), {
+        sub: `${num(c.gapEmployees)} pegawai belum lengkap`,
+        tone: (c.mandatoryCompliance ?? 0) >= 95 ? 'ok' : (c.mandatoryCompliance ?? 0) >= 80 ? 'warn' : 'danger',
+      }),
+      stat('Kesenjangan Kompetensi', num(c.totalGaps), { sub: 'total pelatihan wajib belum dipenuhi', tone: c.totalGaps ? 'warn' : 'ok' }),
+      stat('Sertifikat Kedaluwarsa', num(c.certificatesExpired), {
+        sub: `${num(c.certificatesExpiring)} akan habis dalam 90 hari`,
+        tone: c.certificatesExpired ? 'danger' : c.certificatesExpiring ? 'warn' : 'ok',
+      }),
+      stat('Pelatihan Tahun Ini', num(c.trainingsThisYear), { sub: `${num(c.participants)} peserta` }),
+      stat('Rencana vs Realisasi', pct1(c.planAchievement), {
+        sub: `${num(c.completedSchedules)} dari ${num(c.plannedSchedules)} jadwal terlaksana`,
+        tone: (c.planAchievement ?? 0) >= 90 ? 'ok' : 'warn',
+      }),
+      stat('Jam Pelatihan per Pegawai', dec(c.hoursPerEmployee, 1), { unit: 'jam', sub: `${num(c.trainingHours)} jam keseluruhan` }),
+      stat('Biaya Pelatihan', fmtCurrency(c.actualCost), { sub: `anggaran ${fmtCurrency(c.budget)}` }),
+      stat('Tingkat Kehadiran', pct1(c.attendanceRate), { tone: (c.attendanceRate ?? 0) >= 90 ? 'ok' : 'warn' }),
+      stat('Tingkat Kelulusan Ujian', pct1(c.examPassRate), { tone: (c.examPassRate ?? 0) >= 85 ? 'ok' : 'warn' }),
+      stat('Penyelesaian Materi Daring', pct1(c.lmsCompletion), { sub: 'rata-rata seluruh materi LMS' }),
+      stat('Penurunan Insiden Pasca Pelatihan', pct1(c.incidentReduction), {
+        sub: 'Kirkpatrick level 4',
+        tone: (c.incidentReduction ?? 0) > 0 ? 'ok' : 'warn',
+      })),
+
+    h('div.grid.cols-2', { style: 'margin-top:1rem' },
+      card('Tren Pelaksanaan Pelatihan 12 Bulan', lineChart(d.deliveryTrend, { color: PALETTE[0] })),
+      card('Tren Jam Pelatihan 12 Bulan', lineChart(d.hoursTrend, { color: PALETTE[1], format: (v) => fmtNumber(v) }))),
+
+    h('div.grid.cols-3', { style: 'margin-top:1rem' },
+      card('Katalog per Kategori', barList(d.byCategory, { format: num })),
+      card('Sifat Pelatihan', donut(d.byMandatory, { format: num })),
+      card('Metode Penyelenggaraan', barList(d.byMethod, { format: num, color: PALETTE[6] }))),
+
+    card('Kesenjangan Kompetensi Tertinggi', gapTable,
+      h('p.small.muted', { style: 'margin-top:.5rem', text: 'Selisih antara pelatihan wajib menurut matriks jabatan dan pelatihan yang dimiliki serta masih berlaku.' })),
+
+    card('Kepatuhan Pelatihan Wajib per Cabang & Pelabuhan', complianceTable),
+
+    h('div.grid.cols-3', { style: 'margin-top:1rem' },
+      card('Tingkat Kompetensi Rata-rata per Divisi',
+        barList(d.competencyByDivision, { format: (v) => `${dec(v, 2)} / 5` }),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: 'Skala 1 Beginner sampai 5 Expert, dihitung dari matriks kompetensi pegawai.' })),
+      card('Status Kompetensi Pegawai', donut(d.competencyGapStatus, { format: num })),
+      card('Jenis Kompetensi Dinilai', barList(d.competencyByType, { format: num, color: PALETTE[3] }))),
+
+    card('Sertifikat Kedaluwarsa & Mendekati Jatuh Tempo', certTable,
+      h('p.small.muted', { style: 'margin-top:.5rem', text: 'Peringatan otomatis dikirim 30, 14 dan 7 hari sebelum masa berlaku berakhir serta pada hari-H.' })),
+
+    h('div.grid.cols-3', { style: 'margin-top:1rem' },
+      card('Status Sertifikat', donut(d.certByStatus, { format: num })),
+      card('Jenis Sertifikat', barList(d.certByType, { format: num, color: PALETTE[2] })),
+      card('Status Pendaftaran Peserta', barList(d.registrationByStatus, { format: num, color: PALETTE[1] }))),
+
+    h('div.grid.cols-3', { style: 'margin-top:1rem' },
+      card('Kehadiran Peserta', donut(d.attendanceByStatus, { format: num })),
+      card('Metode Pencatatan Kehadiran', barList(d.attendanceByMethod, { format: num, color: PALETTE[6] })),
+      card('Status Jadwal Pelatihan', barList(d.scheduleByStatus, { format: num, color: PALETTE[3] }))),
+
+    h('div.grid.cols-3', { style: 'margin-top:1rem' },
+      card('Efektivitas Pelatihan (Level 3-4)',
+        donut(d.effectiveness, { format: num }),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: `Kepuasan peserta ${pct1(c.satisfaction)} · kenaikan pengetahuan ${pct1(c.knowledgeGain)}.` })),
+      card('Penerapan di Tempat Kerja', barList(d.behaviour, { format: num, color: PALETTE[5] })),
+      card('Sumber Kebutuhan Pelatihan', barList(d.requestBySource, { format: num, color: PALETTE[2] }))),
+
+    card('Kinerja Lembaga Pelatihan', vendorTable));
 }
 
 /* --------------------------------------------- langganan (khusus platform) */

@@ -24,6 +24,7 @@ export const GROUP_OPTIONS = [
   { value: 'maritime', label: 'K. Maritime Safety' },
   { value: 'portsafety', label: 'M. Port Safety (ASDP)' },
   { value: 'continuity', label: 'N. Continuity, Energy & Security' },
+  { value: 'training', label: 'P. Competency & Training Management' },
 ];
 
 /** Siklus hidup langganan - dipakai sebagai workflow modul subscription. */
@@ -89,6 +90,7 @@ export default [
           'Manajemen insiden pelayaran', 'Peta panas risiko ISO 31000', 'Perhitungan jejak karbon otomatis',
           'Peringatan kedaluwarsa sertifikat', 'Jejak audit menyeluruh', 'Ekspor laporan regulator',
           'Manajemen kepadatan angkutan puncak', 'Kelola kontraktor (CSMS)', 'Kelangsungan usaha (BCM)',
+          'Matriks pelatihan wajib per jabatan', 'Pembelajaran daring & ujian kompetensi',
         ],
       }),
       f('is_public', 'Ditampilkan di Halaman Depan', 'bool'),

@@ -41,6 +41,11 @@ const PILLARS = [
     body: 'Sistem memindai seluruh tanggal berlaku — sertifikat kapal, izin lingkungan, izin TPS B3, riksa-uji Disnaker, kalibrasi, servis life raft — dan menampilkannya jauh sebelum jatuh tempo.',
   },
   {
+    icon: '🎓',
+    title: 'Kompetensi pekerja terpantau, bukan diasumsikan',
+    body: 'Matriks pelatihan wajib per jabatan menjawab satu pertanyaan yang selalu ditanya auditor: siapa yang belum boleh bertugas. Sistem membandingkan pelatihan wajib dengan sertifikat yang dimiliki dan masih berlaku, lalu menampilkan kesenjangannya per pegawai, per pelabuhan dan per cabang.',
+  },
+  {
     icon: '🔐',
     title: 'Kewenangan berjenjang 10 level',
     body: 'Dari Administrator Sistem sampai Kontraktor. Nakhoda hanya melihat kapalnya, Port Manager hanya pelabuhannya, Corporate QHSE melihat nasional. Persetujuan tidak dapat dilewati.',
@@ -110,7 +115,7 @@ function topbar() {
 }
 
 function hero(overview, plans, message, onLoggedIn) {
-  const moduleCount = overview?.product?.moduleCount ?? 93;
+  const moduleCount = overview?.product?.moduleCount ?? 111;
   const groupCount = overview?.product?.groupCount ?? 13;
   const cheapest = plans.length ? Math.min(...plans.map((p) => p.monthlyPrice)) : null;
 

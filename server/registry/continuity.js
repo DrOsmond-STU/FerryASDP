@@ -1,6 +1,9 @@
 /**
- * GROUP N - Business Continuity (ISO 22301), Energy (ISO 50001),
- * Information Security (ISO 27001) and Competency (ISO 45001 §7.2).
+ * GROUP N - Business Continuity (ISO 22301), Energy (ISO 50001) and
+ * Information Security (ISO 27001).
+ *
+ * Kompetensi & pelatihan dahulu ikut di sini; sejak kelompok P dibuka seluruh
+ * siklusnya pindah ke sana agar tidak ada dua rekaman pelatihan yang bersaing.
  */
 import { m, f, req, sel, num, dt, txt, WF, riskFields, PRIORITY } from './defs.js';
 
@@ -144,54 +147,6 @@ export default [
       dt('resolved_date', 'Tanggal Pemulihan'),
       txt('lesson_learned', 'Pembelajaran'),
       ...riskFields('potential_'),
-    ],
-  }),
-
-  m({
-    key: 'training_competency',
-    name: 'Training & Competency',
-    nameId: 'Pelatihan & Kompetensi',
-    icon: '🎓',
-    codePrefix: 'TRN',
-    scope: 'any',
-    workflow: WF.SIMPLE,
-    capa: true,
-    standards: ['ISO 45001:2018 §7.2', 'ISO 9001:2015 §7.2', 'STCW'],
-    regulations: [
-      'PP No. 50 Tahun 2012 (SMK3) Elemen 4 & 12',
-      'Permenaker No. 02/MEN/1992 (Ahli K3)',
-      'STCW - Sertifikasi Pelaut',
-    ],
-    fields: [
-      req('title', 'Judul Pelatihan'),
-      sel('training_category', 'Kategori', [
-        'Induksi K3', 'Pelatihan Wajib Regulasi', 'Sertifikasi Kompetensi', 'Refreshment',
-        'Pelatihan Darurat', 'Pelatihan Sistem Manajemen', 'Pelatihan Teknis', 'Pelatihan Pelayanan',
-      ], { required: true }),
-      sel('topic', 'Topik', [
-        'Ahli K3 Umum', 'P3K di Tempat Kerja', 'Pemadam Kebakaran', 'Bekerja di Ketinggian',
-        'Ruang Terbatas', 'LOTO', 'Operator Forklift', 'Operator Crane', 'Basic Safety Training (BST)',
-        'Survival Craft (SCRB)', 'Advanced Fire Fighting (AFF)', 'Medical First Aid (MFA)',
-        'Penanganan B3 & IMDG', 'Auditor Internal ISO', 'HIRADC', 'Investigasi Insiden',
-        'Penanggulangan Tumpahan Minyak', 'Keamanan Informasi', 'Pelayanan Prima', 'ISPS Code',
-      ]),
-      dt('start_date', 'Tanggal Mulai', { required: true }),
-      dt('end_date', 'Tanggal Selesai'),
-      num('duration_hours', 'Durasi (jam)'),
-      f('provider', 'Penyelenggara'),
-      f('trainer', 'Instruktur'),
-      sel('mandatory', 'Sifat', ['Wajib Regulasi', 'Wajib Internal', 'Pengembangan']),
-      num('planned_participants', 'Target Peserta'),
-      num('actual_participants', 'Realisasi Peserta'),
-      f('participants', 'Daftar Peserta', 'textarea'),
-      num('pretest_avg', 'Rata-rata Pre-Test', { step: 0.1 }),
-      num('posttest_avg', 'Rata-rata Post-Test', { step: 0.1 }),
-      num('pass_count', 'Jumlah Lulus'),
-      f('certificate_issued', 'Sertifikat Diterbitkan', 'bool'),
-      dt('certificate_valid_until', 'Sertifikat Berlaku Sampai', { alert: 'expiry' }),
-      num('cost', 'Biaya (IDR)', { type: 'currency' }),
-      sel('effectiveness', 'Evaluasi Efektivitas', ['Sangat Efektif', 'Efektif', 'Cukup', 'Kurang Efektif', 'Belum Dievaluasi']),
-      txt('evaluation_note', 'Catatan Evaluasi'),
     ],
   }),
 ];

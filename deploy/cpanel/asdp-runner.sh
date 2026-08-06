@@ -25,6 +25,7 @@ LOCKDIR=$HOME_DIR/.asdp-runner.lock
 INSTALL_REQUEST=$HOME_DIR/asdp-install.request
 RESEED_REQUEST=$HOME_DIR/asdp-reseed.request
 RESTART_REQUEST=$HOME_DIR/asdp-restart.request
+SEED_REQUEST=$HOME_DIR/asdp-seed.request
 
 TARBALL='https://codeload.github.com/DrOsmond-STU/FerryASDP/tar.gz/refs/heads/claude/enterprise-qhse-system-02g5tx'
 
@@ -107,6 +108,11 @@ if [ -f "$INSTALL_REQUEST" ]; then
 
         rm -rf "$TMP"
         rm -f "$INSTALL_REQUEST"
+        # Versi baru bisa membawa modul baru. Tabelnya dibuat sendiri oleh
+        # migrate() saat server menyala, tetapi isinya akan kosong sampai
+        # penyemaian dijalankan — dan basis data lama tidak pernah disemai
+        # ulang. Penanda ini meminta penyemaian aditif pada langkah 3.
+        touch "$SEED_REQUEST"
         echo "=== selesai $(date) ==="
       else
         echo "GAGAL mengekstrak tarball"
@@ -123,8 +129,13 @@ fi
 [ -d "$APP_DIR/node_modules/express" ] || exit 0
 
 # --- 3. Semai basis data -----------------------------------------------------
-# Dijalankan sekali saat basis data belum ada, atau atas permintaan eksplisit.
-if [ ! -f "$QHSE_DB" ] || [ -f "$RESEED_REQUEST" ]; then
+# Tiga pemicu, dua perilaku yang berbeda:
+#   * basis data belum ada, atau asdp-seed.request  -> penyemaian ADITIF.
+#     server/seed.js menjaga setiap blok dengan hasRows(), jadi tabel yang
+#     sudah berisi dilewati dan hanya modul baru yang terisi. Data cabang
+#     yang sudah ada tidak tersentuh.
+#   * asdp-reseed.request                           -> HAPUS lalu semai ulang.
+if [ ! -f "$QHSE_DB" ] || [ -f "$RESEED_REQUEST" ] || [ -f "$SEED_REQUEST" ]; then
   {
     echo "=== $(date) menyemai basis data ==="
     stop_app
@@ -135,7 +146,7 @@ if [ ! -f "$QHSE_DB" ] || [ -f "$RESEED_REQUEST" ]; then
       node server/seed.js
     fi
     echo "--- seed selesai (kode $?) ---"
-    rm -f "$RESEED_REQUEST"
+    rm -f "$RESEED_REQUEST" "$SEED_REQUEST"
   } >> "$INSTALL_LOG" 2>&1
 fi
 

@@ -36,6 +36,9 @@ const OPERATOR_CREATE = new Set([
   'ramp_door_inspection', 'stability_monitoring', 'fuel_consumption',
   'waste_management', 'hazardous_waste', 'crowd_management', 'customer_complaint',
   'spill_management', 'marine_incident', 'jsa', 'hira', 'work_permit', 'information_security',
+  // Pelatihan: setiap pekerja boleh mendaftar sendiri dan mengusulkan
+  // kebutuhan pelatihannya; pencatatan hasil tetap milik penyelenggara.
+  'training_registration', 'training_request',
 ]);
 
 /** Modules a Level-6 department head or Level-5 master may approve. */
@@ -45,6 +48,8 @@ const APPROVER_MODULES = new Set([
   'risk_treatment', 'contractor_permit', 'contractor_prequalification', 'dangerous_goods',
   'sailing_clearance', 'ferry_safety_checklist', 'vehicle_loading_safety', 'passenger_safety',
   'emergency_response', 'inspection', 'equipment_inspection', 'maintenance', 'legal_register',
+  'training_registration', 'training_request', 'skill_gap', 'practical_assessment',
+  'competency_assessment', 'employee_certification', 'training_budget',
 ]);
 
 const MARITIME_GROUPS = new Set(['maritime', 'safety', 'environment', 'assetsafety']);

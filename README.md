@@ -4,7 +4,7 @@
 
 Satu platform digital yang mengelola Quality, Health, Occupational Safety, Environment,
 Maritime Safety, Port Safety, Operational Risk, Asset Safety, Contractor Safety,
-Compliance, Audit dan Management Review — **98 modul fungsional dalam 14 kelompok**,
+Compliance, Audit dan Management Review — **116 modul fungsional dalam 15 kelompok**,
 terintegrasi dengan standar ISO dan regulasi Indonesia yang berlaku.
 
 Dijalankan sebagai **layanan berlangganan (SaaS)**: setiap cabang ASDP adalah satu
@@ -20,9 +20,9 @@ permintaan uji coba.
 
 ```bash
 npm install          # hanya memerlukan Express; basis data memakai node:sqlite bawaan Node 22
-npm run seed         # memuat master data, 12 akun demo dan ±1.500 rekaman contoh
+npm run seed         # memuat master data, 12 akun demo dan ±1.800 rekaman contoh
 npm start            # http://localhost:3000
-npm run check        # 81 pemeriksaan end-to-end terhadap server yang sedang berjalan
+npm run check        # 100 pemeriksaan end-to-end terhadap server yang sedang berjalan
 ```
 
 Prasyarat: **Node.js 22.5 atau lebih baru** (menggunakan modul inti `node:sqlite`,
@@ -89,7 +89,7 @@ churn, umur piutang, adopsi pemakaian per cabang dan corong prospek.
 ### Halaman depan
 
 Halaman sebelum masuk berisi prolog pemasaran: alasan cabang membutuhkan QHSE
-terintegrasi, enam pilar keunggulan, cakupan 13 kelompok modul beserta standar dan
+terintegrasi, enam pilar keunggulan, cakupan 14 kelompok modul beserta standar dan
 regulasi yang dipenuhi, tabel paket yang **diambil langsung dari basis data** (sehingga
 selalu sama dengan yang ditagihkan), tanya jawab, dan formulir permintaan uji coba yang
 langsung menjadi rekaman prospek di modul Permintaan Uji Coba. Endpoint publik dibatasi
@@ -105,13 +105,13 @@ alur kerja, hak akses dan antarmuka dari deklarasi tersebut.
 
 ```
 server/
-  registry/          deklarasi 98 modul (defs.js berisi helper & preset workflow)
+  registry/          deklarasi 116 modul (defs.js berisi helper & preset workflow)
   db.js              node:sqlite — skema dibangkitkan dari registry, migrasi aditif
   rbac.js            10 level peran, matriks hak akses, klausa row-level security
   auth.js            scrypt, sesi httpOnly, penguncian akun, kebijakan kata sandi
   compute.js         seluruh nilai turunan (LTIFR, CO2e, matriks risiko, CSMS, GM …)
   engine.js          REST generik: CRUD, workflow, komentar, lampiran, CAPA, ekspor CSV
-  dashboards.js      13 dashboard analitik, dihitung melalui filter akses yang sama
+  dashboards.js      14 dashboard analitik, dihitung melalui filter akses yang sama
   tenancy.js         resolusi tenant, hak paket langganan, ringkasan berlangganan
   public.js          endpoint publik halaman depan (paket & permintaan uji coba)
   admin.js           pengguna, matriks hak akses, jejak audit, informasi sistem
@@ -121,7 +121,7 @@ server/
 public/
   js/api.js          klien REST + cache metadata
   js/module.js       daftar, formulir dan detail rekaman — generik untuk semua modul
-  js/dashboards.js   13 tampilan dashboard
+  js/dashboards.js   14 tampilan dashboard
   js/landing.js      halaman depan pemasaran + panel masuk
   js/charts.js       grafik SVG tanpa pustaka pihak ketiga
   js/admin.js        layar administrasi
@@ -133,7 +133,7 @@ Tabel, endpoint, validasi, hak akses, formulir dan tampilan daftar mengikuti oto
 
 ### Mengapa metadata-driven
 
-98 modul dengan rata-rata 20 isian berarti sekitar 2.000 definisi field. Menulis
+116 modul dengan rata-rata 20 isian berarti lebih dari 2.300 definisi field. Menulis
 CRUD manual untuk masing-masing modul akan menghasilkan ribuan baris kode berulang
 yang mustahil dijaga konsistensinya. Dengan pendekatan ini, aturan seperti
 "setiap perubahan tercatat pada jejak audit" atau "nilai risiko tidak boleh dikirim
@@ -201,8 +201,9 @@ MARPOL Annex I/IV/V/VI, STCW (jam istirahat awak kapal).
 | **J. Contractor Safety** | 4 | Prakualifikasi CSMS, evaluasi kinerja, izin masuk & induksi, kinerja keselamatan |
 | **K. Maritime Safety** | 15 | Inspeksi keselamatan kapal, checklist pra-berlayar, SPB, mooring, ramp door, muat kendaraan, keselamatan penumpang, pengikatan muatan, barang berbahaya, LSA, FFA, stabilitas, cuaca, insiden pelayaran, inspeksi fasilitas pelabuhan |
 | **M. Port Safety (ASDP)** | 4 | Patroli keselamatan pelabuhan, manajemen kepadatan & angkutan puncak, keamanan ISPS, kebersihan & lingkungan pelabuhan |
-| **N. Continuity, Energy & Security** | 5 | Business Impact Analysis, rencana kelangsungan usaha, tinjauan energi, keamanan informasi, pelatihan & kompetensi |
+| **N. Continuity, Energy & Security** | 4 | Business Impact Analysis, rencana kelangsungan usaha, tinjauan energi, keamanan informasi |
 | **O. Langganan & Penagihan** | 5 | Paket langganan, langganan cabang, tagihan, pemakaian, permintaan uji coba |
+| **P. Competency & Training Management** | 19 | Katalog pelatihan, matriks pelatihan wajib, matriks kompetensi, sertifikasi pegawai, jadwal, pendaftaran berjenjang, kehadiran, materi daring (LMS), ujian, asesmen praktek, OJT, asesmen kompetensi, analisis kesenjangan, usulan pelatihan, anggaran, vendor pelatihan, evaluasi (Kirkpatrick 1–2), efektivitas (Kirkpatrick 3–4), pelaksanaan pelatihan |
 
 ### Yang membedakan dari QHSE manufaktur
 
@@ -226,6 +227,39 @@ Kelompok **K** dan **M** dirancang khusus untuk operator kapal penyeberangan dan
   jalur evakuasi, APAR pelabuhan dan pencahayaan dermaga.
 - **Manajemen kepadatan** — angkutan lebaran dan Nataru: panjang antrian, waktu tunggu,
   delay system, kantong parkir, posko terpadu lintas instansi.
+
+### Kompetensi & pelatihan (kelompok P)
+
+Kompetensi adalah satu-satunya pengendalian risiko yang dibawa pekerja ke mana pun ia
+ditugaskan, dan satu-satunya yang kedaluwarsa tanpa suara. Kelompok P menutup seluruh
+siklusnya, bukan sekadar mencatat pelatihan yang sudah terjadi:
+
+- **Katalog pelatihan** — 43 pelatihan baku ASDP dengan kode, kategori, sifat kewajiban,
+  dasar regulasi, jam pelajaran, metode, masa berlaku sertifikat dan interval penyegaran.
+- **Matriks pelatihan wajib** — daftar pelatihan yang harus dimiliki per jabatan, divisi,
+  pelabuhan, kapal, jenis kapal dan grade. Supervisor Dermaga memerlukan 15 pelatihan,
+  Nakhoda 12 — angka inilah yang menjadi pembagi kepatuhan.
+- **Analisis kesenjangan** — pelatihan wajib menurut matriks dikurangi yang dimiliki dan
+  masih berlaku, dihitung server. Contoh: Supervisor Dermaga wajib 15, dimiliki 8, gap 7.
+- **Sertifikasi pegawai** — nomor, penerbit, masa berlaku, verifikasi dokumen dan berkas
+  PDF terlampir; peringatan otomatis 30, 14, 7 hari sebelum kedaluwarsa dan pada hari-H.
+- **Pendaftaran berjenjang** — atasan → SDM → QHSE, lengkap dengan daftar tunggu dan
+  pembatalan. Pegawai boleh mendaftar sendiri tetapi tidak boleh mengonfirmasi kursinya.
+- **Kehadiran** — QR Code, Face Recognition, NFC, GPS atau tanda tangan manual, dengan
+  ambang kehadiran penentu kelayakan sertifikat.
+- **Pembelajaran daring** — video, PDF, modul interaktif, kuis, simulasi, animasi, paket
+  SCORM dan audio, disusun dalam jalur pembelajaran per jabatan.
+- **Ujian & asesmen** — ujian pilihan ganda/essay/video/praktek dengan pengacakan soal,
+  batas waktu dan nilai kelulusan; asesmen praktek APAR, evakuasi, ruang terbatas, LOTO,
+  ketinggian, crane, forklift, mooring dan peluncuran sekoci; OJT dengan logbook, mentor
+  dan jam terealisasi; asesmen kompetensi Beginner sampai Expert.
+- **Efektivitas Kirkpatrick 1–4** — reaksi peserta dan kenaikan pengetahuan (level 1–2),
+  lalu perubahan perilaku di tempat kerja dan **apakah insiden, near miss, tindakan tidak
+  aman serta temuan audit benar-benar turun** (level 3–4). Pelatihan yang materinya disukai
+  tetapi tidak mengubah apa pun di lapangan tetap dinilai tidak efektif.
+
+Kelompok ini termasuk pada **seluruh paket langganan**, termasuk Esensial: kepatuhan
+pelatihan wajib adalah kewajiban SMK3 PP No. 50 Tahun 2012 Elemen 12, bukan fitur tambahan.
 
 ---
 

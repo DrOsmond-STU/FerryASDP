@@ -87,7 +87,7 @@ pada jaringan tertutup.
 `node:sqlite` (modul inti Node 22) dipilih agar tidak ada dependensi native yang perlu
 dikompilasi saat pemasangan. Mode WAL diaktifkan. Untuk produksi dengan banyak pengguna
 bersamaan, lapisan `db.js` merupakan satu-satunya berkas yang perlu disesuaikan bila
-berpindah ke PostgreSQL — kueri dibangun dari metadata, bukan ditulis manual di 93 tempat.
+berpindah ke PostgreSQL — kueri dibangun dari metadata, bukan ditulis manual di 116 tempat.
 
 ## 7. Multi-tenancy & langganan
 
@@ -110,9 +110,11 @@ Kelompok `governance` selalu termasuk paket apa pun karena berisi data rujukan
 
 ## 8. Pengujian
 
-`scripts/smoke-test.js` menjalankan 81 pemeriksaan terhadap server yang berjalan, meliputi
+`scripts/smoke-test.js` menjalankan 100 pemeriksaan terhadap server yang berjalan, meliputi
 autentikasi, batas RBAC per peran, keamanan tingkat baris, CRUD, perhitungan nilai turunan,
 transisi alur kerja, keterkaitan CAPA, seluruh dashboard, ekspor, penghapusan, endpoint
-publik halaman depan, pembatasan modul berdasarkan paket, dan dashboard komersial. Pengujian
+publik halaman depan, pembatasan modul berdasarkan paket, dashboard komersial, serta siklus
+kompetensi & pelatihan (matriks wajib, kesenjangan kompetensi, masa berlaku sertifikat dan
+persetujuan berjenjang pendaftaran). Pengujian
 menggunakan sesi terpisah per peran sehingga benar-benar memverifikasi perilaku produksi,
 bukan sekadar memanggil fungsi internal.

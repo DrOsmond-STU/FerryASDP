@@ -100,6 +100,7 @@ Semuanya berkas kosong di `~`, dihapus sendiri setelah dikerjakan.
 | Penanda | Guna |
 |---|---|
 | `asdp-install.request` | unduh ulang kode dari GitHub, `npm install`, nyalakan ulang |
+| `asdp-seed.request` | penyemaian **aditif** — hanya mengisi modul yang tabelnya masih kosong |
 | `asdp-reseed.request` | **hapus** basis data lalu semai ulang dari awal |
 | `asdp-restart.request` | matikan proses; putaran cron berikutnya menyalakannya |
 | `asdp-live.request` | jalankan pemeriksaan, hasil ke `~/asdp-live.log` |
@@ -120,6 +121,18 @@ touch ~/asdp-live.request        # lalu periksa hasilnya
 
 Basis data disemai otomatis pada putaran yang sama bila `~/asdp-data/qhse.db`
 belum ada — tidak ada langkah manual tambahan.
+
+### Kenapa pemasangan selalu menyusul dengan penyemaian aditif
+
+Versi baru dapat membawa modul baru. Tabelnya memang dibuat sendiri oleh
+`migrate()` saat server menyala, tetapi **isinya kosong** — dan basis data yang
+sudah ada tidak pernah disemai lagi, sehingga modul baru akan tampil hampa
+padahal aplikasinya sehat. Gejalanya menyesatkan: dashboard baru merespons 200
+dengan seluruh angka nol.
+
+Karena itu langkah pemasangan menaruh `asdp-seed.request`, dan `server/seed.js`
+menjaga setiap blok dengan `hasRows()`: tabel yang sudah berisi dilewati, hanya
+yang kosong yang diisi. Data cabang yang sudah ada tidak tersentuh.
 
 ## Yang perlu diubah sebelum dipakai sungguhan
 

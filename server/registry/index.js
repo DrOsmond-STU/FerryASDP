@@ -15,6 +15,7 @@ import contractorSafety, { group as gContractor } from './contractor.js';
 import maritime, { group as gMaritime } from './maritime.js';
 import portSafety, { group as gPortSafety } from './portsafety.js';
 import continuity, { group as gContinuity } from './continuity.js';
+import training, { group as gTraining } from './training.js';
 import saas, { group as gSaas } from './saas.js';
 
 const SOURCES = [
@@ -32,6 +33,7 @@ const SOURCES = [
   [gPortSafety, portSafety],
   [gContinuity, continuity],
   [gSaas, saas],
+  [gTraining, training],
 ];
 
 /** Organisational columns injected into every module table. */
@@ -56,6 +58,8 @@ export const REF_TYPES = {
   contractor: 'contractor',
   plan: 'subscription_plan',
   subscription: 'subscription',
+  training: 'training_master',
+  vendor: 'training_vendor',
 };
 
 export const REF_FIELD_TYPES = Object.keys(REF_TYPES);

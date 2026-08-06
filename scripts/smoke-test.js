@@ -63,7 +63,7 @@ async function login(username) {
 section('1. Ketersediaan layanan');
 const health = await (await fetch(`${BASE}/api/health`)).json();
 check('Server merespons /api/health', health.status === 'ok');
-check('Seluruh modul termuat (98)', health.modules === 98, `modules=${health.modules}`);
+check('Seluruh modul termuat (116)', health.modules === 116, `modules=${health.modules}`);
 
 section('2. Autentikasi');
 const anon = client();
@@ -79,8 +79,8 @@ check('Profil sesi terbaca', me.json?.user?.role_key === 'corporate_qhse');
 
 section('3. Metadata registry');
 const meta = (await corporate('/api/meta')).json;
-check('Katalog modul dikirim', meta.modules.length === 98, `${meta.modules.length}`);
-check('Kelompok fungsi lengkap', meta.groups.length === 14, `${meta.groups.length}`);
+check('Katalog modul dikirim', meta.modules.length === 116, `${meta.modules.length}`);
+check('Kelompok fungsi lengkap', meta.groups.length === 15, `${meta.groups.length}`);
 check('Setiap modul memiliki workflow', meta.modules.every((m) => m.workflow?.length > 0));
 check('Setiap modul memiliki isian', meta.modules.every((m) => m.fields?.length > 0));
 check('Faktor emisi tersedia', Object.keys(meta.emissionFactors).length > 0);
@@ -176,7 +176,7 @@ check('Seluruh checklist berasal dari satu kapal',
   new Set(vesselRecords.records.map((r) => r.vessel_id)).size === 1);
 
 section('9. Dashboard');
-for (const key of ['executive', 'incident', 'risk', 'audit', 'quality', 'health', 'carbon', 'esg', 'vessel', 'port', 'contractor', 'asset']) {
+for (const key of ['executive', 'incident', 'risk', 'audit', 'quality', 'health', 'carbon', 'esg', 'vessel', 'port', 'contractor', 'asset', 'training']) {
   const res = await corporate(`/api/dashboard/${key}`);
   check(`Dashboard ${key} merespons`, res.status === 200 && res.json !== null, res.json?.error);
 }
@@ -193,7 +193,7 @@ check('Ekspor CSV menghasilkan berkas', csv.status === 200 && csv.text.includes(
 const users = await corporate('/api/admin/users');
 check('Daftar pengguna terbaca oleh corporate QHSE', users.status === 200 && users.json.users.length >= 11);
 const perms = await corporate('/api/admin/permissions/operator');
-check('Matriks hak akses terbaca', perms.json.permissions.length === 98);
+check('Matriks hak akses terbaca', perms.json.permissions.length === 116);
 const permWrite = await corporate('/api/admin/permissions/operator', { method: 'PUT', body: { permissions: [] } });
 check('Perubahan hak akses dibatasi untuk administrator', permWrite.status === 403);
 
@@ -262,6 +262,63 @@ check('Portofolio cabang terisi', commercial.json.tenants.length >= 5, String(co
 check('Piutang tertunggak terdeteksi', commercial.json.cards.outstanding > 0, String(commercial.json?.cards?.outstanding));
 const commercialDenied = await ketapang('/api/dashboard/subscription');
 check('Dashboard komersial tertutup bagi cabang', commercialDenied.status === 403);
+
+section('15. Kompetensi & pelatihan');
+const catalogue = await corporate('/api/modules/training_master/records?size=200');
+check('Katalog pelatihan terisi', catalogue.status === 200 && catalogue.json.total >= 40, String(catalogue.json?.total));
+const matrix = await corporate('/api/modules/training_matrix/records?size=200');
+check('Matriks pelatihan wajib terisi', matrix.json?.total > 0, String(matrix.json?.total));
+const supervisorMatrix = matrix.json.records.filter((r) => r.position === 'Supervisor Dermaga');
+check('Supervisor Dermaga memiliki 15 pelatihan wajib', supervisorMatrix.length === 15, String(supervisorMatrix.length));
+
+const gapRecords = await corporate('/api/modules/skill_gap/records?size=200');
+check('Analisis kesenjangan kompetensi tersedia', gapRecords.json?.total > 0, String(gapRecords.json?.total));
+check('Kesenjangan dihitung server (wajib − dimiliki)',
+  gapRecords.json.records.every((r) => r.gap_count === Math.max(0, r.required_training_count - r.owned_training_count)));
+check('Persentase pemenuhan tidak pernah melebihi 100',
+  gapRecords.json.records.every((r) => r.compliance_percent === null || r.compliance_percent <= 100));
+
+const certRecords = await corporate('/api/modules/employee_certification/records?size=200');
+check('Sertifikat pegawai tercatat', certRecords.json?.total > 0, String(certRecords.json?.total));
+check('Status sertifikat diturunkan dari masa berlaku',
+  certRecords.json.records.every((r) => !r.valid_until || ['Berlaku', 'Akan Kedaluwarsa', 'Kedaluwarsa'].includes(r.cert_status)));
+const expiredCert = certRecords.json.records.find((r) => r.cert_status === 'Kedaluwarsa');
+check('Sertifikat lewat masa berlaku terdeteksi', !!expiredCert, expiredCert?.certificate_name);
+
+const trainingDash = (await corporate('/api/dashboard/training')).json;
+check('Dashboard pelatihan menghitung kepatuhan wajib', trainingDash.cards.mandatoryCompliance > 0, String(trainingDash.cards.mandatoryCompliance));
+check('Dashboard pelatihan menghitung jam per pegawai', trainingDash.cards.hoursPerEmployee > 0, String(trainingDash.cards.hoursPerEmployee));
+check('Kepatuhan per cabang tersedia', trainingDash.complianceByBranch.length > 0, String(trainingDash.complianceByBranch.length));
+check('Efektivitas Kirkpatrick level 4 terhitung', trainingDash.cards.incidentReduction !== null, String(trainingDash.cards.incidentReduction));
+
+// Pendaftaran melewati tiga lapis persetujuan; operator boleh mengajukan,
+// tetapi hanya pemegang hak approve yang boleh mengonfirmasi peserta.
+const registration = await operator('/api/modules/training_registration/records', {
+  method: 'POST',
+  body: {
+    employee_name: 'Yusuf Maulana',
+    employee_ref: 1,
+    training_ref: catalogue.json.records[0].id,
+    training_name: catalogue.json.records[0].name,
+    registration_date: new Date().toISOString().slice(0, 10),
+    port_id: 1,
+  },
+});
+check('Operator dapat mendaftar pelatihan sendiri', registration.status === 201, registration.json?.error);
+const regId = registration.json?.record?.id;
+const submit = await operator(`/api/modules/training_registration/records/${regId}/status`, { method: 'POST', body: { status: 'submitted' } });
+check('Operator dapat mengajukan pendaftarannya', submit.status === 200, submit.json?.error);
+const selfConfirm = await operator(`/api/modules/training_registration/records/${regId}/status`, { method: 'POST', body: { status: 'confirmed' } });
+check('Operator tidak dapat mengonfirmasi kursinya sendiri', selfConfirm.status === 403, String(selfConfirm.status));
+const qhseConfirm = await corporate(`/api/modules/training_registration/records/${regId}/status`, { method: 'POST', body: { status: 'confirmed' } });
+check('QHSE dapat mengonfirmasi peserta', qhseConfirm.status === 200, qhseConfirm.json?.error);
+await admin(`/api/modules/training_registration/records/${regId}`, { method: 'DELETE' });
+
+// Pelatihan wajib termasuk pada seluruh paket, termasuk Esensial: kepatuhan
+// SMK3 Elemen 12 bukan fitur tambahan.
+const bajoe = await login('qhse.bajoe');
+const bajoeTraining = await bajoe('/api/modules/training_master/records');
+check('Cabang paket Esensial tetap mendapat modul pelatihan', bajoeTraining.status === 200, String(bajoeTraining.status));
 
 console.log(`\n${'─'.repeat(56)}`);
 console.log(`  ${passed} lulus, ${failed} gagal`);

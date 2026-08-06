@@ -11,7 +11,26 @@ import {
   fmtDate, fmtDateTime, fmtNumber, fmtDecimal, fmtCurrency, emptyState, spinner,
 } from './ui.js';
 
-const REF_TYPES = ['region', 'branch', 'port', 'vessel', 'employee', 'asset', 'contractor'];
+/**
+ * Jenis field yang menunjuk rekaman modul lain, dipetakan ke kunci modulnya.
+ * Nama jenis dan kunci modul tidak selalu sama - `plan` menunjuk
+ * `subscription_plan`, `training` menunjuk `training_master` - jadi pemetaan
+ * ini harus dibaca, bukan ditebak dari nama jenisnya.
+ * Cerminan REF_TYPES di server/registry/index.js.
+ */
+const REF_TYPES = {
+  region: 'region',
+  branch: 'branch',
+  port: 'port',
+  vessel: 'vessel',
+  employee: 'employee',
+  asset: 'asset',
+  contractor: 'contractor',
+  plan: 'subscription_plan',
+  subscription: 'subscription',
+  training: 'training_master',
+  vendor: 'training_vendor',
+};
 const ORG_LABEL = { region: 'Regional', branch: 'Cabang', port: 'Pelabuhan', vessel: 'Kapal' };
 
 const optValue = (o) => (typeof o === 'string' ? o : o.value);
@@ -21,7 +40,7 @@ const optLabel = (o) => (typeof o === 'string' ? o : o.label ?? o.value);
 
 async function refLabel(type, id) {
   if (!id) return '—';
-  const list = await options(type);
+  const list = await options(REF_TYPES[type]);
   return list.find((o) => o.id === Number(id))?.label || `#${id}`;
 }
 
@@ -45,7 +64,7 @@ export function displayValue(field, value, record) {
     case 'textarea':
       return h('div', { style: 'white-space:pre-wrap', text: String(value) });
     default:
-      if (REF_TYPES.includes(field.type)) {
+      if (field.type in REF_TYPES) {
         const span = h('span', { text: `#${value}` });
         refLabel(field.type, value).then((label) => { span.textContent = label; });
         return span;
@@ -334,10 +353,10 @@ function buildControl(field, value) {
     return h('textarea', { readonly: readonly, text: value ?? '' });
   }
 
-  if (REF_TYPES.includes(field.type)) {
+  if (field.type in REF_TYPES) {
     const select = h('select', {});
     select.appendChild(h('option', { value: '', text: '— pilih —' }));
-    options(field.type).then((list) => {
+    options(REF_TYPES[field.type]).then((list) => {
       for (const o of list) select.appendChild(h('option', { value: o.id, text: o.label }));
       if (value) select.value = String(value);
     });

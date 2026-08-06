@@ -2427,6 +2427,815 @@ if (!hasRows('training_competency')) {
   });
 }
 
+/* --------------------------------------- kompetensi & pelatihan (kelompok P) */
+
+console.log('  Memuat katalog pelatihan, sertifikasi & kompetensi ...');
+
+/**
+ * Katalog pelatihan wajib ASDP. Kolom: nama, kode, kategori, sifat, dasar
+ * regulasi, hari, jam pelajaran, masa berlaku sertifikat (bulan), metode.
+ * Masa berlaku 0 berarti sertifikat tidak kedaluwarsa.
+ */
+const TRAINING_CATALOGUE = [
+  ['Induksi QHSE Pegawai Baru', 'QHSE-01', 'QHSE', 'Wajib Internal', 'PP No. 50 Tahun 2012 Elemen 12', 1, 8, 0, ['Classroom (Tatap Muka)', 'Online / E-Learning']],
+  ['Awareness Sistem Manajemen Terintegrasi ISO 9001/14001/45001', 'QHSE-02', 'QHSE', 'Wajib Internal', 'ISO 9001, ISO 14001, ISO 45001', 2, 16, 36, ['Classroom (Tatap Muka)', 'Blended Learning']],
+  ['Auditor Internal ISO Terintegrasi', 'QHSE-03', 'QHSE', 'Wajib Internal', 'ISO 19011:2018', 3, 24, 36, ['Classroom (Tatap Muka)']],
+  ['HIRADC & Penilaian Risiko K3', 'QHSE-04', 'QHSE', 'Wajib Internal', 'ISO 45001 §6.1.2, PP No. 50 Tahun 2012', 2, 16, 36, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Manajemen Risiko ISO 31000', 'QHSE-05', 'Manajemen & Kepemimpinan', 'Pengembangan (Tidak Wajib)', 'ISO 31000:2018', 2, 16, 0, ['Classroom (Tatap Muka)']],
+
+  ['Ahli K3 Umum (AK3U)', 'K3-01', 'Safety / K3', 'Wajib Regulasi', 'Permenaker No. 02/MEN/1992', 12, 96, 36, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Petugas P3K di Tempat Kerja', 'K3-02', 'Safety / K3', 'Wajib Regulasi', 'Permenakertrans No. 15 Tahun 2008', 3, 24, 36, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Bekerja di Ketinggian (TKBT Tingkat 1)', 'K3-03', 'Safety / K3', 'Wajib Regulasi', 'Permenaker No. 09 Tahun 2016', 3, 24, 36, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Keselamatan Ruang Terbatas (Confined Space)', 'K3-04', 'Safety / K3', 'Wajib Regulasi', 'Kepdirjen No. Kep.113/DJPPK/IX/2006', 3, 24, 36, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Lock Out Tag Out (LOTO) & Isolasi Energi', 'K3-05', 'Safety / K3', 'Wajib Internal', 'ISO 45001 §8.1.2', 1, 8, 24, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Operator Forklift Kelas II', 'K3-06', 'Safety / K3', 'Wajib Regulasi', 'Permenaker No. 08 Tahun 2020', 5, 40, 60, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Operator Crane & Rigger', 'K3-07', 'Safety / K3', 'Wajib Regulasi', 'Permenaker No. 08 Tahun 2020', 5, 40, 60, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Keselamatan Listrik & Teknisi K3 Listrik', 'K3-08', 'Safety / K3', 'Wajib Regulasi', 'Permenaker No. 12 Tahun 2015', 4, 32, 60, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+
+  ['Basic Fire Fighting', 'ERP-01', 'Emergency Response', 'Wajib Internal', 'Kepmenaker No. 186 Tahun 1999', 1, 8, 24, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Advanced Fire Fighting (AFF)', 'ERP-02', 'Emergency Response', 'Wajib Regulasi', 'STCW Reg. VI/3', 4, 32, 60, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Tanggap Darurat & Evakuasi Terminal', 'ERP-03', 'Emergency Response', 'Wajib Internal', 'PP No. 50 Tahun 2012 Elemen 6.9', 1, 8, 12, ['Classroom (Tatap Muka)', 'Simulator']],
+  ['Search and Rescue Dasar', 'ERP-04', 'Emergency Response', 'Wajib Internal', 'Perka Basarnas tentang SAR', 3, 24, 36, ['Praktek Lapangan']],
+  ['Penanganan Korban & Triase Massal', 'ERP-05', 'Emergency Response', 'Wajib Internal', 'Permenkes tentang Penanggulangan Krisis Kesehatan', 2, 16, 24, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+
+  ['Pengelolaan Limbah B3', 'LNG-01', 'Lingkungan', 'Wajib Regulasi', 'PP No. 22 Tahun 2021, Permen LHK No. 6 Tahun 2021', 3, 24, 36, ['Classroom (Tatap Muka)']],
+  ['Penanggulangan Tumpahan Minyak (OSCP Tier 1)', 'LNG-02', 'Lingkungan', 'Wajib Regulasi', 'Perpres No. 109 Tahun 2006, MARPOL Annex I', 3, 24, 36, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Pemantauan Lingkungan & Pelaporan RKL-RPL', 'LNG-03', 'Lingkungan', 'Wajib Internal', 'PP No. 22 Tahun 2021', 2, 16, 24, ['Classroom (Tatap Muka)']],
+  ['Inventarisasi Emisi GRK & Jejak Karbon', 'LNG-04', 'Lingkungan', 'Pengembangan (Tidak Wajib)', 'Perpres No. 98 Tahun 2021, ISO 14064', 2, 16, 0, ['Online / E-Learning']],
+
+  ['Basic Safety Training (BST)', 'MAR-01', 'Maritim & Pelayaran', 'Wajib Regulasi', 'STCW Reg. VI/1', 5, 40, 60, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Survival Craft and Rescue Boat (SCRB)', 'MAR-02', 'Maritim & Pelayaran', 'Wajib Regulasi', 'STCW Reg. VI/2', 4, 32, 60, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Medical First Aid (MFA)', 'MAR-03', 'Maritim & Pelayaran', 'Wajib Regulasi', 'STCW Reg. VI/4', 3, 24, 60, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Ship Security Officer / ISPS Code', 'MAR-04', 'Maritim & Pelayaran', 'Wajib Regulasi', 'ISPS Code Part A, STCW Reg. VI/5', 3, 24, 60, ['Classroom (Tatap Muka)']],
+  ['Ship Handling & Manuver Kapal Ro-Ro', 'MAR-05', 'Maritim & Pelayaran', 'Wajib Internal', 'STCW Reg. II/2', 5, 40, 60, ['Simulator', 'Praktek Lapangan']],
+  ['Stabilitas Kapal & Perhitungan GM', 'MAR-06', 'Maritim & Pelayaran', 'Wajib Internal', 'SOLAS Ch. II-1, Kode Stabilitas Utuh 2008', 3, 24, 36, ['Classroom (Tatap Muka)', 'Simulator']],
+  ['Penanganan Barang Berbahaya (IMDG Code)', 'MAR-07', 'Maritim & Pelayaran', 'Wajib Regulasi', 'IMDG Code, PM 25 Tahun 2015', 3, 24, 36, ['Classroom (Tatap Muka)']],
+  ['ISM Code & Sistem Manajemen Keselamatan Kapal', 'MAR-08', 'Maritim & Pelayaran', 'Wajib Internal', 'ISM Code, SOLAS Ch. IX', 3, 24, 36, ['Classroom (Tatap Muka)']],
+
+  ['Keselamatan Muat Kendaraan (Vehicle Loading Safety)', 'OPS-01', 'Operasional Pelabuhan', 'Wajib Internal', 'PM 25 Tahun 2015, IMO Ro-Ro Cargo Securing', 2, 16, 24, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Mooring & Unmooring Kapal Penyeberangan', 'OPS-02', 'Operasional Pelabuhan', 'Wajib Internal', 'OCIMF Mooring Equipment Guidelines', 2, 16, 24, ['Praktek Lapangan']],
+  ['Pengoperasian Movable Bridge & Ramp Door', 'OPS-03', 'Operasional Pelabuhan', 'Wajib Internal', 'PM 52 Tahun 2004 tentang Pelabuhan Penyeberangan', 3, 24, 36, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+  ['Manajemen Kepadatan Penumpang & Kendaraan', 'OPS-04', 'Operasional Pelabuhan', 'Wajib Internal', 'SE Dirjen Hubdat tentang Angkutan Lebaran', 1, 8, 12, ['Classroom (Tatap Muka)']],
+  ['Pelayanan Prima & Penanganan Keluhan Pelanggan', 'OPS-05', 'Operasional Pelabuhan', 'Pengembangan (Tidak Wajib)', 'ISO 9001 §8.2', 2, 16, 0, ['Classroom (Tatap Muka)', 'Online / E-Learning']],
+
+  ['Kesehatan Kerja & Manajemen Kelelahan (Fatigue)', 'KES-01', 'Kesehatan Kerja', 'Wajib Internal', 'STCW Reg. VIII/1, Permenaker No. 05 Tahun 2018', 1, 8, 24, ['Online / E-Learning', 'Classroom (Tatap Muka)']],
+  ['Pencegahan Penyakit Akibat Kerja', 'KES-02', 'Kesehatan Kerja', 'Wajib Internal', 'Perpres No. 07 Tahun 2019', 1, 8, 24, ['Online / E-Learning']],
+  ['Hiperkes bagi Paramedis Perusahaan', 'KES-03', 'Kesehatan Kerja', 'Wajib Regulasi', 'Permenakertrans No. 01/MEN/1979', 5, 40, 60, ['Classroom (Tatap Muka)']],
+
+  ['Investigasi Insiden & Root Cause Analysis', 'MGT-01', 'Manajemen & Kepemimpinan', 'Wajib Internal', 'ISO 45001 §10.2', 2, 16, 36, ['Classroom (Tatap Muka)']],
+  ['Leadership & Budaya Keselamatan', 'MGT-02', 'Manajemen & Kepemimpinan', 'Wajib Internal', 'ISO 45001 §5.1', 2, 16, 0, ['Classroom (Tatap Muka)', 'Blended Learning']],
+  ['Behaviour Based Safety Observation', 'MGT-03', 'Manajemen & Kepemimpinan', 'Wajib Internal', 'ISO 45001 §5.4', 1, 8, 24, ['Classroom (Tatap Muka)', 'Praktek Lapangan']],
+
+  ['Keamanan Informasi & Pelindungan Data Pribadi', 'DIG-01', 'Digital & Sistem Informasi', 'Wajib Internal', 'UU No. 27 Tahun 2022, ISO 27001', 1, 8, 12, ['Online / E-Learning']],
+  ['Literasi Digital Aplikasi QHSE ASDP', 'DIG-02', 'Digital & Sistem Informasi', 'Wajib Internal', 'Kebijakan Transformasi Digital Perusahaan', 1, 6, 0, ['Online / E-Learning', 'Webinar']],
+];
+
+const trainingIds = {};
+if (!hasRows('training_master')) {
+  TRAINING_CATALOGUE.forEach(([name, code, category, mandatory, basis, days, hours, validity, methods], i) => {
+    trainingIds[name] = insert('training_master', {
+      name,
+      training_code: code,
+      category,
+      mandatory,
+      regulation_basis: basis,
+      duration_days: days,
+      lesson_hours: hours,
+      method: methods,
+      competency_level: pick(['2 - Basic', '3 - Intermediate', '4 - Advanced'], i),
+      certificate_issued: true,
+      certificate_body: mandatory === 'Wajib Regulasi'
+        ? pick(['Kementerian Ketenagakerjaan RI', 'Direktorat Jenderal Perhubungan Laut', 'BNSP', 'Kementerian Lingkungan Hidup dan Kehutanan'], i)
+        : 'PT ASDP Indonesia Ferry (Persero)',
+      validity_months: validity || null,
+      refresh_required: validity > 0,
+      refresh_interval_months: validity || null,
+      passing_grade: mandatory === 'Wajib Regulasi' ? 75 : 70,
+      standard_cost: randInt(1, 14) * 1_500_000,
+      prerequisite: hours >= 40 ? 'Minimal 1 tahun masa kerja pada bidang terkait.' : 'Tidak ada prasyarat khusus.',
+      target_audience: 'Pegawai dan awak kapal sesuai matriks pelatihan wajib per jabatan.',
+      objective: `Peserta mampu menerapkan ${name.toLowerCase()} sesuai ${basis}.`,
+      syllabus: 'Dasar regulasi, identifikasi bahaya, prosedur kerja aman, praktek/simulasi, dan evaluasi akhir.',
+    }, { status: 'active', org: CORPORATE });
+  });
+} else {
+  for (const row of all('SELECT id, name FROM m_training_master')) trainingIds[row.name] = row.id;
+}
+
+const trainingRef = (name) => trainingIds[name] ?? null;
+const CATALOGUE_NAMES = Object.keys(trainingIds);
+
+/* ---------------------------------------------------------------- vendor */
+
+const vendorIds = {};
+if (!hasRows('training_vendor')) {
+  const VENDORS = [
+    ['PJK3 Sentra Keselamatan Nusantara', 'PJK3 Kemnaker', 'KEP.1274/M/DJPPK/XI/2024', 'Kementerian Ketenagakerjaan RI', ['Safety / K3', 'Emergency Response'], 88],
+    ['Balai Pendidikan dan Pelatihan Ilmu Pelayaran Jakarta', 'Balai Diklat Kemenhub', 'BPPTL/DIK/2024/019', 'Direktorat Jenderal Perhubungan Laut', ['Maritim & Pelayaran', 'Emergency Response'], 92],
+    ['LSP Transportasi Penyeberangan Indonesia', 'Lembaga Sertifikasi Profesi (BNSP)', 'BNSP-LSP-1187-ID', 'Badan Nasional Sertifikasi Profesi', ['Operasional Pelabuhan', 'Maritim & Pelayaran'], 85],
+    ['Biro Klasifikasi Indonesia - Divisi Diklat', 'Badan Klasifikasi (BKI)', 'BKI/DIK/2025/004', 'Biro Klasifikasi Indonesia', ['Maritim & Pelayaran', 'QHSE'], 90],
+    ['Politeknik Ilmu Pelayaran Semarang', 'Perguruan Tinggi / Politeknik', 'PIP-SMG/KS/2025/12', 'Kementerian Perhubungan', ['Maritim & Pelayaran'], 87],
+    ['Nusantara Environmental Training Center', 'Konsultan & Training Provider', 'KLHK/PLB3/2024/221', 'Kementerian Lingkungan Hidup dan Kehutanan', ['Lingkungan'], 79],
+    ['Integra Management System Consulting', 'Konsultan & Training Provider', 'IMSC/ISO/2025/07', 'Lembaga Sertifikasi Sistem Manajemen', ['QHSE', 'Manajemen & Kepemimpinan'], 83],
+    ['ASDP Corporate University', 'Internal ASDP Corporate University', 'INTERNAL-CU-01', 'PT ASDP Indonesia Ferry (Persero)', ['QHSE', 'Digital & Sistem Informasi', 'Operasional Pelabuhan'], 76],
+  ];
+  VENDORS.forEach(([name, type, accNo, accBody, spec, base], i) => {
+    vendorIds[name] = insert('training_vendor', {
+      name,
+      vendor_type: type,
+      accreditation_no: accNo,
+      accreditation_body: accBody,
+      accreditation_expiry: daysAhead(randInt(60, 900)),
+      npwp: `0${randInt(1, 9)}.${randInt(100, 999)}.${randInt(100, 999)}.${randInt(1, 9)}-${randInt(100, 999)}.000`,
+      address: pick(['Jakarta Pusat', 'Jakarta Utara', 'Semarang', 'Surabaya', 'Bandar Lampung'], i),
+      pic_name: pick(['Bambang Wijaya', 'Retno Palupi', 'Hendra Gunawan', 'Maya Sari'], i),
+      pic_phone: `08${randInt(1000000000, 9999999999)}`,
+      pic_email: `diklat${i + 1}@lembaga-pelatihan.co.id`,
+      specialisation: spec,
+      contract_no: `PKS/ASDP-DIKLAT/${2025 + (i % 2)}/${String(i + 1).padStart(3, '0')}`,
+      contract_start: daysAgo(randInt(200, 600)),
+      contract_end: daysAhead(randInt(-15, 500)),
+      training_count: randInt(3, 28),
+      participant_count: randInt(40, 620),
+      score_material: base + randInt(-6, 6),
+      score_instructor: base + randInt(-5, 8),
+      score_facility: base + randInt(-9, 5),
+      score_service: base + randInt(-7, 6),
+      score_certificate: base + randInt(-4, 7),
+      vendor_status: i === 5 ? 'Peringatan' : 'Aktif',
+      document_note: 'Akta pendirian, NIB, akreditasi, profil instruktur dan daftar peralatan praktek lengkap.',
+    }, { status: 'active', org: CORPORATE });
+  });
+} else {
+  for (const row of all('SELECT id, name FROM m_training_vendor')) vendorIds[row.name] = row.id;
+}
+
+const VENDOR_NAMES = Object.keys(vendorIds);
+const vendorRef = (i) => vendorIds[pick(VENDOR_NAMES, i)] ?? null;
+
+/* ------------------------------------------------------ matriks pelatihan */
+
+/**
+ * Matriks pelatihan wajib per jabatan. Dua contoh yang paling sering ditanya
+ * saat audit - Supervisor Dermaga dan Nakhoda - dibuat lengkap; jabatan lain
+ * mengikuti pola yang sama.
+ */
+const TRAINING_MATRIX = [
+  ['Supervisor Dermaga', 'Operasi Pelabuhan', 'Pelabuhan', [
+    'Induksi QHSE Pegawai Baru', 'Awareness Sistem Manajemen Terintegrasi ISO 9001/14001/45001',
+    'HIRADC & Penilaian Risiko K3', 'Ahli K3 Umum (AK3U)', 'Petugas P3K di Tempat Kerja',
+    'Basic Fire Fighting', 'Tanggap Darurat & Evakuasi Terminal', 'Lock Out Tag Out (LOTO) & Isolasi Energi',
+    'Keselamatan Muat Kendaraan (Vehicle Loading Safety)', 'Mooring & Unmooring Kapal Penyeberangan',
+    'Pengoperasian Movable Bridge & Ramp Door', 'Manajemen Kepadatan Penumpang & Kendaraan',
+    'Investigasi Insiden & Root Cause Analysis', 'Behaviour Based Safety Observation',
+    'Keamanan Informasi & Pelindungan Data Pribadi',
+  ]],
+  ['Nakhoda', 'Nautika', 'Kapal', [
+    'Basic Safety Training (BST)', 'Survival Craft and Rescue Boat (SCRB)', 'Advanced Fire Fighting (AFF)',
+    'Medical First Aid (MFA)', 'Ship Security Officer / ISPS Code', 'Ship Handling & Manuver Kapal Ro-Ro',
+    'Stabilitas Kapal & Perhitungan GM', 'Penanganan Barang Berbahaya (IMDG Code)',
+    'ISM Code & Sistem Manajemen Keselamatan Kapal', 'Kesehatan Kerja & Manajemen Kelelahan (Fatigue)',
+    'Investigasi Insiden & Root Cause Analysis', 'Penanggulangan Tumpahan Minyak (OSCP Tier 1)',
+  ]],
+  ['Kepala Kamar Mesin', 'Teknika', 'Kapal', [
+    'Basic Safety Training (BST)', 'Advanced Fire Fighting (AFF)', 'Survival Craft and Rescue Boat (SCRB)',
+    'Keselamatan Listrik & Teknisi K3 Listrik', 'Lock Out Tag Out (LOTO) & Isolasi Energi',
+    'Keselamatan Ruang Terbatas (Confined Space)', 'Penanggulangan Tumpahan Minyak (OSCP Tier 1)',
+    'ISM Code & Sistem Manajemen Keselamatan Kapal',
+  ]],
+  ['Operator Movable Bridge', 'Teknik', 'Pelabuhan', [
+    'Induksi QHSE Pegawai Baru', 'Pengoperasian Movable Bridge & Ramp Door',
+    'Lock Out Tag Out (LOTO) & Isolasi Energi', 'Keselamatan Listrik & Teknisi K3 Listrik',
+    'Basic Fire Fighting', 'Petugas P3K di Tempat Kerja',
+  ]],
+  ['Petugas Tambat (Mooring)', 'Operasi Pelabuhan', 'Pelabuhan', [
+    'Induksi QHSE Pegawai Baru', 'Mooring & Unmooring Kapal Penyeberangan',
+    'Basic Fire Fighting', 'Petugas P3K di Tempat Kerja', 'Tanggap Darurat & Evakuasi Terminal',
+  ]],
+  ['Petugas QHSE Cabang', 'QHSE', 'Cabang', [
+    'Ahli K3 Umum (AK3U)', 'Auditor Internal ISO Terintegrasi', 'HIRADC & Penilaian Risiko K3',
+    'Investigasi Insiden & Root Cause Analysis', 'Pengelolaan Limbah B3',
+    'Pemantauan Lingkungan & Pelaporan RKL-RPL', 'Behaviour Based Safety Observation',
+    'Manajemen Risiko ISO 31000',
+  ]],
+  ['Petugas Loket & Pelayanan Penumpang', 'Komersial', 'Pelabuhan', [
+    'Induksi QHSE Pegawai Baru', 'Pelayanan Prima & Penanganan Keluhan Pelanggan',
+    'Manajemen Kepadatan Penumpang & Kendaraan', 'Tanggap Darurat & Evakuasi Terminal',
+    'Keamanan Informasi & Pelindungan Data Pribadi',
+  ]],
+  ['Perawat Klinik Pelabuhan', 'Kesehatan Kerja', 'Pelabuhan', [
+    'Hiperkes bagi Paramedis Perusahaan', 'Petugas P3K di Tempat Kerja',
+    'Penanganan Korban & Triase Massal', 'Pencegahan Penyakit Akibat Kerja',
+  ]],
+  ['Operator Forklift Terminal', 'Teknik', 'Pelabuhan', [
+    'Induksi QHSE Pegawai Baru', 'Operator Forklift Kelas II', 'Basic Fire Fighting',
+    'Lock Out Tag Out (LOTO) & Isolasi Energi',
+  ]],
+  ['Petugas Keamanan (Port Facility Security)', 'Keamanan', 'Pelabuhan', [
+    'Induksi QHSE Pegawai Baru', 'Ship Security Officer / ISPS Code',
+    'Tanggap Darurat & Evakuasi Terminal', 'Basic Fire Fighting', 'Petugas P3K di Tempat Kerja',
+  ]],
+];
+
+if (!hasRows('training_matrix')) {
+  let mi = 0;
+  for (const [position, division, scopeName, trainings] of TRAINING_MATRIX) {
+    for (const name of trainings) {
+      const spec = TRAINING_CATALOGUE.find((t) => t[0] === name);
+      const regulated = spec?.[3] === 'Wajib Regulasi';
+      insert('training_matrix', {
+        position,
+        division,
+        job_grade: pick(['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'], mi),
+        target_scope: scopeName,
+        vessel_type: scopeName === 'Kapal' ? 'Semua Jenis Kapal' : null,
+        training_ref: trainingRef(name),
+        training_name: name,
+        category: spec?.[2] ?? null,
+        requirement_type: regulated
+          ? 'Wajib Sebelum Bertugas'
+          : pick(['Wajib Berkala', 'Wajib Sebelum Bertugas', 'Wajib Bersyarat (Tugas Tertentu)'], mi),
+        refresh_interval_months: spec?.[7] || null,
+        required_level: pick(['2 - Basic', '3 - Intermediate', '4 - Advanced'], mi),
+        regulation_basis: spec?.[4] ?? null,
+        priority: regulated ? 'Kritis' : pick(['Tinggi', 'Sedang'], mi),
+        effective_date: daysAgo(randInt(120, 500)),
+        review_date: daysAhead(randInt(30, 420)),
+        notes: regulated ? 'Tidak boleh bertugas mandiri sebelum sertifikat terbit dan masih berlaku.' : null,
+      }, {
+        status: 'active',
+        org: scopeName === 'Kapal' ? VESSEL_SITE(pick(vesselNames, mi)) : pick(SITES, mi),
+      });
+      mi += 1;
+    }
+  }
+}
+
+/* -------------------------------------------- pegawai: kompetensi & sertifikat */
+
+const trainees = all('SELECT id, name, position, region_id, branch_id, port_id FROM m_employee ORDER BY id');
+const employeeOrg = (row) => ({
+  region_id: row.region_id,
+  branch_id: row.branch_id,
+  port_id: row.port_id,
+  owner_id: userIds['regional.qhse'],
+});
+
+if (trainees.length && !hasRows('competency_matrix')) {
+  const COMPETENCIES = [
+    ['Identifikasi Bahaya & Penilaian Risiko', 'QHSE'],
+    ['Prosedur Tanggap Darurat', 'QHSE'],
+    ['Pengoperasian Peralatan Kerja', 'Teknis'],
+    ['Komunikasi & Koordinasi Operasional', 'Perilaku'],
+    ['Pelaporan Insiden & Near Miss', 'QHSE'],
+    ['Kepemimpinan Keselamatan di Lapangan', 'Kepemimpinan'],
+  ];
+  trainees.forEach((emp, i) => {
+    COMPETENCIES.forEach((c, j) => {
+      const required = randInt(3, 5);
+      const current = Math.max(1, required - randInt(0, 2));
+      const level = (v) => pick(['1 - Beginner', '2 - Basic', '3 - Intermediate', '4 - Advanced', '5 - Expert'], v - 1);
+      insert('competency_matrix', {
+        competency_name: c[0],
+        employee_ref: emp.id,
+        employee_name: emp.name,
+        position: emp.position,
+        division: pick(['Operasi', 'Teknik', 'QHSE', 'Komersial', 'Umum'], i + j),
+        competency_type: c[1],
+        required_level: level(required),
+        current_level: level(current),
+        assessment_date: daysAgo(randInt(20, 300)),
+        assessor: 'regional.qhse',
+        evidence: 'Hasil observasi kerja dan rekaman pelatihan internal.',
+        development_plan: current < required ? 'Diikutsertakan pada pelatihan penyegaran dan pendampingan OJT.' : 'Dipertahankan melalui refreshment berkala.',
+        target_date: daysAhead(randInt(30, 300)),
+      }, { status: 'active', org: employeeOrg(emp) });
+    });
+  });
+}
+
+if (trainees.length && !hasRows('employee_certification')) {
+  const CERT_SPECS = [
+    ['Sertifikat Ahli K3 Umum', 'Sertifikat Kemnaker (Lisensi K3)', 'Kementerian Ketenagakerjaan RI', 'Ahli K3 Umum (AK3U)'],
+    ['Sertifikat Petugas P3K', 'Sertifikat Kemnaker (Lisensi K3)', 'Dinas Tenaga Kerja Provinsi', 'Petugas P3K di Tempat Kerja'],
+    ['Basic Safety Training Certificate', 'Sertifikat Kepelautan (STCW)', 'Direktorat Jenderal Perhubungan Laut', 'Basic Safety Training (BST)'],
+    ['Survival Craft and Rescue Boat Certificate', 'Sertifikat Kepelautan (STCW)', 'Direktorat Jenderal Perhubungan Laut', 'Survival Craft and Rescue Boat (SCRB)'],
+    ['Lisensi Operator Forklift Kelas II', 'Sertifikat Kemnaker (Lisensi K3)', 'Kementerian Ketenagakerjaan RI', 'Operator Forklift Kelas II'],
+    ['Sertifikat Kompetensi Petugas Tambat', 'Sertifikat Kompetensi BNSP', 'BNSP', 'Mooring & Unmooring Kapal Penyeberangan'],
+    ['Sertifikat Auditor Internal ISO Terintegrasi', 'Sertifikat Internal ASDP', 'PT ASDP Indonesia Ferry (Persero)', 'Auditor Internal ISO Terintegrasi'],
+    ['Sertifikat Hiperkes Paramedis', 'Sertifikat Kesehatan', 'Kementerian Ketenagakerjaan RI', 'Hiperkes bagi Paramedis Perusahaan'],
+    ['Ship Security Officer Certificate', 'Sertifikat Kepelautan (STCW)', 'Direktorat Jenderal Perhubungan Laut', 'Ship Security Officer / ISPS Code'],
+    ['Sertifikat Pengelolaan Limbah B3', 'Sertifikat Kompetensi BNSP', 'Kementerian Lingkungan Hidup dan Kehutanan', 'Pengelolaan Limbah B3'],
+  ];
+  trainees.forEach((emp, i) => {
+    // Dua sampai tiga sertifikat per pegawai, sengaja bervariasi masa berlakunya
+    // supaya papan peringatan kedaluwarsa punya isi yang realistis.
+    for (let k = 0; k < 2 + (i % 2); k++) {
+      const [certName, certType, issuer, training] = pick(CERT_SPECS, i + k * 3);
+      const issued = daysAgo(randInt(200, 1300));
+      const expiry = daysAhead(randInt(-120, 900));
+      insert('employee_certification', {
+        certificate_name: certName,
+        employee_ref: emp.id,
+        employee_name: emp.name,
+        position: emp.position,
+        certificate_number: `${String(certType).slice(0, 3).toUpperCase()}/${randInt(1000, 9999)}/${String(2023 + (i % 3))}`,
+        certificate_type: certType,
+        training_ref: trainingRef(training),
+        issuer,
+        issue_date: issued,
+        valid_until: expiry,
+        renewal_lead_days: 30,
+        competency_area: pick(['Keselamatan Kerja', 'Kepelautan', 'Lingkungan', 'Kesehatan Kerja', 'Operasional Pelabuhan'], i + k),
+        verification_status: pick(['Terverifikasi', 'Terverifikasi', 'Menunggu Verifikasi'], i + k),
+        document_no: `ARS/SRT/${String(i + 1).padStart(3, '0')}-${k + 1}`,
+        renewal_planned: expiry < daysAhead(120),
+        renewal_date: expiry < daysAhead(120) ? daysAhead(randInt(5, 100)) : null,
+        notes: 'Berkas asli disimpan di Bagian SDM cabang, salinan digital terlampir.',
+      }, { status: 'verified', org: employeeOrg(emp), createdAt: `${issued}T08:00:00.000Z` });
+    }
+  });
+}
+
+/* ------------------------------------------------- jadwal & penyelenggaraan */
+
+const SCHEDULE_PLAN = [
+  ['Ahli K3 Umum (AK3U) Angkatan I', 'Ahli K3 Umum (AK3U)', 'Rencana Tahunan', 'completed'],
+  ['Refreshment Basic Safety Training ABK', 'Basic Safety Training (BST)', 'Rencana Tahunan', 'completed'],
+  ['Pelatihan Petugas P3K Cabang', 'Petugas P3K di Tempat Kerja', 'Rencana Tahunan', 'completed'],
+  ['Auditor Internal ISO Terintegrasi Batch 2', 'Auditor Internal ISO Terintegrasi', 'Rencana Tahunan', 'completed'],
+  ['HIRADC bagi Supervisor Dermaga', 'HIRADC & Penilaian Risiko K3', 'Rencana Bulanan', 'completed'],
+  ['Keselamatan Muat Kendaraan Ro-Ro', 'Keselamatan Muat Kendaraan (Vehicle Loading Safety)', 'Rencana Bulanan', 'completed'],
+  ['Pengelolaan Limbah B3 Terminal', 'Pengelolaan Limbah B3', 'Rencana Tahunan', 'completed'],
+  ['Penanggulangan Tumpahan Minyak Tier 1', 'Penanggulangan Tumpahan Minyak (OSCP Tier 1)', 'Rencana Tahunan', 'running'],
+  ['Ship Handling Simulator Nakhoda', 'Ship Handling & Manuver Kapal Ro-Ro', 'Rencana Tahunan', 'registration'],
+  ['Manajemen Kepadatan Angkutan Lebaran', 'Manajemen Kepadatan Penumpang & Kendaraan', 'Rencana Bulanan', 'registration'],
+  ['Keamanan Informasi bagi Seluruh Pengguna', 'Keamanan Informasi & Pelindungan Data Pribadi', 'Rencana Bulanan', 'planned'],
+  ['Operator Movable Bridge & Ramp Door', 'Pengoperasian Movable Bridge & Ramp Door', 'Rencana Tahunan', 'planned'],
+  ['Advanced Fire Fighting ABK Senior', 'Advanced Fire Fighting (AFF)', 'Rencana Tahunan', 'planned'],
+  ['Penanganan Barang Berbahaya IMDG', 'Penanganan Barang Berbahaya (IMDG Code)', 'Rencana Tahunan', 'postponed'],
+];
+
+if (!hasRows('training_schedule')) {
+  SCHEDULE_PLAN.forEach(([title, training, planType, status], i) => {
+    const past = ['completed', 'running'].includes(status);
+    const start = past ? daysAgo(randInt(20, 320)) : daysAhead(randInt(10, 180));
+    const quota = randInt(15, 40);
+    const registered = past ? quota - randInt(0, 5) : randInt(4, quota);
+    const spec = TRAINING_CATALOGUE.find((t) => t[0] === training);
+    const cost = randInt(2, 9) * 1_250_000;
+    insert('training_schedule', {
+      title,
+      training_ref: trainingRef(training),
+      plan_type: planType,
+      period: planType === 'Rencana Tahunan' ? start.slice(0, 4) : start.slice(0, 7),
+      start_date: start,
+      end_date: start,
+      session_time: '08.00 - 16.00 WIB',
+      method: pick(spec?.[8] ?? ['Classroom (Tatap Muka)'], i),
+      venue: pick(['Ruang Diklat Kantor Cabang', 'Balai Diklat Transportasi', 'Terminal Penumpang Lantai 2', 'Simulator PIP Semarang', 'Daring melalui LMS ASDP'], i),
+      target_scope: pick(['Pelabuhan', 'Cabang', 'Kapal', 'Seluruh Unit'], i),
+      target_division: pick(['Operasi Pelabuhan', 'Teknik', 'QHSE', 'Nautika', 'Komersial'], i),
+      vendor_ref: vendorRef(i),
+      instructor: pick(['Ir. Bambang Wijaya, M.K3', 'Capt. Hendra Gunawan', 'Retno Palupi, S.KM', 'Dr. Maya Sari, M.Si'], i),
+      batch: `Batch ${(i % 3) + 1}`,
+      quota,
+      registered,
+      waiting_list: past ? randInt(0, 6) : randInt(0, 3),
+      cost_per_participant: cost,
+      total_budget: cost * registered,
+      pic: 'regional.qhse',
+      registration_close: past ? daysAgo(randInt(1, 15)) : daysAhead(randInt(3, 30)),
+      notes: status === 'postponed' ? 'Ditunda menunggu ketersediaan instruktur bersertifikat IMDG.' : null,
+    }, { status, org: pick(SITES, i), createdAt: `${past ? start : daysAgo(randInt(5, 40))}T07:00:00.000Z` });
+  });
+}
+
+/* --------------------------------------------- pendaftaran & kehadiran */
+
+if (trainees.length && !hasRows('training_registration')) {
+  const REG_STATUS = ['confirmed', 'confirmed', 'confirmed', 'qhse_approved', 'hr_approved', 'supervisor_approved', 'submitted', 'waiting_list', 'cancelled', 'rejected'];
+  trainees.forEach((emp, i) => {
+    for (let k = 0; k < 2; k++) {
+      const status = pick(REG_STATUS, i + k * 4);
+      const training = pick(CATALOGUE_NAMES, i * 2 + k);
+      const regDate = daysAgo(randInt(10, 260));
+      const approved = ['confirmed', 'qhse_approved', 'hr_approved', 'supervisor_approved'].includes(status);
+      insert('training_registration', {
+        employee_name: emp.name,
+        employee_ref: emp.id,
+        position: emp.position,
+        division: pick(['Operasi', 'Teknik', 'QHSE', 'Komersial', 'Umum'], i + k),
+        training_ref: trainingRef(training),
+        training_name: training,
+        schedule_code: `TSC/${new Date().getFullYear()}/${String(randInt(1, 14)).padStart(4, '0')}`,
+        registration_date: regDate,
+        mandatory_flag: (i + k) % 3 !== 0,
+        justification: 'Pemenuhan matriks pelatihan wajib jabatan dan penutupan kesenjangan kompetensi.',
+        supervisor: 'supervisor',
+        supervisor_date: approved || status === 'waiting_list' ? regDate : null,
+        hr_approver: ['confirmed', 'qhse_approved', 'hr_approved'].includes(status) ? 'dept.head' : null,
+        hr_date: ['confirmed', 'qhse_approved', 'hr_approved'].includes(status) ? regDate : null,
+        qhse_approver: ['confirmed', 'qhse_approved'].includes(status) ? 'regional.qhse' : null,
+        qhse_date: ['confirmed', 'qhse_approved'].includes(status) ? regDate : null,
+        seat_status: status === 'waiting_list' ? 'Daftar Tunggu' : status === 'cancelled' ? 'Dibatalkan' : 'Terkonfirmasi',
+        waiting_number: status === 'waiting_list' ? randInt(1, 8) : null,
+        cancel_reason: status === 'cancelled' ? pick(['Tugas Operasional Mendesak', 'Sakit / Berhalangan', 'Kuota Penuh'], i) : null,
+        approval_note: status === 'rejected' ? 'Belum memenuhi prasyarat masa kerja pada bidang terkait.' : null,
+      }, { status, org: employeeOrg(emp), createdAt: `${regDate}T09:30:00.000Z` });
+    }
+  });
+}
+
+if (trainees.length && !hasRows('training_attendance')) {
+  trainees.forEach((emp, i) => {
+    for (let k = 0; k < 2; k++) {
+      const training = pick(CATALOGUE_NAMES, i + k * 5);
+      const date = daysAgo(randInt(15, 300));
+      const status = pick(['Hadir', 'Hadir', 'Hadir', 'Hadir', 'Terlambat', 'Izin', 'Sakit', 'Tidak Hadir'], i + k * 3);
+      const sessionHours = 8;
+      const attended = status === 'Hadir' ? 8 : status === 'Terlambat' ? 7 : 0;
+      insert('training_attendance', {
+        employee_name: emp.name,
+        employee_ref: emp.id,
+        training_ref: trainingRef(training),
+        training_name: training,
+        schedule_code: `TSC/${date.slice(0, 4)}/${String(randInt(1, 14)).padStart(4, '0')}`,
+        session_date: date,
+        session_title: `Sesi ${k + 1} - ${training}`,
+        check_in_time: status === 'Terlambat' ? '08:45' : '07:50',
+        check_out_time: attended ? '16:05' : null,
+        attendance_method: pick(['QR Code', 'Face Recognition', 'NFC / Kartu Pegawai', 'GPS Lokasi', 'Manual (Tanda Tangan)'], i + k),
+        gps_coordinate: `-${(5 + rnd() * 3).toFixed(4)}, ${(105 + rnd() * 10).toFixed(4)}`,
+        device_id: pick(['Tablet Diklat 01', 'Tablet Diklat 02', 'Kios Absensi Terminal', 'Aplikasi Mobile QHSE'], i + k),
+        attendance_status: status,
+        session_hours: sessionHours,
+        attended_hours: attended,
+        eligible_certificate: attended >= 7,
+        verified_by: 'regional.qhse',
+        notes: status === 'Tidak Hadir' ? 'Tidak hadir tanpa keterangan, dijadwalkan ulang pada angkatan berikutnya.' : null,
+      }, { status: 'validated', org: employeeOrg(emp), createdAt: `${date}T17:00:00.000Z` });
+    }
+  });
+}
+
+/* ------------------------------------------------------------------- LMS */
+
+if (!hasRows('learning_content')) {
+  const CONTENTS = [
+    ['Video Induksi QHSE ASDP', 'Video', 'Induksi QHSE Pegawai Baru', 'Jalur Pegawai Baru', 24],
+    ['Modul Interaktif Identifikasi Bahaya', 'Modul Interaktif', 'HIRADC & Penilaian Risiko K3', 'Jalur Supervisor Dermaga - Tingkat Dasar', 45],
+    ['Kuis Kesadaran Keselamatan Penyeberangan', 'Kuis', 'Induksi QHSE Pegawai Baru', 'Jalur Pegawai Baru', 15],
+    ['Simulasi Prosedur Evakuasi Terminal', 'Simulasi', 'Tanggap Darurat & Evakuasi Terminal', 'Jalur Tanggap Darurat', 30],
+    ['Animasi Prosedur Muat Kendaraan Ro-Ro', 'Animasi', 'Keselamatan Muat Kendaraan (Vehicle Loading Safety)', 'Jalur Petugas Dermaga - Tingkat Dasar', 20],
+    ['Paket SCORM Keamanan Informasi', 'Paket SCORM', 'Keamanan Informasi & Pelindungan Data Pribadi', 'Jalur Wajib Seluruh Pegawai', 40],
+    ['Dokumen Panduan Pengelolaan Limbah B3', 'Dokumen PDF', 'Pengelolaan Limbah B3', 'Jalur Lingkungan', 35],
+    ['Video Teknik Mooring Aman', 'Video', 'Mooring & Unmooring Kapal Penyeberangan', 'Jalur Petugas Dermaga - Tingkat Dasar', 18],
+    ['Modul Stabilitas Kapal & Perhitungan GM', 'Modul Interaktif', 'Stabilitas Kapal & Perhitungan GM', 'Jalur Perwira Kapal', 60],
+    ['Podcast Budaya Keselamatan ASDP', 'Audio / Podcast', 'Leadership & Budaya Keselamatan', 'Jalur Kepemimpinan', 28],
+    ['Infografis Alur Pelaporan Near Miss', 'Infografis', 'Investigasi Insiden & Root Cause Analysis', 'Jalur Wajib Seluruh Pegawai', 10],
+    ['Kuis Sertifikasi Literasi Aplikasi QHSE', 'Kuis', 'Literasi Digital Aplikasi QHSE ASDP', 'Jalur Wajib Seluruh Pegawai', 20],
+  ];
+  CONTENTS.forEach(([title, type, training, path, minutes], i) => {
+    const enrolled = randInt(60, 420);
+    insert('learning_content', {
+      title,
+      training_ref: trainingRef(training),
+      content_type: type,
+      learning_path: path,
+      sequence: (i % 5) + 1,
+      duration_minutes: minutes,
+      language: 'Bahasa Indonesia',
+      content_url: `/lms/konten/${String(i + 1).padStart(3, '0')}`,
+      scorm_version: type === 'Paket SCORM' ? 'SCORM 2004 4th Edition' : null,
+      mandatory: i % 3 !== 2,
+      min_completion_percent: 80,
+      enrolled_count: enrolled,
+      completed_count: enrolled - randInt(5, 120),
+      avg_score: Number((72 + rnd() * 22).toFixed(1)),
+      avg_rating: Number((3.6 + rnd() * 1.3).toFixed(1)),
+      author: pick(['Divisi QHSE Korporat', 'ASDP Corporate University', 'Tim Diklat Cabang'], i),
+      published_date: daysAgo(randInt(30, 500)),
+      review_due: daysAhead(randInt(-20, 400)),
+      description: `${title} disusun untuk mendukung pemenuhan kompetensi pada ${path}.`,
+    }, { status: 'published', org: CORPORATE });
+  });
+}
+
+/* ------------------------------------------------------- ujian & asesmen */
+
+if (trainees.length && !hasRows('training_exam')) {
+  trainees.forEach((emp, i) => {
+    for (let k = 0; k < 2; k++) {
+      const training = pick(CATALOGUE_NAMES, i * 3 + k);
+      const date = daysAgo(randInt(15, 280));
+      const passing = 75;
+      const score = Number((62 + rnd() * 36).toFixed(1));
+      insert('training_exam', {
+        employee_name: emp.name,
+        employee_ref: emp.id,
+        training_ref: trainingRef(training),
+        training_name: training,
+        exam_date: date,
+        exam_type: pick([['Pilihan Ganda'], ['Pilihan Ganda', 'Essay'], ['Ujian Praktek'], ['Pilihan Ganda', 'Studi Kasus']], i + k),
+        question_count: pick([30, 40, 50, 60], i + k),
+        randomised: true,
+        time_limit_minutes: pick([45, 60, 90], i + k),
+        attempt: score < passing ? 2 : 1,
+        passing_grade: passing,
+        pretest_score: Number((45 + rnd() * 25).toFixed(1)),
+        score,
+        remedial_required: score < passing,
+        remedial_date: score < passing ? daysAhead(randInt(5, 60)) : null,
+        examiner: 'regional.qhse',
+        notes: score < passing ? 'Perlu pendalaman materi prosedur kerja aman sebelum remedial.' : null,
+      }, { status: 'validated', org: employeeOrg(emp), createdAt: `${date}T13:00:00.000Z` });
+    }
+  });
+}
+
+if (trainees.length && !hasRows('practical_assessment')) {
+  const PRACTICALS = [
+    'Penggunaan APAR', 'Evakuasi Darurat', 'Pertolongan Pertama (P3K)', 'Ruang Terbatas (Confined Space)',
+    'Lock Out Tag Out (LOTO)', 'Mengemudi Defensif', 'Operator Crane', 'Operator Forklift',
+    'Mooring & Unmooring', 'Pengoperasian Ramp Door & Movable Bridge', 'Peluncuran Sekoci & Life Raft',
+    'Pemadaman Kebakaran Kapal',
+  ];
+  PRACTICALS.forEach((type, i) => {
+    const emp = trainees[i % trainees.length];
+    const date = daysAgo(randInt(15, 260));
+    const checked = randInt(8, 20);
+    const conform = checked - randInt(0, 4);
+    const score = Number(((conform / checked) * 100).toFixed(1));
+    insert('practical_assessment', {
+      title: `Asesmen Praktek ${type}`,
+      employee_ref: emp.id,
+      employee_name: emp.name,
+      position: emp.position,
+      assessment_type: type,
+      assessment_date: date,
+      location: pick(['Lapangan Latih Terminal', 'Dermaga 3', 'Ruang Mesin KMP Portlink III', 'Area Parkir Terminal', 'Kolam Latih Balai Diklat'], i),
+      assessor: 'regional.qhse',
+      assessor_certificate: `ASESOR/BNSP/${randInt(1000, 9999)}`,
+      items_checked: checked,
+      items_conform: conform,
+      passing_grade: 80,
+      score,
+      result: score >= 80 ? 'Kompeten' : 'Belum Kompeten',
+      observation: `Peserta melaksanakan ${type.toLowerCase()} sesuai urutan prosedur; catatan diberikan pada tahap persiapan alat.`,
+      corrective_action: score >= 80 ? 'Dipertahankan melalui drill berkala.' : 'Pendampingan mentor dan asesmen ulang setelah latihan tambahan.',
+      reassessment_date: score >= 80 ? daysAhead(randInt(180, 360)) : daysAhead(randInt(14, 60)),
+    }, { status: 'verified', org: employeeOrg(emp), createdAt: `${date}T10:00:00.000Z` });
+  });
+}
+
+if (trainees.length && !hasRows('ojt_program')) {
+  trainees.slice(0, 6).forEach((emp, i) => {
+    const start = daysAgo(randInt(60, 300));
+    const planned = pick([120, 160, 200, 240], i);
+    const actual = planned - randInt(0, 70);
+    const mentorScore = Number((72 + rnd() * 25).toFixed(1));
+    const supervisorScore = Number((70 + rnd() * 26).toFixed(1));
+    const avg = (mentorScore + supervisorScore) / 2;
+    insert('ojt_program', {
+      title: `OJT Persiapan ${pick(['Supervisor Dermaga', 'Operator Movable Bridge', 'Mualim II', 'Masinis III', 'Petugas Tambat Senior', 'Petugas QHSE Cabang'], i)}`,
+      employee_ref: emp.id,
+      employee_name: emp.name,
+      position_target: pick(['Supervisor Dermaga', 'Operator Movable Bridge', 'Mualim II', 'Masinis III', 'Petugas Tambat Senior', 'Petugas QHSE Cabang'], i),
+      mentor: 'supervisor',
+      supervisor: 'dept.head',
+      start_date: start,
+      end_date: daysAhead(randInt(-30, 120)),
+      planned_hours: planned,
+      actual_hours: actual,
+      logbook_entries: Math.round(actual / 8),
+      logbook_summary: 'Logbook harian mencatat kegiatan pendampingan, bahaya yang diidentifikasi, dan umpan balik mentor pada setiap giliran kerja.',
+      competency_target: 'Mampu memimpin regu kerja, menerapkan prosedur kerja aman, dan mengambil keputusan penghentian pekerjaan saat kondisi tidak aman.',
+      mentor_score: mentorScore,
+      supervisor_score: supervisorScore,
+      result: avg >= 80 ? 'Lulus' : avg >= 70 ? 'Perlu Perpanjangan' : 'Tidak Lulus',
+      mentor_note: 'Perkembangan konsisten; perlu penguatan pada komunikasi radio saat kondisi ramai.',
+    }, { status: avg >= 80 ? 'closed' : 'approved', org: employeeOrg(emp), createdAt: `${start}T08:00:00.000Z` });
+  });
+}
+
+if (trainees.length && !hasRows('competency_assessment')) {
+  trainees.forEach((emp, i) => {
+    const date = daysAgo(randInt(20, 320));
+    const required = randInt(3, 5);
+    const result = Math.max(1, required - randInt(0, 2));
+    const level = (v) => pick(['1 - Beginner', '2 - Basic', '3 - Intermediate', '4 - Advanced', '5 - Expert'], v - 1);
+    insert('competency_assessment', {
+      employee_name: emp.name,
+      employee_ref: emp.id,
+      position: emp.position,
+      division: pick(['Operasi', 'Teknik', 'QHSE', 'Komersial', 'Umum'], i),
+      competency_area: pick(['Keselamatan Operasi Dermaga', 'Kepelautan & Navigasi', 'Pengelolaan Lingkungan', 'Kesehatan Kerja', 'Sistem Manajemen Mutu'], i),
+      assessment_date: date,
+      assessment_method: pick(['Uji Tulis', 'Observasi Kerja', 'Portofolio', 'Simulasi', 'Asesmen BNSP', 'Uji Praktek'], i),
+      required_level: level(required),
+      level_result: level(result),
+      score: Number((65 + rnd() * 32).toFixed(1)),
+      result: result >= required ? 'Kompeten' : result === required - 1 ? 'Kompeten dengan Catatan' : 'Belum Kompeten',
+      assessor: 'regional.qhse',
+      assessor_licence: `MET.000.${randInt(100000, 999999)}`,
+      valid_until: daysAhead(randInt(-40, 900)),
+      renewal_lead_days: 60,
+      follow_up_training: result >= required ? null : pick(CATALOGUE_NAMES, i),
+      gap_note: result >= required ? 'Seluruh unit kompetensi terpenuhi.' : 'Kesenjangan pada unit kompetensi penerapan prosedur kerja aman.',
+      recommendation: result >= required
+        ? 'Dipertahankan melalui refreshment sesuai interval matriks pelatihan.'
+        : 'Diikutsertakan pada pelatihan penyegaran dan OJT terbimbing sebelum asesmen ulang.',
+    }, { status: 'approved', org: employeeOrg(emp), createdAt: `${date}T11:00:00.000Z` });
+  });
+}
+
+/* ------------------------------------------------ kesenjangan & usulan */
+
+if (trainees.length && !hasRows('skill_gap')) {
+  trainees.forEach((emp, i) => {
+    // Angka wajib diambil dari matriks jabatan bila jabatannya terdaftar di
+    // sana; bila tidak, dipakai rentang wajar 6-15 pelatihan wajib.
+    const matrixRow = TRAINING_MATRIX.find(([position]) => position === emp.position);
+    const required = matrixRow ? matrixRow[3].length : randInt(6, 15);
+    const owned = Math.max(1, required - randInt(0, 7));
+    const gap = required - owned;
+    const date = daysAgo(randInt(10, 180));
+    const missing = matrixRow ? matrixRow[3].slice(owned) : [];
+    insert('skill_gap', {
+      employee_name: emp.name,
+      employee_ref: emp.id,
+      position: emp.position,
+      division: pick(['Operasi', 'Teknik', 'QHSE', 'Komersial', 'Umum'], i),
+      analysis_date: date,
+      required_training_count: required,
+      owned_training_count: owned,
+      expired_certificate_count: randInt(0, 2),
+      expiring_certificate_count: randInt(0, 3),
+      missing_training: missing.length
+        ? missing.map((t, k) => `${k + 1}. ${t}`).join('\n')
+        : `${gap} pelatihan wajib belum dipenuhi sesuai matriks jabatan ${emp.position}.`,
+      priority: gap >= 5 ? 'Kritis' : gap >= 3 ? 'Tinggi' : gap > 0 ? 'Sedang' : 'Rendah',
+      closure_plan: gap
+        ? 'Dijadwalkan bertahap pada program pelatihan tahunan cabang, dimulai dari pelatihan wajib regulasi.'
+        : 'Tidak ada kesenjangan; fokus pada penyegaran sebelum sertifikat kedaluwarsa.',
+      estimated_cost: gap * randInt(2, 8) * 1_000_000,
+      target_date: daysAhead(randInt(30, 330)),
+      progress: gap ? randInt(10, 80) : 100,
+      pic: 'regional.qhse',
+    }, { status: gap ? 'in_progress' : 'closed', org: employeeOrg(emp), createdAt: `${date}T09:00:00.000Z` });
+  });
+}
+
+if (!hasRows('training_request')) {
+  const REQUESTS = [
+    ['Usulan pelatihan IMDG Code bagi petugas periksa kendaraan', 'Penanganan Barang Berbahaya (IMDG Code)', 'Regulasi Baru / Perubahan Regulasi', 'Kritis'],
+    ['Usulan refreshment BST bagi ABK yang sertifikatnya akan habis', 'Basic Safety Training (BST)', 'Sertifikat Akan Kedaluwarsa', 'Kritis'],
+    ['Usulan pelatihan investigasi insiden bagi supervisor', 'Investigasi Insiden & Root Cause Analysis', 'Hasil Investigasi Insiden', 'Tinggi'],
+    ['Usulan pelatihan auditor internal untuk tim QHSE cabang', 'Auditor Internal ISO Terintegrasi', 'Temuan Audit', 'Tinggi'],
+    ['Usulan pelatihan operator forklift terminal baru', 'Operator Forklift Kelas II', 'Peralatan / Teknologi Baru', 'Tinggi'],
+    ['Usulan pelatihan pengelolaan limbah B3 pasca perubahan izin TPS', 'Pengelolaan Limbah B3', 'Regulasi Baru / Perubahan Regulasi', 'Sedang'],
+    ['Usulan pelatihan pelayanan prima petugas loket', 'Pelayanan Prima & Penanganan Keluhan Pelanggan', 'Permintaan Individu', 'Sedang'],
+    ['Usulan pelatihan kepemimpinan keselamatan bagi kepala regu', 'Leadership & Budaya Keselamatan', 'Hasil Tinjauan Manajemen', 'Sedang'],
+    ['Usulan pelatihan LOTO bagi teknisi listrik', 'Lock Out Tag Out (LOTO) & Isolasi Energi', 'Hasil Analisis Kesenjangan Kompetensi', 'Tinggi'],
+    ['Usulan pelatihan manuver kapal bagi mualim promosi nakhoda', 'Ship Handling & Manuver Kapal Ro-Ro', 'Rotasi & Promosi Jabatan', 'Tinggi'],
+  ];
+  REQUESTS.forEach(([title, training, source, priority], i) => {
+    const date = daysAgo(randInt(10, 200));
+    const spec = TRAINING_CATALOGUE.find((t) => t[0] === training);
+    const count = randInt(4, 30);
+    insert('training_request', {
+      title,
+      requester: pick(['supervisor', 'port.manager', 'dept.head', 'qhse.ketapang'], i),
+      division: pick(['Operasi Pelabuhan', 'Teknik', 'QHSE', 'Nautika', 'Komersial'], i),
+      position: pick(['Supervisor Dermaga', 'Teknisi Listrik', 'Petugas QHSE Cabang', 'Mualim I', 'Petugas Loket'], i),
+      training_ref: trainingRef(training),
+      training_name: training,
+      category: spec?.[2] ?? null,
+      request_date: date,
+      needed_by: daysAhead(randInt(-10, 220)),
+      participant_count: count,
+      need_source: source,
+      source_reference: pick(['AUD/2026/0012', 'INC/2026/0031', 'GAP/2026/0007', 'MRV/2026/0002', '—'], i),
+      justification: `${title}. Kebutuhan muncul dari ${source.toLowerCase()} dan berdampak langsung pada pemenuhan matriks pelatihan wajib.`,
+      estimated_cost: count * (spec ? randInt(1, 6) * 1_500_000 : 2_000_000),
+      budget_available: i % 3 !== 1,
+      priority,
+      approver: 'corporate.qhse',
+      approval_note: i % 4 === 3 ? 'Disetujui dengan penyesuaian jumlah peserta mengikuti pagu anggaran cabang.' : 'Disetujui untuk dijadwalkan pada program pelatihan tahunan.',
+    }, { status: i % 5 === 4 ? 'submitted' : 'approved', org: pick(SITES, i), createdAt: `${date}T08:30:00.000Z` });
+  });
+}
+
+/* ------------------------------------------------------- anggaran & vendor */
+
+if (!hasRows('training_budget')) {
+  SCHEDULE_PLAN.slice(0, 12).forEach(([title, training], i) => {
+    const participants = randInt(12, 38);
+    const perHead = randInt(2, 9) * 750_000;
+    const costs = {
+      cost_training: perHead * participants,
+      cost_instructor: randInt(5, 25) * 1_000_000,
+      cost_venue: randInt(0, 30) * 1_000_000,
+      cost_transport: randInt(3, 20) * 1_000_000,
+      cost_consumption: participants * randInt(75, 165) * 1000,
+      cost_material: participants * randInt(60, 200) * 1000,
+      cost_certification: participants * randInt(150, 600) * 1000,
+    };
+    const total = Object.values(costs).reduce((a, v) => a + v, 0);
+    insert('training_budget', {
+      title: `Anggaran ${title}`,
+      period: `${new Date().getFullYear()}`,
+      training_ref: trainingRef(training),
+      training_name: training,
+      vendor_ref: vendorRef(i),
+      participant_count: participants,
+      ...costs,
+      actual_cost: Math.round(total * (0.72 + rnd() * 0.35)),
+      funding_source: pick(['Anggaran Cabang', 'Anggaran Korporat', 'Anggaran Regional', 'Beasiswa / Bantuan Vendor'], i),
+      cost_center: `CC-${pick(['MRK', 'BKH', 'KTP', 'GLM', 'BJE'], i)}-DIKLAT`,
+      notes: 'Realisasi mengikuti jumlah peserta yang benar-benar hadir dan memenuhi syarat sertifikat.',
+    }, { status: 'closed', org: pick(SITES, i) });
+  });
+}
+
+/* ---------------------------------------- evaluasi & efektivitas pelatihan */
+
+if (!hasRows('training_evaluation')) {
+  SCHEDULE_PLAN.slice(0, 8).forEach(([title, training], i) => {
+    const participants = randInt(15, 38);
+    const respondents = participants - randInt(0, 5);
+    const base = 72 + randInt(0, 22);
+    const pre = Number((48 + rnd() * 20).toFixed(1));
+    const post = Number((Math.min(98, pre + 18 + rnd() * 22)).toFixed(1));
+    const date = daysAgo(randInt(20, 300));
+    insert('training_evaluation', {
+      title: `Evaluasi ${title}`,
+      training_ref: trainingRef(training),
+      training_name: training,
+      vendor_ref: vendorRef(i),
+      evaluation_date: date,
+      participant_count: participants,
+      respondent_count: respondents,
+      score_material: base + randInt(-6, 8),
+      score_trainer: base + randInt(-4, 10),
+      score_venue: base + randInt(-12, 6),
+      score_organizer: base + randInt(-8, 7),
+      score_relevance: base + randInt(-3, 9),
+      nps_score: randInt(20, 78),
+      pretest_avg: pre,
+      posttest_avg: post,
+      pass_count: respondents - randInt(0, 4),
+      strength: 'Materi relevan dengan pekerjaan sehari-hari dan porsi praktek memadai.',
+      improvement: 'Perlu tambahan studi kasus insiden nyata di lingkungan penyeberangan dan waktu praktek yang lebih panjang.',
+    }, { status: 'validated', org: pick(SITES, i), createdAt: `${date}T16:00:00.000Z` });
+  });
+}
+
+if (!hasRows('training_effectiveness')) {
+  const EFFECTIVENESS = [
+    ['Kajian efektivitas pelatihan HIRADC terhadap kualitas identifikasi bahaya', 'HIRADC & Penilaian Risiko K3', 6],
+    ['Kajian efektivitas pelatihan keselamatan muat kendaraan', 'Keselamatan Muat Kendaraan (Vehicle Loading Safety)', 6],
+    ['Kajian efektivitas pelatihan P3K terhadap penanganan cedera ringan', 'Petugas P3K di Tempat Kerja', 12],
+    ['Kajian efektivitas pelatihan investigasi insiden', 'Investigasi Insiden & Root Cause Analysis', 9],
+    ['Kajian efektivitas pelatihan auditor internal terhadap mutu temuan audit', 'Auditor Internal ISO Terintegrasi', 12],
+    ['Kajian efektivitas pelatihan penanggulangan tumpahan minyak', 'Penanggulangan Tumpahan Minyak (OSCP Tier 1)', 6],
+  ];
+  EFFECTIVENESS.forEach(([title, training, months], i) => {
+    const incidentBefore = randInt(3, 12);
+    const nearMissBefore = randInt(8, 30);
+    const unsafeBefore = randInt(15, 60);
+    const factor = 0.35 + rnd() * 0.5;
+    const kpiBefore = Number((60 + rnd() * 20).toFixed(2));
+    const date = daysAgo(randInt(15, 200));
+    insert('training_effectiveness', {
+      title,
+      training_ref: trainingRef(training),
+      training_name: training,
+      evaluation_period: `${months} bulan setelah pelatihan`,
+      evaluation_date: date,
+      months_after: months,
+      participant_count: randInt(12, 40),
+      behaviour_observed: pick(['Diterapkan Konsisten', 'Diterapkan Konsisten', 'Diterapkan Sebagian', 'Belum Diterapkan'], i),
+      implementation_score: randInt(58, 96),
+      supervisor_confirmation: i % 4 !== 3,
+      behaviour_evidence: 'Hasil observasi keselamatan, rekaman toolbox meeting dan laporan patroli menunjukkan penerapan prosedur yang diajarkan.',
+      incident_before: incidentBefore,
+      incident_after: Math.round(incidentBefore * factor),
+      near_miss_before: nearMissBefore,
+      near_miss_after: Math.round(nearMissBefore * factor),
+      unsafe_before: unsafeBefore,
+      unsafe_after: Math.round(unsafeBefore * factor),
+      audit_finding_before: randInt(4, 18),
+      audit_finding_after: randInt(1, 8),
+      kpi_before: kpiBefore,
+      kpi_after: Number((kpiBefore * (1 + rnd() * 0.28)).toFixed(2)),
+      conclusion: 'Penurunan jumlah kejadian dan kenaikan indikator kinerja menunjukkan pelatihan memberi dampak nyata di lapangan.',
+      follow_up: 'Materi dipertahankan, ditambah studi kasus lokal, dan diulang sebagai penyegaran sesuai interval matriks.',
+    }, { status: 'closed', org: pick(SITES, i), createdAt: `${date}T15:00:00.000Z` });
+  });
+}
+
 /* ------------------------------------------------------------------ dokumen */
 
 console.log('  Memuat dokumen & regulasi ...');
@@ -2529,7 +3338,7 @@ const PLANS = [
     annual_price: 75_000_000,
     max_users: 25,
     storage_gb: 50,
-    included_groups: ['governance', 'document', 'quality', 'safety', 'audit'],
+    included_groups: ['governance', 'document', 'quality', 'safety', 'audit', 'training'],
     support_level: 'Email (hari kerja)',
     sla_uptime: '99,0%',
     onboarding_included: true,
@@ -2538,7 +3347,7 @@ const PLANS = [
     dedicated_report: false,
     recommended: false,
     highlights: ['Dashboard eksekutif & ESG', 'Jejak audit menyeluruh', 'Peringatan kedaluwarsa sertifikat', 'Ekspor laporan regulator'],
-    description: 'Mencakup pengendalian dokumen, sasaran mutu, pelaporan insiden dan K3 (ISO 9001 & ISO 45001), serta audit internal — cukup untuk memenuhi kewajiban dasar SMK3 PP 50/2012.',
+    description: 'Mencakup pengendalian dokumen, sasaran mutu, pelaporan insiden dan K3 (ISO 9001 & ISO 45001), audit internal, serta kompetensi & pelatihan wajib — cukup untuk memenuhi kewajiban dasar SMK3 PP 50/2012 termasuk Elemen 12.',
   },
   {
     name: 'Profesional',
@@ -2548,7 +3357,7 @@ const PLANS = [
     annual_price: 145_000_000,
     max_users: 75,
     storage_gb: 200,
-    included_groups: ['governance', 'document', 'quality', 'health', 'safety', 'environment', 'audit', 'risk', 'assetsafety', 'contractorsafety'],
+    included_groups: ['governance', 'document', 'quality', 'health', 'safety', 'environment', 'audit', 'risk', 'assetsafety', 'contractorsafety', 'training'],
     support_level: 'Email & Telepon (hari kerja)',
     sla_uptime: '99,5%',
     onboarding_included: true,
@@ -2567,7 +3376,7 @@ const PLANS = [
     annual_price: 240_000_000,
     max_users: 0,
     storage_gb: 1000,
-    included_groups: ['governance', 'document', 'quality', 'health', 'safety', 'environment', 'audit', 'risk', 'assetsafety', 'contractorsafety', 'maritime', 'portsafety', 'continuity'],
+    included_groups: ['governance', 'document', 'quality', 'health', 'safety', 'environment', 'audit', 'risk', 'assetsafety', 'contractorsafety', 'maritime', 'portsafety', 'continuity', 'training'],
     support_level: 'Prioritas 24/7 dengan Account Manager',
     sla_uptime: '99,9%',
     onboarding_included: true,
@@ -2576,7 +3385,7 @@ const PLANS = [
     dedicated_report: true,
     recommended: false,
     highlights: ['Checklist pra-berlayar digital', 'Keselamatan muat kendaraan', 'Manajemen insiden pelayaran', 'Manajemen kepadatan angkutan puncak', 'Kelangsungan usaha (BCM)', 'Perhitungan jejak karbon otomatis'],
-    description: 'Paket lengkap 98 modul: keselamatan kapal dan pelabuhan penyeberangan, barang berbahaya IMDG, ISPS, kelangsungan usaha ISO 22301 dan keamanan informasi ISO 27001, dengan integrasi API dan dukungan 24/7.',
+    description: 'Paket lengkap 116 modul: keselamatan kapal dan pelabuhan penyeberangan, barang berbahaya IMDG, ISPS, kelangsungan usaha ISO 22301 dan keamanan informasi ISO 27001, dengan integrasi API dan dukungan 24/7.',
   },
 ];
 

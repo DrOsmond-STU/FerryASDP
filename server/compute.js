@@ -243,6 +243,152 @@ const COMPUTED = {
     if (!has(r.baseline_consumption) || n(r.baseline_consumption) === 0) return null;
     return round(((n(r.baseline_consumption) - n(r.actual_consumption)) / n(r.baseline_consumption)) * 100, 2);
   },
+
+  /* ------------------------------------------ kompetensi & pelatihan (P) */
+
+  // Tingkat kompetensi ditulis "3 - Intermediate", jadi rank() cukup untuk
+  // menghitung kesenjangan tanpa tabel pemetaan terpisah.
+  competencyGap: (r) => {
+    if (!has(r.required_level) || !has(r.current_level)) return null;
+    return Math.max(0, rank(r.required_level) - rank(r.current_level));
+  },
+  competencyGapStatus: (r) => {
+    const gap = COMPUTED.competencyGap(r);
+    if (gap === null) return null;
+    if (gap === 0) return 'Memenuhi';
+    return gap === 1 ? 'Perlu Pengembangan' : 'Kesenjangan Besar';
+  },
+  levelGap: (r) => {
+    if (!has(r.required_level) || !has(r.level_result)) return null;
+    return Math.max(0, rank(r.required_level) - rank(r.level_result));
+  },
+
+  daysToExpiry: (r) => (has(r.valid_until) ? daysBetween(today(), r.valid_until) : null),
+
+  seatRemaining: (r) => (has(r.quota) ? Math.max(0, n(r.quota) - n(r.registered)) : null),
+
+  attendancePercent: (r) => pct(r.attended_hours, r.session_hours),
+  completionRate: (r) => pct(r.completed_count, r.enrolled_count),
+  passRate: (r) => pct(r.pass_count, r.respondent_count ?? r.participant_count),
+
+  scoreGain: (r) => (has(r.score) && has(r.pretest_score) ? round(n(r.score) - n(r.pretest_score), 2) : null),
+  examResult: (r) => {
+    if (!has(r.score) || !has(r.passing_grade)) return null;
+    return n(r.score) >= n(r.passing_grade) ? 'Lulus' : 'Tidak Lulus';
+  },
+
+  ojtProgress: (r) => pct(r.actual_hours, r.planned_hours),
+  ojtFinalScore: (r) => {
+    const parts = ['mentor_score', 'supervisor_score'].filter((k) => has(r[k])).map((k) => n(r[k]));
+    return parts.length ? round(parts.reduce((a, b) => a + b, 0) / parts.length, 2) : null;
+  },
+
+  // Kesenjangan kompetensi: pelatihan wajib menurut matriks dikurangi yang
+  // sudah dimiliki dan masih berlaku. Contoh Supervisor Dermaga: 15 - 8 = 7.
+  skillGapCount: (r) => {
+    if (!has(r.required_training_count)) return null;
+    return Math.max(0, n(r.required_training_count) - n(r.owned_training_count));
+  },
+  skillGapCompliance: (r) => {
+    if (n(r.required_training_count) === 0) return null;
+    return round(Math.min(100, (n(r.owned_training_count) / n(r.required_training_count)) * 100), 2);
+  },
+  skillGapStatus: (r) => {
+    const c = COMPUTED.skillGapCompliance(r);
+    if (c === null) return null;
+    if (c >= 100) return 'Patuh Penuh';
+    if (c >= 80) return 'Perlu Pemenuhan';
+    if (c >= 60) return 'Kesenjangan Signifikan';
+    return 'Kritis';
+  },
+
+  trainingBudgetTotal: (r) => round(
+    ['cost_training', 'cost_instructor', 'cost_venue', 'cost_transport', 'cost_consumption', 'cost_material', 'cost_certification']
+      .reduce((a, k) => a + n(r[k]), 0),
+    2,
+  ),
+  budgetVariance: (r) => {
+    const total = COMPUTED.trainingBudgetTotal(r);
+    if (!has(r.actual_cost)) return null;
+    return round(total - n(r.actual_cost), 2);
+  },
+  budgetAbsorption: (r) => {
+    const total = COMPUTED.trainingBudgetTotal(r);
+    return total === 0 ? null : round((n(r.actual_cost) / total) * 100, 2);
+  },
+  costPerParticipant: (r) => {
+    if (n(r.participant_count) === 0) return null;
+    const spent = has(r.actual_cost) ? n(r.actual_cost) : COMPUTED.trainingBudgetTotal(r);
+    return round(spent / n(r.participant_count), 2);
+  },
+
+  vendorScore: (r) => {
+    const parts = ['score_material', 'score_instructor', 'score_facility', 'score_service', 'score_certificate']
+      .filter((k) => has(r[k]))
+      .map((k) => n(r[k]));
+    return parts.length ? round(parts.reduce((a, b) => a + b, 0) / parts.length, 2) : null;
+  },
+  vendorGrade: (r) => {
+    const s = COMPUTED.vendorScore(r);
+    if (s === null) return null;
+    if (s >= 90) return 'A - Sangat Direkomendasikan';
+    if (s >= 75) return 'B - Direkomendasikan';
+    if (s >= 60) return 'C - Dapat Digunakan dengan Catatan';
+    return 'D - Tidak Direkomendasikan';
+  },
+
+  // Kirkpatrick level 1: reaksi peserta.
+  trainingSatisfaction: (r) => {
+    const parts = ['score_material', 'score_trainer', 'score_venue', 'score_organizer', 'score_relevance']
+      .filter((k) => has(r[k]))
+      .map((k) => n(r[k]));
+    return parts.length ? round(parts.reduce((a, b) => a + b, 0) / parts.length, 2) : null;
+  },
+  trainingSatisfactionLevel: (r) => {
+    const s = COMPUTED.trainingSatisfaction(r);
+    if (s === null) return null;
+    if (s >= 90) return 'Sangat Puas';
+    if (s >= 75) return 'Puas';
+    if (s >= 60) return 'Cukup Puas';
+    return 'Kurang Puas';
+  },
+  // Kirkpatrick level 2: kenaikan pengetahuan relatif terhadap nilai awal.
+  knowledgeGain: (r) => {
+    if (!has(r.pretest_avg) || n(r.pretest_avg) === 0 || !has(r.posttest_avg)) return null;
+    return round(((n(r.posttest_avg) - n(r.pretest_avg)) / n(r.pretest_avg)) * 100, 2);
+  },
+
+  // Kirkpatrick level 4: apakah angka keselamatan benar-benar turun.
+  incidentReduction: (r) => {
+    const before = n(r.incident_before) + n(r.near_miss_before) + n(r.unsafe_before);
+    if (before === 0) return null;
+    const after = n(r.incident_after) + n(r.near_miss_after) + n(r.unsafe_after);
+    return round(((before - after) / before) * 100, 2);
+  },
+  kpiImprovement: (r) => {
+    if (!has(r.kpi_before) || n(r.kpi_before) === 0 || !has(r.kpi_after)) return null;
+    return round(((n(r.kpi_after) - n(r.kpi_before)) / n(r.kpi_before)) * 100, 2);
+  },
+  /**
+   * Efektivitas menggabungkan perilaku (level 3) dan hasil (level 4): pelatihan
+   * yang materinya disukai tetapi tidak mengubah apa pun di lapangan tetap
+   * dinilai tidak efektif.
+   */
+  trainingEffectivenessLevel: (r) => {
+    const behaviour = String(r.behaviour_observed || '');
+    const reduction = COMPUTED.incidentReduction(r);
+    const kpi = COMPUTED.kpiImprovement(r);
+    if (!behaviour && reduction === null && kpi === null) return null;
+    let score = 0;
+    if (behaviour === 'Diterapkan Konsisten') score += 2;
+    else if (behaviour === 'Diterapkan Sebagian') score += 1;
+    if (reduction !== null) score += reduction >= 30 ? 2 : reduction > 0 ? 1 : 0;
+    if (kpi !== null) score += kpi >= 10 ? 2 : kpi > 0 ? 1 : 0;
+    if (score >= 5) return 'Sangat Efektif';
+    if (score >= 3) return 'Efektif';
+    if (score >= 1) return 'Cukup Efektif';
+    return 'Tidak Efektif';
+  },
 };
 
 /**
