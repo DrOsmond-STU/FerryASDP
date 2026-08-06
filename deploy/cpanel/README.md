@@ -66,8 +66,32 @@ Menit yang **tidak pernah** dipakai satu pun dari mereka: `2, 4, 5, 15, 17, 19,
 | `asdp-runner.sh` | `2,15,25,37,47,57` | pasang bila diminta, semai bila perlu, nyalakan bila mati |
 | `asdp-live-check.sh` | `22,52` | dijalankan hanya bila penanda `~/asdp-live.request` ada |
 
-`flock -n` membungkus runner: bila satu putaran masih memasang, putaran
-berikutnya keluar seketika alih-alih memasang dua kali bersamaan.
+## Pelajaran mahal: `flock` mematikan runner tanpa satu pun pesan
+
+Baris cron runner **pernah** dibungkus `flock -n /home/semestat/.asdp.lock`.
+Terlihat benar, dan bekerja tepat satu kali.
+
+`flock` memegang kuncinya pada sebuah **file descriptor**. Langkah terakhir
+runner menyalakan proses Node di latar belakang, dan proses itu **mewarisi
+descriptor tersebut**. Selama aplikasi hidup — yaitu selamanya, karena memang
+itu tujuannya — kuncinya tidak pernah terlepas. Akibatnya `flock -n` pada
+setiap putaran cron berikutnya langsung gagal, dan runner **tidak pernah
+berjalan lagi**.
+
+Yang membuatnya mahal: tidak ada yang merah. Cron tetap terjadwal, skripnya
+tetap ada, aplikasinya tetap melayani pengunjung. Yang hilang hanya
+kemampuannya memasang pembaruan — penanda `asdp-install.request` menumpuk
+tanpa pernah dikerjakan, dan `asdp-install.log` diam di entri terakhir yang
+berhasil. Gejalanya persis sama dengan "cron belum sempat jalan".
+
+Gantinya kunci direktori di dalam skrip: `mkdir` bersifat atomik, tidak
+melibatkan descriptor apa pun, dan dilepas eksplisit lewat `trap ... EXIT`.
+Kunci yang lebih tua dari 30 menit dianggap sisa proses yang mati lalu
+dibersihkan. Proses Node juga dinyalakan dengan `0<&-` agar tidak menahan
+descriptor apa pun milik cron.
+
+Kalau suatu saat runner ini terlihat "tidak jalan" padahal cron terpasang,
+periksa `~/.asdp-runner.lock` lebih dulu.
 
 ## Penanda
 

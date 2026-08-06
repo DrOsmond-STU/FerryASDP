@@ -20,6 +20,7 @@ DATA_DIR=$HOME_DIR/asdp-data
 PIDFILE=$HOME_DIR/asdp.pid
 LOG=$HOME_DIR/asdp-app.log
 INSTALL_LOG=$HOME_DIR/asdp-install.log
+LOCKDIR=$HOME_DIR/.asdp-runner.lock
 
 INSTALL_REQUEST=$HOME_DIR/asdp-install.request
 RESEED_REQUEST=$HOME_DIR/asdp-reseed.request
@@ -28,6 +29,29 @@ RESTART_REQUEST=$HOME_DIR/asdp-restart.request
 TARBALL='https://codeload.github.com/DrOsmond-STU/FerryASDP/tar.gz/refs/heads/claude/enterprise-qhse-system-02g5tx'
 
 export PATH="$HOME_DIR/.local/share/mise/shims:$HOME_DIR/.local/bin:$PATH"
+
+# ---------------------------------------------------------------- KUNCI ----
+#  JANGAN kembali memakai `flock` pada baris cron. Sudah dicoba dan gagal
+#  dengan cara yang sulit dilihat: flock memegang kunci pada sebuah file
+#  descriptor, dan proses Node yang dinyalakan di langkah terakhir MEWARISI
+#  descriptor itu. Selama aplikasi hidup — yaitu selamanya, karena itulah
+#  tujuannya — kuncinya tidak pernah terlepas, sehingga `flock -n` pada setiap
+#  putaran cron berikutnya langsung gagal dan skrip ini TIDAK PERNAH berjalan
+#  lagi. Tidak ada pesan galat; pembaruan hanya diam-diam tidak pernah
+#  terpasang.
+#
+#  Kunci direktori tidak punya masalah itu: `mkdir` bersifat atomik, tidak
+#  melibatkan descriptor apa pun, dan dilepas eksplisit lewat trap. Kunci yang
+#  lebih tua dari 30 menit dianggap sisa proses yang mati dan dibersihkan.
+# ---------------------------------------------------------------------------
+if ! mkdir "$LOCKDIR" 2>/dev/null; then
+  if [ -d "$LOCKDIR" ] && [ -z "$(find "$LOCKDIR" -maxdepth 0 -mmin -30 2>/dev/null)" ]; then
+    rmdir "$LOCKDIR" 2>/dev/null && mkdir "$LOCKDIR" 2>/dev/null || exit 0
+  else
+    exit 0
+  fi
+fi
+trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
 
 # --- konfigurasi runtime -----------------------------------------------------
 export PORT=3500
@@ -128,7 +152,10 @@ if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; the
 fi
 
 # --- 6. Nyalakan. ------------------------------------------------------------
+#  Seluruh descriptor yang tidak dibutuhkan ditutup untuk anaknya (0<&- dan
+#  keluaran diarahkan ke berkas log), supaya proses ini tidak pernah menahan
+#  apa pun milik cron — pelajaran yang sama dengan catatan kunci di atas.
 cd "$APP_DIR" || exit 1
 echo "=== menyalakan $(date) pada port $PORT ===" >> "$LOG"
-nohup node server/index.js >> "$LOG" 2>&1 &
+nohup node server/index.js >> "$LOG" 2>&1 0<&- &
 echo $! > "$PIDFILE"
