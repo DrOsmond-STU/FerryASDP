@@ -26,10 +26,10 @@ export const EMISSION_FACTORS = {
 
 /** 5x5 matrix bands used consistently across HIRA, risk register, criticality. */
 export const RISK_BANDS = [
-  { max: 4, level: 'Rendah', color: '#16a34a' },
-  { max: 9, level: 'Sedang', color: '#eab308' },
-  { max: 15, level: 'Tinggi', color: '#f97316' },
-  { max: 25, level: 'Ekstrem', color: '#dc2626' },
+  { max: 4, level: 'Rendah', color: '#12a150' },
+  { max: 9, level: 'Sedang', color: '#e0a207' },
+  { max: 15, level: 'Tinggi', color: '#e8712a' },
+  { max: 25, level: 'Ekstrem', color: '#d13438' },
 ];
 
 export function riskLevelOf(score) {

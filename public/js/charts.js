@@ -9,8 +9,17 @@ import { h, fmtDecimal } from './ui.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
-/** Categorical palette - distinguishable in light and dark, colour-safe order. */
-export const PALETTE = ['#2a6fc9', '#0e9488', '#d97706', '#7c3aed', '#dc2626', '#0891b2', '#65a30d', '#c026d3', '#475569'];
+/**
+ * Palet kategorikal, dipimpin warna merek (#1189c1 dari token produk QHSE
+ * Semesta). Urutannya bukan selera: dua warna pertama harus paling mudah
+ * dibedakan karena itulah yang dipakai grafik dua seri, dan biru muda merek
+ * (#4bcbfb) sengaja ditaruh jauh dari biru utama supaya tidak tertukar
+ * dengannya pada grafik banyak seri.
+ */
+export const PALETTE = ['#1189c1', '#0e9488', '#f7941d', '#7c3aed', '#d13438', '#12a150', '#4bcbfb', '#a8480f', '#51697f'];
+
+/** Penghitung id gradien - dua grafik pada satu halaman tidak boleh berbagi id. */
+let gradientSeq = 0;
 
 const svgEl = (tag, attrs = {}) => {
   const el = document.createElementNS(NS, tag);
@@ -57,9 +66,19 @@ export function lineChart(series, { height = 190, color = PALETTE[0], area = tru
 
   const points = series.map((d, i) => `${x(i)},${y(d.value)}`).join(' ');
   if (area) {
+    // Isian bergradasi, bukan warna rata: pekat tepat di bawah garis lalu
+    // memudar ke bidang kartu, sehingga grafik menyatu dengan kartunya
+    // alih-alih terlihat sebagai blok warna yang ditempel di dalamnya.
+    const gid = `qg${++gradientSeq}`;
+    const defs = svgEl('defs');
+    const grad = svgEl('linearGradient', { id: gid, x1: '0', y1: '0', x2: '0', y2: '1' });
+    grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': '.30' }));
+    grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': '.02' }));
+    defs.appendChild(grad);
+    svg.appendChild(defs);
     svg.appendChild(svgEl('polygon', {
       points: `${pad.l},${pad.t + ih} ${points} ${x(series.length - 1)},${pad.t + ih}`,
-      fill: color, 'fill-opacity': .12,
+      fill: `url(#${gid})`,
     }));
   }
   svg.appendChild(svgEl('polyline', { points, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round' }));
@@ -132,7 +151,9 @@ export function donut(rows, { size = 168, format = (v) => v } = {}) {
 
 /* -------------------------------------------------------------- heatmap */
 
-const bandColor = (score) => (score <= 4 ? '#16a34a' : score <= 9 ? '#eab308' : score <= 15 ? '#f97316' : '#dc2626');
+// Warna pita risiko memakai token status produk, bukan warna sendiri: peta
+// panas dan lencana status harus menyebut "tinggi" dengan warna yang sama.
+const bandColor = (score) => (score <= 4 ? '#12a150' : score <= 9 ? '#e0a207' : score <= 15 ? '#e8712a' : '#d13438');
 
 /** grid[likelihood-1][severity-1] = count, matching ISO 31000 5x5 practice. */
 export function riskHeatmap(grid, { onCell } = {}) {
@@ -157,10 +178,10 @@ export function riskHeatmap(grid, { onCell } = {}) {
   }
 
   const legend = h('div.legend', {},
-    h('span', {}, h('i', { style: 'background:#16a34a' }), 'Rendah (1–4)'),
-    h('span', {}, h('i', { style: 'background:#eab308' }), 'Sedang (5–9)'),
-    h('span', {}, h('i', { style: 'background:#f97316' }), 'Tinggi (10–15)'),
-    h('span', {}, h('i', { style: 'background:#dc2626' }), 'Ekstrem (16–25)'));
+    h('span', {}, h('i', { style: 'background:#12a150' }), 'Rendah (1–4)'),
+    h('span', {}, h('i', { style: 'background:#e0a207' }), 'Sedang (5–9)'),
+    h('span', {}, h('i', { style: 'background:#e8712a' }), 'Tinggi (10–15)'),
+    h('span', {}, h('i', { style: 'background:#d13438' }), 'Ekstrem (16–25)'));
 
   return h('div', {}, h('div.chart', {}, table), legend,
     h('div.small.muted', { text: 'Sumbu tegak: kemungkinan (L1–L5). Sumbu datar: keparahan (1–5).' }));
@@ -175,7 +196,7 @@ export function targetBars(rows, { limit = 12 } = {}) {
   return h('div', {}, ...data.map((d) => {
     const achievement = Number(d.achievement) || 0;
     const capped = Math.max(0, Math.min(achievement, 130));
-    const color = achievement >= 100 ? '#16a34a' : achievement >= 90 ? '#eab308' : '#dc2626';
+    const color = achievement >= 100 ? '#12a150' : achievement >= 90 ? '#e0a207' : '#d13438';
     return h('div', { style: 'margin-bottom:.6rem' },
       h('div.bar-row', { style: 'margin-bottom:.2rem' },
         h('span', { title: d.title, text: d.title }),
