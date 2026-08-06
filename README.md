@@ -12,6 +12,8 @@ tenant yang berlangganan bulanan, dengan paket yang menentukan modul aktif dan
 kuota pengguna. Halaman depan berisi prolog produk, rincian paket dan formulir
 permintaan uji coba.
 
+**Demonstrasi langsung:** <https://asdp.semestateknologiutama.com>
+
 ---
 
 ## Menjalankan aplikasi
@@ -293,6 +295,19 @@ dibutuhkan sebagai rujukan pada formulir; kewenangan menulisnya tetap dibatasi.
 | `QHSE_SEED_PASSWORD` | `Asdp#2026Qhse` | Kata sandi awal akun demo |
 
 ---
+
+## Pemasangan di hosting
+
+Pemasangan yang sedang berjalan di `asdp.semestateknologiutama.com`
+(cPanel DomaiNesia) beserta skrip runner, `.htaccess`, jadwal cron dan angka
+memori terukurnya didokumentasikan pada [`deploy/cpanel/`](deploy/cpanel/README.md).
+
+Ringkasnya: satu proses Express pada port 3500 di-proxy Apache lewat `.htaccess`,
+dijaga hidup oleh cron, dengan basis data di luar direktori aplikasi sehingga
+pembaruan kode tidak pernah menyentuh data. Terukur **68,8 MB RSS** pada akun
+berbatas 1 GB yang dipakai bersama tiga aplikasi lain.
+
+Memperbarui setelah `git push`: `touch ~/asdp-install.request`.
 
 ## Catatan penerapan
 

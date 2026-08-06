@@ -1,0 +1,52 @@
+# ============================================================================
+#  QHSE ASDP — .htaccess untuk document root subdomain.
+#  SALIN menjadi `.htaccess` di document root
+#  (mis. ~/asdp.semestateknologiutama.com/.htaccess).
+#
+#  Satu proses Node.js dijaga hidup oleh ~/asdp-runner.sh lewat cron:
+#     127.0.0.1:3500   Express — melayani antarmuka DAN /api sekaligus
+#
+#  Document root ini sengaja KOSONG. Seluruh berkas aplikasi ada di ~/asdp-app
+#  dan basis datanya di ~/asdp-data, dua-duanya di luar jangkauan HTTP.
+# ============================================================================
+
+DirectoryIndex disabled
+Options -Indexes -MultiViews
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Paksa HTTPS. Cookie sesi disetel dengan atribut Secure (QHSE_SECURE_COOKIE=1),
+  # jadi lewat http:// polos cookie itu tidak akan pernah dikirim balik dan tidak
+  # ada yang bisa tetap masuk.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  # Verifikasi AutoSSL / Let's Encrypt dilayani Apache langsung, jangan diproxy.
+  RewriteRule ^\.well-known/ - [L]
+
+  # Seluruh sisanya diteruskan apa adanya ke proses Node. Aplikasi memasang
+  # rutenya sendiri di akar (/api/... dan berkas statis), jadi tidak ada awalan
+  # yang perlu dipotong seperti pada aplikasi dua-proses.
+  RewriteCond %{REQUEST_URI} !^/\.well-known/ [NC]
+  RewriteRule .* http://127.0.0.1:3500%{REQUEST_URI} [P,QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Tanpa header ini aplikasi mengira permintaan datang lewat HTTP polos dan
+  # `app.set('trust proxy')` tidak dapat menyimpulkan skema aslinya.
+  RequestHeader set X-Forwarded-Proto "https" env=HTTPS
+
+  # Aplikasi sudah memasang X-Content-Type-Options, X-Frame-Options,
+  # Referrer-Policy dan Content-Security-Policy sendiri pada setiap respons.
+  # `setifempty` tanpa `always` bekerja pada tabel headers_out yang sama dengan
+  # tempat header dari Node mendarat, sehingga tidak menghasilkan duplikat.
+  Header setifempty X-Content-Type-Options "nosniff"
+</IfModule>
+
+# mod_pagespeed menulis ulang HTML dan memangkas header Vary/Cache-Control.
+# Aplikasi ini menyajikan ES module dan mengatur sendiri kebijakan cache-nya.
+<IfModule pagespeed_module>
+  ModPagespeed off
+</IfModule>
