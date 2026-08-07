@@ -506,6 +506,48 @@ check('Bahasa yang tidak didukung ditolak', badLang.status === 400);
 await corporate('/api/auth/language', { method: 'PUT', body: { language: 'id' } });
 check('Preferensi dapat dikembalikan', (await corporate('/api/meta')).json.lang === 'id');
 
+// Halaman depan dilihat sebelum ada sesi. Kalau hanya bagian dalam aplikasi
+// yang dwibahasa, pengunjung tidak akan pernah tahu fiturnya ada.
+const overviewId = (await publicClient('/api/public/overview?lang=id')).json;
+const overviewEn = (await publicClient('/api/public/overview?lang=en')).json;
+check('Kelompok modul di halaman depan berpindah bahasa',
+  overviewId.groups[0].name !== overviewEn.groups[0].name,
+  `${overviewId.groups[0].name} -> ${overviewEn.groups[0].name}`);
+check('Nama lembaga regulator berpindah bahasa',
+  overviewId.regulators[0].name === 'Kementerian Perhubungan'
+  && overviewEn.regulators[0].name === 'Ministry of Transportation',
+  overviewEn.regulators[0].name);
+check('Nomor peraturan tetap sebagai identitas hukum',
+  overviewEn.regulators[0].items.includes('UU No. 17 Tahun 2008'));
+
+const plansId = (await publicClient('/api/public/plans?lang=id')).json.plans;
+const plansEn = (await publicClient('/api/public/plans?lang=en')).json.plans;
+check('Nama paket tidak diterjemahkan',
+  plansEn.map((p) => p.name).join() === plansId.map((p) => p.name).join());
+check('Kalimat penjelas paket berpindah bahasa',
+  plansEn[0].tagline !== plansId[0].tagline && /\w/.test(plansEn[0].tagline),
+  plansEn[0].tagline);
+check('Tingkat dukungan berpindah bahasa',
+  plansEn[0].supportLevel !== plansId[0].supportLevel, plansEn[0].supportLevel);
+check('Sorotan fitur paket berpindah bahasa',
+  plansEn[0].highlights[0] !== plansId[0].highlights[0], plansEn[0].highlights[0]);
+check('Kelompok modul di dalam paket berpindah bahasa',
+  plansEn[0].groups[0].name !== plansId[0].groups[0].name, plansEn[0].groups[0].name);
+
+const leadEn = await publicClient('/api/public/trial-request?lang=en', { method: 'POST', body: { organisation: 'X' } });
+check('Pesan galat formulir publik berbahasa Inggris',
+  leadEn.status === 400 && leadEn.json.error === 'Some required details are missing.',
+  leadEn.json?.error);
+
+// Berkas antarmuka yang menopang dwibahasa harus benar-benar terkirim.
+const i18nFile = await publicClient('/js/i18n.js');
+check('Kamus antarmuka terkirim ke peramban', i18nFile.status === 200);
+const landingFile = await fetch(`${BASE}/js/landing.js`).then((r) => r.text());
+check('Halaman depan memakai kamus dwibahasa', landingFile.includes("from './i18n.js'"));
+check('Halaman depan memasang sakelar bahasa', landingFile.includes('languageSwitch('));
+const appFile = await fetch(`${BASE}/js/app.js`).then((r) => r.text());
+check('Bilah atas aplikasi memasang sakelar bahasa', appFile.includes('languageSwitch(switchLanguage)'));
+
 console.log(`\n${'─'.repeat(56)}`);
 console.log(`  ${passed} lulus, ${failed} gagal`);
 console.log(`${'─'.repeat(56)}\n`);

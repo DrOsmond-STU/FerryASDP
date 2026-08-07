@@ -7,12 +7,17 @@ import { all, get, run, logAudit } from './db.js';
 import { MODULES } from './registry/index.js';
 import { ROLES, ROLE_BY_KEY, clearPermissionCache, permissionsFor, defaultPermissions, seedRoles } from './rbac.js';
 import { hashPassword, validatePassword, requireAuth, requireLevel, decorate } from './auth.js';
+import { pickLang, tr, localiseRoles } from './i18n.js';
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth);
 
 const nowIso = () => new Date().toISOString();
 const ADMIN = requireLevel(1);
+
+// Nama modul dan kelompok sudah dwibahasa di registry; di sini tinggal dipilih.
+const moduleName = (m, lang) => (lang === 'en' ? m.name : m.nameId);
+const groupNameOf = (m, lang) => (lang === 'en' ? m.groupNameEn || m.groupName : m.groupName);
 
 /* -------------------------------------------------------------------- users */
 
@@ -24,7 +29,8 @@ adminRouter.get('/users', requireLevel(2), (req, res) => {
        FROM users u JOIN roles r ON r.key = u.role_key
       ORDER BY r.level, u.full_name`,
   );
-  res.json({ users: rows });
+  const lang = pickLang(req);
+  res.json({ users: rows.map((u) => ({ ...u, role_name: tr(u.role_name, lang) })) });
 });
 
 adminRouter.post('/users', ADMIN, (req, res) => {
@@ -101,8 +107,8 @@ adminRouter.post('/users/:id/unlock', ADMIN, (req, res) => {
 
 /* -------------------------------------------------------------------- roles */
 
-adminRouter.get('/roles', requireLevel(2), (_req, res) => {
-  const rows = all('SELECT * FROM roles ORDER BY level');
+adminRouter.get('/roles', requireLevel(2), (req, res) => {
+  const rows = localiseRoles(all('SELECT * FROM roles ORDER BY level'), pickLang(req));
   const counts = all('SELECT role_key, COUNT(*) AS n FROM users WHERE active = 1 GROUP BY role_key');
   const map = new Map(counts.map((c) => [c.role_key, c.n]));
   res.json({ roles: rows.map((r) => ({ ...r, users: map.get(r.key) || 0 })) });
@@ -112,12 +118,13 @@ adminRouter.get('/permissions/:roleKey', requireLevel(2), (req, res) => {
   const roleKey = req.params.roleKey;
   if (!ROLE_BY_KEY.has(roleKey)) return res.status(404).json({ error: 'Peran tidak dikenal.' });
   const perms = permissionsFor(roleKey);
+  const lang = pickLang(req);
   res.json({
-    role: ROLE_BY_KEY.get(roleKey),
+    role: localiseRoles([ROLE_BY_KEY.get(roleKey)], lang)[0],
     permissions: MODULES.map((m) => ({
       module: m.key,
-      name: m.nameId,
-      group: m.groupName,
+      name: moduleName(m, lang),
+      group: groupNameOf(m, lang),
       groupCode: m.groupCode,
       ...(perms.get(m.key) || { view: false, create: false, edit: false, approve: false, delete: false }),
     })),
@@ -184,11 +191,12 @@ adminRouter.get('/audit-log', requireLevel(3), (req, res) => {
 
 /* ------------------------------------------------------------------ system */
 
-adminRouter.get('/system', requireLevel(2), (_req, res) => {
+adminRouter.get('/system', requireLevel(2), (req, res) => {
+  const lang = pickLang(req);
   const counts = MODULES.map((m) => ({
     key: m.key,
-    name: m.nameId,
-    group: m.groupName,
+    name: moduleName(m, lang),
+    group: groupNameOf(m, lang),
     records: get(`SELECT COUNT(*) AS n FROM "${m.table}" WHERE deleted_at IS NULL`).n,
   }));
   res.json({

@@ -292,7 +292,7 @@ export async function renderRecordForm(container, module, recordId) {
     form.appendChild(grid);
   }
 
-  const submit = h('button.btn-primary', { type: 'submit', text: editing ? 'Simpan Perubahan' : 'Simpan Rekaman' });
+  const submit = h('button.btn-primary', { type: 'submit', text: t(editing ? 'Simpan Perubahan' : 'Simpan Rekaman') });
   form.appendChild(h('div', { style: 'display:flex;gap:.5rem;margin-top:1rem' },
     submit,
     h('a.btn', { href: editing ? `#/m/${module.key}/${recordId}` : `#/m/${module.key}`, text: t('Batal') })));
@@ -323,7 +323,7 @@ export async function renderRecordForm(container, module, recordId) {
       errorBox.classList.remove('hidden');
       errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
       submit.disabled = false;
-      submit.textContent = editing ? 'Simpan Perubahan' : 'Simpan Rekaman';
+      submit.textContent = t(editing ? 'Simpan Perubahan' : 'Simpan Rekaman');
     }
   }
 }

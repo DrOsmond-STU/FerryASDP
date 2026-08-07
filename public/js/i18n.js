@@ -22,6 +22,33 @@ const EN = {
   'Dashboard Kustom': 'Custom Dashboards',
   'Dashboard baru': 'New dashboard',
   Administrasi: 'Administration',
+  'Manajemen Pengguna': 'User Management',
+  '{akun} akun terdaftar pada {peran} peran.': '{akun} accounts across {peran} roles.',
+  'Pengguna Baru': 'New User',
+  Nonaktif: 'Inactive',
+  'belum pernah': 'never',
+  'Kosongkan bila tidak diubah': 'Leave blank to keep unchanged',
+  'Kunci akun dilepas.': 'Account unlocked.',
+  'Matriks kewenangan per modul: lihat, buat, ubah, setujui, hapus.':
+    'Permission matrix per module: view, create, edit, approve, delete.',
+  'Hak akses dikembalikan ke bawaan sistem.': 'Permissions restored to system defaults.',
+  'Tidak ada perubahan.': 'Nothing changed.',
+  'Hanya administrator sistem yang dapat mengubah matriks ini.':
+    'Only the system administrator can change this matrix.',
+  'Hak akses administrator sistem bersifat tetap dan tidak dapat diubah.':
+    'System administrator permissions are fixed and cannot be changed.',
+  '{n} modul diperbarui. Pengguna terkait perlu memuat ulang halaman.':
+    '{n} modules updated. Affected users need to reload the page.',
+  'Rekaman aktivitas untuk pemenuhan ISO 27001 A.8.15 dan penelusuran perubahan data.':
+    'Activity records for ISO 27001 A.8.15 compliance and change traceability.',
+  '{n} entri': '{n} entries',
+  'Tidak ada entri yang cocok.': 'No matching entries.',
+  'Halaman {n}': 'Page {n}',
+  'Ringkasan konfigurasi dan volume data platform.': 'Platform configuration and data volume summary.',
+  'uptime {n} menit': 'uptime {n} minutes',
+  'Hak Akses Peran': 'Role Permissions',
+  'Jejak Audit Sistem': 'System Audit Trail',
+  'Informasi Sistem': 'System Information',
   'Akun & Sesi': 'Account & Session',
   Nama: 'Name',
   'Nama pengguna': 'Username',
@@ -104,24 +131,261 @@ const EN = {
   'Tidak termasuk paket langganan cabang Anda': 'Not included in your branch subscription plan',
   'Lihat rincian modul & peningkatan paket': 'View module details & plan upgrade',
 
-  /* --------------------------------------------------------- dashboard */
-  'Executive Dashboard': 'Executive Dashboard',
-  'Incident Dashboard': 'Incident Dashboard',
-  'Risk Dashboard': 'Risk Dashboard',
-  'Audit Dashboard': 'Audit Dashboard',
-  'Quality Dashboard': 'Quality Dashboard',
-  'Health Dashboard': 'Health Dashboard',
-  'Carbon Dashboard': 'Carbon Dashboard',
-  'ESG Dashboard': 'ESG Dashboard',
-  'Vessel Dashboard': 'Vessel Dashboard',
-  'Port Dashboard': 'Port Dashboard',
-  'Contractor Dashboard': 'Contractor Dashboard',
-  'Asset Dashboard': 'Asset Dashboard',
-  'Training & Competency': 'Training & Competency',
+  /* --------------------------------------------------------- dashboard
+   * Nama dashboard ditulis dalam bahasa Indonesia seperti seluruh sumber teks
+   * lain. Sebelumnya nama-nama ini tertulis bahasa Inggris, sehingga pengguna
+   * Indonesia membaca "Executive Dashboard" pada aplikasi berbahasa Indonesia.
+   */
+  'Dashboard Eksekutif': 'Executive Dashboard',
+  'Dashboard Insiden': 'Incident Dashboard',
+  'Dashboard Risiko': 'Risk Dashboard',
+  'Dashboard Audit': 'Audit Dashboard',
+  'Dashboard Mutu': 'Quality Dashboard',
+  'Dashboard Kesehatan Kerja': 'Occupational Health Dashboard',
+  'Dashboard Jejak Karbon': 'Carbon Footprint Dashboard',
+  'Dashboard ESG': 'ESG Dashboard',
+  'Dashboard Kapal': 'Vessel Dashboard',
+  'Dashboard Pelabuhan': 'Port Dashboard',
+  'Dashboard Kontraktor': 'Contractor Dashboard',
+  'Dashboard Aset': 'Asset Dashboard',
+  'Pelatihan & Kompetensi': 'Training & Competency',
   'Balanced Scorecard': 'Balanced Scorecard',
   'Dashboard Analitik': 'Analytics Dashboard',
   'Langganan & Pendapatan': 'Subscription & Revenue',
   'Menghitung indikator…': 'Calculating indicators…',
+
+  /* Keterangan kecil di bawah angka indikator. Bagian inilah yang paling
+   * mudah tertinggal berbahasa Indonesia karena tersusun dari potongan
+   * kalimat; disatukan sebagai kalimat bersisipan agar urutan katanya bisa
+   * berbeda antar bahasa ({n} tidak harus di depan). */
+  '{lti} lost time · {fatality} fatality': '{lti} lost time · {fatality} fatality',
+  '{nm} near miss · {temuan} temuan': '{nm} near miss · {temuan} findings',
+  '{n} temuan': '{n} findings',
+  '{n} temuan kritis': '{n} critical findings',
+  '{n} melewati target': '{n} past target',
+  '{n} jam kerja tercatat': '{n} man-hours recorded',
+  '{n} ketidaksesuaian mayor': '{n} major non-conformities',
+  '{n} hari kerja hilang': '{n} lost working days',
+  '{n} tinggi/ekstrem': '{n} high/extreme',
+  '{n} jatuh tempo tinjauan': '{n} due for review',
+  '{n} inisiatif': '{n} initiatives',
+  '{n} perlu tindak lanjut': '{n} need follow-up',
+  '{n} terkait pekerjaan': '{n} work-related',
+  '{n} program efisiensi': '{n} efficiency programmes',
+  '{n} indikator': '{n} indicators',
+  '{volume} liter, pulih {pulih} liter': '{volume} litres, {pulih} litres recovered',
+  '{n} ditunda/dibatalkan': '{n} delayed/cancelled',
+  '{n} tidak laik laut': '{n} not seaworthy',
+  '{n} ditahan/ditunda': '{n} held/delayed',
+  '{n} perhitungan GM': '{n} GM calculations',
+  '{n} pengangkutan barang berbahaya': '{n} dangerous goods shipments',
+  '{n} pemeriksaan': '{n} checks',
+  '{n} kejadian nyata': '{n} real events',
+  '{n} izin diterbitkan': '{n} permits issued',
+  '{n} fatality': '{n} fatalities',
+  '{n} tidak laik operasi': '{n} unfit for operation',
+  '{n} jam downtime': '{n} downtime hours',
+  '{n} di luar toleransi': '{n} out of tolerance',
+  '{n} mendekati jatuh tempo': '{n} approaching expiry',
+  '{n} modul terisi': '{n} modules populated',
+  '{n} bersifat wajib': '{n} are mandatory',
+  '{n} pegawai belum lengkap': '{n} employees incomplete',
+  '{n} akan habis dalam 90 hari': '{n} expiring within 90 days',
+  '{n} peserta': '{n} participants',
+  '{n} jam keseluruhan': '{n} hours in total',
+  '{n} dalam uji coba': '{n} on trial',
+  '{n} tagihan lewat jatuh tempo': '{n} invoices past due',
+  '{n} cabang berhenti': '{n} branches churned',
+  '{selesai} dari {rencana} jadwal terlaksana': '{selesai} of {rencana} sessions delivered',
+  '{tercapai} dari {jumlah} indikator tercapai': '{tercapai} of {jumlah} indicators achieved',
+  '{grade} · rata-rata keempat perspektif dengan bobot sama · tahun lalu {lalu}':
+    '{grade} · equal-weighted average of the four perspectives · last year {lalu}',
+  'anggaran {nilai}': 'budget {nilai}',
+  'belum terukur': 'not yet measured',
+  'per 1 juta jam kerja': 'per million man-hours',
+  'daftar peraturan dievaluasi': 'regulatory register assessed',
+  'Scope 1 & 2 tahun berjalan': 'Scope 1 & 2, year to date',
+  'pelatihan · drill': 'training · drills',
+  'pemenuhan matriks kompetensi': 'competency matrix fulfilment',
+  'realisasi terhadap program': 'delivered against programme',
+  'acuan STCW 10 jam/24 jam': 'STCW reference: 10 hours per 24',
+  'laporan proaktif per satu insiden': 'proactive reports per incident',
+  '> 30 hari masih di status awal': '> 30 days still at initial status',
+  'cabang dalam cakupan akses Anda': 'branches within your access scope',
+  'total pelatihan wajib belum dipenuhi': 'mandatory training still unmet',
+  'rata-rata seluruh materi LMS': 'average across all LMS material',
+  'Kirkpatrick level 4': 'Kirkpatrick level 4',
+  'pendapatan berulang bulanan': 'monthly recurring revenue',
+  'proyeksi tahunan': 'annual projection',
+  'rata-rata per cabang': 'average per branch',
+  'potensi bila seluruhnya berlanjut': 'potential if all convert',
+  '12 bulan terakhir': 'last 12 months',
+  ton: 'tonnes',
+  'kg/liter': 'kg/litre',
+  jam: 'hours',
+  hari: 'days',
+
+  /* Judul kolom tabel dashboard. */
+  Indikator: 'Indicator',
+  'Sasaran Strategis': 'Strategic Objective',
+  Satuan: 'Unit of Measure',
+  Target: 'Target',
+  Realisasi: 'Actual',
+  Bobot: 'Weight',
+  Pencapaian: 'Achievement',
+  Perspektif: 'Perspective',
+  Tercapai: 'Achieved',
+  Skor: 'Score',
+  'Unit Penanggung Jawab': 'Responsible Unit',
+  Metrik: 'Metric',
+  Perubahan: 'Change',
+  Item: 'Item',
+  Tanggal: 'Date',
+  'Sisa Hari': 'Days Left',
+  Kategori: 'Category',
+  Nilai: 'Score',
+  Tingkat: 'Level',
+  Residual: 'Residual',
+  'Jenis Energi': 'Energy Type',
+  Faktor: 'Factor',
+  Sumber: 'Source',
+  Tipe: 'Type',
+  Lintasan: 'Route',
+  'Sert. Keselamatan': 'Safety Cert.',
+  'Survey Klas': 'Class Survey',
+  Docking: 'Docking',
+  Kelas: 'Class',
+  Provinsi: 'Province',
+  Dermaga: 'Berths',
+  'Jenis Pekerjaan': 'Type of Work',
+  'Skor CSMS': 'CSMS Score',
+  Grade: 'Grade',
+  'Akhir Kontrak': 'Contract End',
+  Jenis: 'Type',
+  Unit: 'Unit',
+  Insiden: 'Incidents',
+  'Near miss': 'Near miss',
+  Proaktif: 'Proactive',
+  'CAPA Telat': 'Overdue CAPA',
+  'Sert. Mati': 'Expired Certs',
+  Indeks: 'Index',
+  'Cabang / Unit': 'Branch / Unit',
+  Pegawai: 'Employee',
+  Wajib: 'Required',
+  Dimiliki: 'Held',
+  Gap: 'Gap',
+  Pemenuhan: 'Fulfilment',
+  Sertifikat: 'Certificate',
+  Pemegang: 'Holder',
+  Penerbit: 'Issuer',
+  'Berlaku Sampai': 'Valid Until',
+  'Lembaga Pelatihan': 'Training Provider',
+  'Akreditasi s.d.': 'Accredited Until',
+  Pelatihan: 'Training',
+  Peserta: 'Participants',
+  'Pegawai Dianalisis': 'Employees Analysed',
+  'Total Kesenjangan': 'Total Gaps',
+  Keluhan: 'Complaints',
+  Kontraktor: 'Contractor',
+  Risiko: 'Risk',
+  Temuan: 'Findings',
+  'Target Tutup': 'Due Date',
+  Kontak: 'Contact',
+  'Paket Diminati': 'Plan of Interest',
+  'Biaya/bulan': 'Fee/month',
+  Utilisasi: 'Utilisation',
+  'Tagihan Berikutnya': 'Next Invoice',
+  'Kesehatan Akun': 'Account Health',
+  NPS: 'NPS',
+  'Skor Adopsi': 'Adoption Score',
+  'Air limbah & air laut': 'Wastewater & seawater',
+  'Emisi udara': 'Air emissions',
+
+  /* Nilai status yang dihitung server dan tampil sebagai lencana. */
+  'Belum diukur': 'Not measured',
+  'Hampir Tercapai': 'Nearly Achieved',
+  'Tidak Tercapai': 'Not Achieved',
+  'Perlu Perhatian': 'Needs Attention',
+  'Sangat Baik': 'Excellent',
+  Baik: 'Good',
+  Cukup: 'Adequate',
+  'Perlu Perbaikan': 'Needs Improvement',
+  Rendah: 'Low',
+  Sehat: 'Healthy',
+  'Berisiko Churn': 'Churn Risk',
+  'Patuh Penuh': 'Fully Compliant',
+  'Perlu Pemenuhan': 'Needs Fulfilment',
+  'Kesenjangan Signifikan': 'Significant Gap',
+  Kritis: 'Critical',
+  Aktif: 'Active',
+  'Uji Coba': 'Trial',
+  Menunggak: 'Past Due',
+  Ditangguhkan: 'Suspended',
+  Berhenti: 'Ended',
+
+  /* Kalimat penjelas & keadaan kosong. */
+  '{arah} {nilai} poin': '{arah} {nilai} pts',
+  '{jumlah} indikator · {tercapai} tercapai · {risiko} di bawah 90%':
+    '{jumlah} indicators · {tercapai} achieved · {risiko} below 90%',
+  '{kejadian} kejadian keamanan informasi · {kontraktor} kontraktor dievaluasi':
+    '{kejadian} information security events · {kontraktor} contractors evaluated',
+  '{n} risiko melebihi selera risiko perusahaan.': '{n} risks exceed the corporate risk appetite.',
+  '{n} tinjauan manajemen tahun berjalan.': '{n} management reviews year to date.',
+  '{persen}% · kumulatif {kumulatif}%': '{persen}% · cumulative {kumulatif}%',
+  '{perspektif} — {n} indikator': '{perspektif} — {n} indicators',
+  'Total {n} rekaman.': '{n} records in total.',
+  'Kepuasan peserta {puas} · kenaikan pengetahuan {naik}.':
+    'Participant satisfaction {puas} · knowledge gain {naik}.',
+  'Perbandingan Tahun {tahun} dengan {pembanding}': 'Comparing {tahun} with {pembanding}',
+  '▲ menopang': '▲ supports',
+  'dibanding tahun lalu': 'versus last year',
+  'Lewat {n} hari': '{n} days overdue',
+  '{n} hari': '{n} days',
+  'Data belum cukup untuk menghitung hubungan antar deret (minimal tiga bulan berisi).':
+    'Not enough data to compute a relationship between the series (at least three populated months are needed).',
+  'Korelasi {r} — kuat dan berlawanan arah: bulan dengan pelaporan proaktif tinggi cenderung berinsiden rendah. Inilah pola yang diharapkan.':
+    'Correlation {r} — strong and inverse: months with high proactive reporting tend to have fewer incidents. This is the pattern you want.',
+  'Korelasi {r} — berlawanan arah namun lemah.': 'Correlation {r} — inverse but weak.',
+  'Korelasi {r} — praktis tidak ada hubungan pada periode ini.':
+    'Correlation {r} — effectively no relationship over this period.',
+  'Korelasi {r} — searah. Pelaporan yang naik bersamaan dengan insiden biasanya menandakan kesadaran melapor baru tumbuh setelah kejadian, bukan sebelum.':
+    'Correlation {r} — positive. Reporting rising alongside incidents usually means reporting awareness grew after the events, not before them.',
+  'Belum ada analisis kesenjangan kompetensi.': 'No competency gap analysis yet.',
+  'Belum ada data kepatuhan per unit.': 'No per-unit compliance data yet.',
+  'Belum ada indikator pada perspektif ini.': 'No indicators in this perspective yet.',
+  'Belum ada indikator terukur.': 'No measured indicators yet.',
+  'Belum ada langganan tercatat.': 'No subscriptions recorded yet.',
+  'Belum ada permintaan uji coba.': 'No trial requests yet.',
+  'Belum ada sasaran strategis yang ditetapkan.': 'No strategic objectives set yet.',
+  'Belum ada unit yang dapat dibandingkan pada cakupan akses Anda.':
+    'No units available for comparison within your access scope.',
+  'Belum ada vendor pelatihan yang dinilai.': 'No training vendors assessed yet.',
+  'Tidak ada dokumen, sertifikat atau tindakan yang mendekati jatuh tempo.':
+    'No documents, certificates or actions are approaching their due date.',
+  'Tidak ada rekaman yang tertahan di status awal.': 'No records are stuck at their initial status.',
+  'Tidak ada sertifikat yang mendekati atau melewati masa berlaku.':
+    'No certificates are approaching or past their validity date.',
+  'Tindakan/kondisi tidak aman': 'Unsafe act / condition',
+  'Rasio pelaporan proaktif yang sehat menunjukkan dasar piramida jauh lebih besar dari puncaknya.':
+    'A healthy proactive reporting ratio shows a pyramid far wider at the base than at the top.',
+  'Indikator mengikuti GRI Standards dan dilaporkan dalam Laporan Keberlanjutan sesuai POJK No. 51/POJK.03/2017 serta SEOJK No. 16/SEOJK.04/2021.':
+    'Indicators follow the GRI Standards and are reported in the Sustainability Report under OJK Regulation 51/POJK.03/2017 and Circular 16/SEOJK.04/2021.',
+  'Dibaca dari bawah ke atas mengikuti logika sebab-akibat Kaplan & Norton: kompetensi dan budaya menopang proses internal, proses yang andal menghasilkan kepuasan pelanggan, dan pelanggan yang loyal menghasilkan kinerja keuangan. Perspektif terbawah yang lemah akan menjatuhkan lapisan di atasnya — meski hari ini angkanya masih terlihat baik.':
+    'Read from the bottom up, following Kaplan & Norton’s cause-and-effect logic: competence and culture support internal processes, reliable processes produce customer satisfaction, and loyal customers produce financial performance. A weak bottom perspective will eventually pull down the layers above it — even while today’s figures still look good.',
+  'Indeks 0–100 adalah pembanding antar unit, bukan nilai mutlak. Pelaporan proaktif menaikkan indeks — unit yang melaporkan banyak near miss sedang bekerja dengan benar, bukan sedang berkinerja buruk. Insiden, CAPA lewat jatuh tempo dan sertifikat kedaluwarsa menurunkannya.':
+    'The 0–100 index compares units against each other; it is not an absolute score. Proactive reporting raises it — a unit reporting many near misses is doing the right thing, not performing badly. Incidents, overdue CAPA and expired certificates lower it.',
+  'Korelasi bukan sebab-akibat. Angka ini menunjukkan pola yang layak ditanyakan pada rapat tinjauan, bukan kesimpulan yang bisa langsung dipakai.':
+    'Correlation is not causation. This figure points to a pattern worth raising at the management review, not a conclusion to act on directly.',
+  'Kenaikan tidak selalu buruk: naiknya near miss, inspeksi, audit dan pelatihan justru menandakan sistem berjalan. Yang perlu dibaca berpasangan adalah naiknya pelaporan proaktif berbarengan dengan turunnya insiden.':
+    'An increase is not always bad: more near misses, inspections, audits and training means the system is working. The pair to read together is rising proactive reporting alongside falling incidents.',
+  'Rata-rata hari dari rekaman dibuat sampai ditutup, dihitung hanya atas rekaman yang benar-benar sudah tertutup.':
+    'Average days from record creation to closure, counted only over records that have actually been closed.',
+  'Selisih antara pelatihan wajib menurut matriks jabatan dan pelatihan yang dimiliki serta masih berlaku.':
+    'The difference between the training required by the position matrix and the training actually held and still valid.',
+  'Skala 1 Beginner sampai 5 Expert, dihitung dari matriks kompetensi pegawai.':
+    'A scale of 1 (Beginner) to 5 (Expert), derived from the employee competency matrix.',
+  'Peringatan otomatis dikirim 30, 14 dan 7 hari sebelum masa berlaku berakhir serta pada hari-H.':
+    'Automatic reminders are sent 30, 14 and 7 days before expiry, and on the day itself.',
   'Periode analisis': 'Analysis period',
   'angka mengikuti cakupan akses Anda.': 'figures follow your access scope.',
 
@@ -245,6 +509,7 @@ const EN = {
   '✎ Ubah': '✎ Edit',
   '🗑 Hapus': '🗑 Delete',
   'Simpan Perubahan': 'Save Changes',
+  'Simpan Rekaman': 'Save Record',
   'Rincian Rekaman': 'Record Details',
   Rincian: 'Details',
   'Alur Status': 'Workflow',
@@ -573,7 +838,184 @@ const EN = {
   'Unit Dibandingkan': 'Units Compared',
   '⏰ Peringatan Kedaluwarsa': '⏰ Expiry Alerts',
   '⏰ Peringatan Kedaluwarsa & Jatuh Tempo': '⏰ Expiry & Due-date Alerts',
+  'Dapat juga diubah lewat tombol ID / EN di bilah atas.':
+    'Can also be switched with the ID / EN buttons in the top bar.',
 };
+
+/* ------------------------------------------------------- halaman depan
+ * Halaman depan adalah layar pertama yang dilihat siapa pun — termasuk calon
+ * pelanggan yang belum punya akun. Kalau hanya bagian dalam aplikasi yang
+ * dwibahasa, produknya tetap terbaca sebagai produk berbahasa Indonesia saja.
+ */
+const EN_LANDING = {
+  'QHSE ASDP — Sistem Manajemen QHSE Terintegrasi untuk Cabang ASDP':
+    'QHSE ASDP — Integrated QHSE Management System for ASDP Branches',
+
+  /* bilah atas & ajakan */
+  Fitur: 'Features',
+  Kepatuhan: 'Compliance',
+  Harga: 'Pricing',
+  'Tanya Jawab': 'FAQ',
+  'Tanya jawab': 'Frequently asked questions',
+  'Coba Gratis': 'Free Trial',
+  Masuk: 'Sign in',
+
+  /* hero */
+  'Perangkat lunak berlangganan untuk cabang PT ASDP Indonesia Ferry (Persero)':
+    'Subscription software for the branches of PT ASDP Indonesia Ferry (Persero)',
+  'Satu sistem untuk ': 'One system for ',
+  seluruh: 'every',
+  ' kewajiban QHSE cabang Anda.': ' QHSE obligation your branch carries.',
+  'Mutu, kesehatan kerja, K3, lingkungan, keselamatan pelayaran, keselamatan pelabuhan, risiko, aset, kontraktor, audit dan pelaporan ESG — tidak lagi tersebar di puluhan berkas Excel dan map arsip.':
+    'Quality, occupational health, safety, environment, navigation safety, port safety, risk, assets, contractors, audit and ESG reporting — no longer scattered across dozens of spreadsheets and filing cabinets.',
+  'modul siap pakai': 'ready-to-use modules',
+  'kelompok fungsi': 'functional groups',
+  'standar & kode maritim': 'standards & maritime codes',
+  'level kewenangan': 'authority levels',
+  'Ajukan Uji Coba 30 Hari': 'Request a 30-day Trial',
+  'Lihat Paket & Harga': 'See Plans & Pricing',
+  'Berlangganan per cabang mulai {harga}/bulan. Tanpa biaya pemasangan perangkat keras — cukup peramban.':
+    'Per-branch subscriptions from {harga}/month. No hardware to install — a browser is enough.',
+
+  /* panel masuk */
+  'mis. corporate.qhse': 'e.g. corporate.qhse',
+  'Masuk ke Aplikasi': 'Sign in to the Application',
+  'Memeriksa…': 'Checking…',
+  'Nama Pengguna': 'Username',
+  'Kata Sandi': 'Password',
+  'Untuk pengguna cabang yang sudah berlangganan.': 'For users at subscribing branches.',
+  'Akun demo tersedia': 'Demo accounts available',
+  'corporate.qhse (pengelola platform) · port.manager (cabang berlangganan penuh) · qhse.ketapang (paket Profesional) · qhse.bajoe (masa uji coba). Kata sandi demo dapat diminta kepada tim kami.':
+    'corporate.qhse (platform operator) · port.manager (fully subscribed branch) · qhse.ketapang (Professional plan) · qhse.bajoe (on trial). Ask our team for the demo password.',
+
+  /* pilar */
+  'Mengapa cabang memilih QHSE ASDP': 'Why branches choose QHSE ASDP',
+  'Aplikasi QHSE umumnya dibuat untuk pabrik. Operasi penyeberangan punya kewajiban yang berbeda — dan justru di situ risikonya terbesar.':
+    'Most QHSE applications are built for factories. Ferry operations carry different obligations — and that is exactly where the biggest risks sit.',
+  'Dirancang untuk penyeberangan, bukan pabrik': 'Built for ferry operations, not factories',
+  'Checklist pra-berlayar 28 item, inspeksi ramp door, stabilitas GM, keselamatan muat kendaraan golongan I–IX, manifest penumpang, dan klasifikasi insiden pelayaran sesuai IMO. Modul yang tidak akan Anda temukan pada aplikasi QHSE umum.':
+    'A 28-item pre-departure checklist, ramp door inspection, GM stability, loading safety for vehicle classes I–IX, passenger manifests, and IMO marine incident classification. Modules you will not find in a general-purpose QHSE application.',
+  'Pelabuhan penyeberangan sebagai objek utama': 'The ferry port as a first-class subject',
+  'Kondisi fender, bollard, movable bridge, gangway, area steril, jalur evakuasi, APAR dan pencahayaan dermaga terpantau melalui patroli shift. Termasuk manajemen kepadatan angkutan lebaran dan Nataru.':
+    'Fenders, bollards, movable bridges, gangways, sterile areas, evacuation routes, fire extinguishers and quay lighting are all tracked through shift patrols — including crowd management for the Eid and year-end peaks.',
+  'Siap diperiksa regulator': 'Ready for the regulator',
+  'Setiap rekaman membawa acuan standar dan pasal regulasinya: SMK3 PP 50/2012, UU Pelayaran, PermenLHK limbah B3, ISM Code, ISPS. Ekspor laporan per modul dalam hitungan detik saat auditor datang.':
+    'Every record carries the standard and the regulation it answers to: SMK3 (Reg. 50/2012), the Shipping Act, hazardous-waste regulations, the ISM Code, ISPS. Export a module report in seconds when the auditor arrives.',
+  'Angka dihitung sistem, bukan diketik manual': 'Figures are computed, not typed in',
+  'LTIFR, TRIR, severity rate, nilai risiko 5×5, emisi CO₂e, tingkat daur ulang, batas simpan limbah B3 90 hari, dan status sertifikat dihitung otomatis dari data yang Anda masukkan — konsisten antar cabang.':
+    'LTIFR, TRIR, severity rate, 5×5 risk scores, CO₂e emissions, recycling rates, the 90-day hazardous waste storage limit and certificate status are all derived automatically from what you enter — consistently across every branch.',
+  'Tidak ada lagi sertifikat kedaluwarsa': 'No more expired certificates',
+  'Sistem memindai seluruh tanggal berlaku — sertifikat kapal, izin lingkungan, izin TPS B3, riksa-uji Disnaker, kalibrasi, servis life raft — dan menampilkannya jauh sebelum jatuh tempo.':
+    'The system scans every validity date — vessel certificates, environmental permits, hazardous-waste storage permits, statutory inspections, calibrations, life raft servicing — and surfaces them well before they fall due.',
+  'Kompetensi pekerja terpantau, bukan diasumsikan': 'Competency is tracked, not assumed',
+  'Matriks pelatihan wajib per jabatan menjawab satu pertanyaan yang selalu ditanya auditor: siapa yang belum boleh bertugas. Sistem membandingkan pelatihan wajib dengan sertifikat yang dimiliki dan masih berlaku, lalu menampilkan kesenjangannya per pegawai, per pelabuhan dan per cabang.':
+    'The mandatory training matrix per position answers the one question every auditor asks: who is not yet cleared to work. The system compares required training against the certificates each person actually holds and shows the gap per employee, per port and per branch.',
+  'Kewenangan berjenjang 10 level': 'Ten tiers of authority',
+  'Dari Administrator Sistem sampai Kontraktor. Nakhoda hanya melihat kapalnya, Port Manager hanya pelabuhannya, Corporate QHSE melihat nasional. Persetujuan tidak dapat dilewati.':
+    'From System Administrator down to Contractor. A master sees only their vessel, a port manager only their port, corporate QHSE sees the whole country. Approvals cannot be skipped.',
+
+  /* cakupan */
+  'Cakupan modul & kepatuhan': 'Module coverage & compliance',
+  'Setiap modul membawa acuan standar dan regulasinya. Yang Anda catat hari ini adalah bukti yang diminta auditor bulan depan.':
+    'Every module carries its standard and its regulation. What you record today is the evidence the auditor asks for next month.',
+  modul: 'modules',
+  'Standar yang diakomodasi': 'Standards supported',
+  'Regulasi Indonesia': 'Indonesian regulations',
+
+  /* harga */
+  'Paket langganan per cabang': 'Subscription plans, per branch',
+  'Harga per cabang per bulan, sudah termasuk pembaruan sistem dan penyimpanan data. Berlangganan tahunan hemat dua bulan.':
+    'Priced per branch per month, system updates and data storage included. An annual subscription saves you two months.',
+  'Harga belum termasuk PPN 11%. Penambahan cabang mengikuti tarif yang sama; kontrak lintas cabang dapat dinegosiasikan melalui kantor pusat.':
+    'Prices exclude 11% VAT. Additional branches are charged at the same rate; multi-branch contracts can be negotiated through head office.',
+  'Paling banyak dipilih': 'Most popular',
+  '/cabang/bulan': '/branch/month',
+  'atau {harga}/tahun — hemat {persen}%': 'or {harga}/year — saving {persen}%',
+  '{n} modul aktif': '{n} active modules',
+  '{n} pengguna': '{n} users',
+  'Pengguna tanpa batas': 'Unlimited users',
+  'Penyimpanan {n} GB': '{n} GB storage',
+  'Pendampingan implementasi': 'Implementation support',
+  'Pelatihan pengguna': 'User training',
+  'Integrasi API': 'API integration',
+  'Laporan kustom & analitik lanjutan': 'Custom reports & advanced analytics',
+  'Rincian kelompok modul': 'Module groups in detail',
+  'Ajukan Uji Coba': 'Request a Trial',
+
+  /* langkah */
+  'Dari permintaan sampai berjalan penuh': 'From first enquiry to full operation',
+  'Hubungi kami': 'Contact us',
+  'Sampaikan kebutuhan cabang melalui formulir di bawah.': 'Tell us what your branch needs using the form below.',
+  'Uji coba 30 hari': '30-day trial',
+  'Akun cabang aktif dengan data contoh; tidak perlu kartu kredit.':
+    'A live branch account with sample data; no credit card required.',
+  'Migrasi & pelatihan': 'Migration & training',
+  'Kami bantu pindahkan data eksisting dan melatih pengguna.':
+    'We help move your existing data across and train your users.',
+  'Berlangganan bulanan': 'Monthly subscription',
+  'Bayar per cabang, dapat dihentikan kapan saja pada akhir periode.':
+    'Pay per branch, cancellable at the end of any period.',
+
+  /* tanya jawab */
+  'Apakah data tiap cabang terpisah?': 'Is each branch’s data kept separate?',
+  'Ya. Setiap cabang adalah tenant tersendiri. Pengguna cabang hanya melihat rekaman cabangnya; pemisahan ini ditegakkan di sisi server, termasuk pada seluruh dashboard.':
+    'Yes. Each branch is its own tenant. Branch users see only their own branch’s records; the separation is enforced on the server, dashboards included.',
+  'Bagaimana jika kami hanya butuh sebagian modul?': 'What if we only need some of the modules?',
+  'Pilih paket Esensial atau Profesional. Modul di luar paket tetap terlihat namun terkunci, dan dapat diaktifkan kapan saja tanpa migrasi ulang.':
+    'Choose the Essential or Professional plan. Modules outside your plan stay visible but locked, and can be switched on at any time without a further migration.',
+  'Apakah bisa berhenti berlangganan?': 'Can we cancel the subscription?',
+  'Bisa, berlaku pada akhir periode berjalan. Data cabang dapat diekspor seluruhnya dalam format CSV sebelum akun ditutup.':
+    'Yes, effective at the end of the current period. All branch data can be exported as CSV before the account is closed.',
+  'Apakah mendukung audit SMK3 dan ISO?': 'Does it support SMK3 and ISO audits?',
+  'Ya. Jejak audit mencatat setiap perubahan beserta penggunanya, dan setiap modul mencantumkan klausul standar yang dipenuhi.':
+    'Yes. The audit trail records every change and who made it, and each module states the standard clauses it satisfies.',
+
+  /* formulir uji coba */
+  'Coba gratis 30 hari': 'Try it free for 30 days',
+  'Cabang Anda mendapat akun lengkap berisi data contoh untuk dicoba bersama tim QHSE, tanpa biaya dan tanpa komitmen. Kami bantu migrasi data dan pelatihan pengguna bila memutuskan berlangganan.':
+    'Your branch gets a complete account with sample data to explore with your QHSE team — free, with no commitment. If you decide to subscribe we handle the data migration and user training.',
+  'Aktif dalam 2 hari kerja': 'Live within two working days',
+  'Tanpa pemasangan server di cabang': 'No server to install at the branch',
+  'Data dapat diekspor kapan saja': 'Export your data whenever you like',
+  'Berhenti kapan saja pada akhir periode': 'Cancel at the end of any period',
+  'mis. Cabang Lembar': 'e.g. Lembar Branch',
+  'Nama lengkap': 'Full name',
+  'mis. Kepala QHSE': 'e.g. Head of QHSE',
+  'Belum menentukan': 'Not decided yet',
+  'Ceritakan kondisi pengelolaan QHSE di cabang Anda saat ini…':
+    'Tell us how QHSE is managed at your branch today…',
+  'Nama cabang / unit': 'Branch / unit name',
+  'Nama penanggung jawab': 'Contact person',
+  'Surel dinas': 'Work email',
+  Telepon: 'Phone',
+  'Perkiraan jumlah pengguna': 'Estimated number of users',
+  'Paket yang diminati': 'Plan of interest',
+  'Kebutuhan utama': 'Primary need',
+  Pesan: 'Message',
+  'Kirim Permintaan Uji Coba': 'Send Trial Request',
+  'Mengirim…': 'Sending…',
+  'Permintaan uji coba terkirim.': 'Trial request sent.',
+  'Keselamatan Pelayaran & Checklist Kapal': 'Navigation Safety & Vessel Checklists',
+  'Keselamatan Kerja (K3) & SMK3': 'Occupational Safety & SMK3',
+  'Pengelolaan Lingkungan & Limbah B3': 'Environmental & Hazardous Waste Management',
+  'Mutu & Kepuasan Pelanggan': 'Quality & Customer Satisfaction',
+  'Manajemen Risiko & Audit': 'Risk Management & Audit',
+  'Pelaporan ESG & Keberlanjutan': 'ESG & Sustainability Reporting',
+  'Pengelolaan Aset & Sertifikat': 'Asset & Certificate Management',
+
+  /* kaki halaman */
+  'Platform manajemen QHSE terintegrasi untuk operator kapal penyeberangan dan pelabuhan.':
+    'An integrated QHSE management platform for ferry and port operators.',
+  Produk: 'Product',
+  'Cakupan kepatuhan': 'Compliance coverage',
+  'Paket & harga': 'Plans & pricing',
+  'Dikembangkan oleh': 'Built by',
+  Dukungan: 'Support',
+  '© {tahun} QHSE ASDP. Data yang ditampilkan pada lingkungan demonstrasi bersifat ilustratif dan bukan data operasional PT ASDP Indonesia Ferry (Persero).':
+    '© {tahun} QHSE ASDP. Figures shown in this demonstration environment are illustrative and are not operational data of PT ASDP Indonesia Ferry (Persero).',
+};
+
+Object.assign(EN, EN_LANDING);
 
 const ID = {};
 

@@ -8,6 +8,7 @@ import { Router } from 'express';
 import { all, run, nextCode, logAudit, get } from './db.js';
 import { MODULE_BY_KEY, MODULES, GROUPS } from './registry/index.js';
 import { applyComputed } from './compute.js';
+import { pickLang, tr } from './i18n.js';
 
 export const publicRouter = Router();
 
@@ -16,7 +17,19 @@ const nowIso = () => new Date().toISOString();
 /** Jumlah modul per kelompok, untuk menampilkan isi tiap paket. */
 const groupModuleCount = new Map(GROUPS.map((g) => [g.key, g.modules.length]));
 
-publicRouter.get('/plans', (_req, res) => {
+/**
+ * Nama kelompok modul sudah dwibahasa sejak di registry: `name` bahasa Inggris,
+ * `nameId` bahasa Indonesia. Halaman depan memakai keduanya, jadi dipilih di
+ * sini — bukan diterjemahkan ulang lewat kamus.
+ */
+const groupName = (key, lang) => {
+  const g = GROUPS.find((x) => x.key === key);
+  if (!g) return key;
+  return lang === 'en' ? g.name : (g.nameId || g.name);
+};
+
+publicRouter.get('/plans', (req, res) => {
+  const lang = pickLang(req);
   const rows = all(
     `SELECT * FROM m_subscription_plan WHERE deleted_at IS NULL AND is_public = 1 AND status = 'active'
      ORDER BY COALESCE(sort_order, 999), monthly_price`,
@@ -29,25 +42,27 @@ publicRouter.get('/plans', (_req, res) => {
     try { highlights = JSON.parse(p.highlights || '[]'); } catch { highlights = []; }
     return {
       id: p.id,
+      // Nama paket adalah merek dagang — tidak diterjemahkan. Kalimat penjelas,
+      // tingkat dukungan dan sorotan fitur diterjemahkan.
       name: p.name,
-      tagline: p.tagline,
+      tagline: tr(p.tagline, lang),
       monthlyPrice: p.monthly_price,
       annualPrice: p.annual_price,
       annualSavingPercent: p.annual_saving_percent,
       maxUsers: p.max_users,
       storageGb: p.storage_gb,
-      supportLevel: p.support_level,
+      supportLevel: tr(p.support_level, lang),
       slaUptime: p.sla_uptime,
       onboardingIncluded: !!p.onboarding_included,
       trainingIncluded: !!p.training_included,
       apiAccess: !!p.api_access,
       dedicatedReport: !!p.dedicated_report,
       recommended: !!p.recommended,
-      description: p.description,
-      highlights,
+      description: tr(p.description, lang),
+      highlights: highlights.map((x) => tr(x, lang)),
       groups: groups.map((key) => ({
         key,
-        name: GROUPS.find((g) => g.key === key)?.name || key,
+        name: groupName(key, lang),
         modules: groupModuleCount.get(key) || 0,
       })),
       moduleCount: groups.reduce((a, key) => a + (groupModuleCount.get(key) || 0), 0),
@@ -58,7 +73,8 @@ publicRouter.get('/plans', (_req, res) => {
 });
 
 /** Ringkasan kemampuan produk untuk halaman depan. */
-publicRouter.get('/overview', (_req, res) => {
+publicRouter.get('/overview', (req, res) => {
+  const lang = pickLang(req);
   res.json({
     product: {
       name: 'QHSE ASDP',
@@ -70,20 +86,29 @@ publicRouter.get('/overview', (_req, res) => {
     // Kelompok komersial (langganan & penagihan) bukan bagian dari nilai jual
     // produk, jadi tidak ditampilkan sebagai modul pada halaman depan.
     groups: GROUPS.filter((g) => g.key !== 'saas')
-      .map((g) => ({ code: g.code, key: g.key, name: g.name, icon: g.icon, modules: g.modules.length })),
+      .map((g) => ({ code: g.code, key: g.key, name: groupName(g.key, lang), icon: g.icon, modules: g.modules.length })),
     standards: [
       'ISO 9001:2015', 'ISO 14001:2015', 'ISO 45001:2018', 'ISO 31000:2018', 'ISO 55001:2014',
       'ISO 50001:2018', 'ISO 22301:2019', 'ISO 27001:2022', 'ISO 19011:2018', 'ISO 14064-1',
       'ISM Code', 'SOLAS', 'LSA & FSS Code', 'IMDG Code', 'ISPS Code', 'GRI Standards',
     ],
-    regulators: [
-      { name: 'Kementerian Perhubungan', items: ['UU No. 17 Tahun 2008', 'PP No. 61 Tahun 2009', 'PP No. 20 Tahun 2010', 'PM No. 82 Tahun 2014 (SPB)', 'PM No. 134 Tahun 2016 (ISPS)'] },
-      { name: 'Kementerian Ketenagakerjaan', items: ['UU No. 1 Tahun 1970', 'PP No. 50 Tahun 2012 (SMK3)', 'Permenaker APD, P2K3, Pesawat Angkat, Listrik, Bejana Tekan'] },
-      { name: 'Kementerian LHK', items: ['PP No. 22 Tahun 2021', 'PermenLHK No. 6 Tahun 2021 (Limbah B3)', 'Pelaporan RKL-RPL', 'Perpres No. 98 Tahun 2021 (Karbon)'] },
-      { name: 'OJK & Keberlanjutan', items: ['POJK No. 51/POJK.03/2017', 'SEOJK No. 16/SEOJK.04/2021', 'GRI Standards'] },
-    ],
+    // Nomor peraturan adalah identitas hukumnya dan tidak diterjemahkan;
+    // yang berpindah bahasa hanya nama lembaga dan keterangan di dalamnya.
+    regulators: regulators(lang),
   });
 });
+
+const REGULATORS = [
+  { name: 'Kementerian Perhubungan', items: ['UU No. 17 Tahun 2008', 'PP No. 61 Tahun 2009', 'PP No. 20 Tahun 2010', 'PM No. 82 Tahun 2014 (SPB)', 'PM No. 134 Tahun 2016 (ISPS)'] },
+  { name: 'Kementerian Ketenagakerjaan', items: ['UU No. 1 Tahun 1970', 'PP No. 50 Tahun 2012 (SMK3)', 'Permenaker APD, P2K3, Pesawat Angkat, Listrik, Bejana Tekan'] },
+  { name: 'Kementerian LHK', items: ['PP No. 22 Tahun 2021', 'PermenLHK No. 6 Tahun 2021 (Limbah B3)', 'Pelaporan RKL-RPL', 'Perpres No. 98 Tahun 2021 (Karbon)'] },
+  { name: 'OJK & Keberlanjutan', items: ['POJK No. 51/POJK.03/2017', 'SEOJK No. 16/SEOJK.04/2021', 'GRI Standards'] },
+];
+
+const regulators = (lang) => REGULATORS.map((r) => ({
+  name: tr(r.name, lang),
+  items: r.items.map((i) => tr(i, lang)),
+}));
 
 /* --------------------------------------------------- permintaan uji coba */
 
@@ -104,8 +129,9 @@ function rateLimited(ip) {
 const clean = (v, max = 500) => String(v ?? '').trim().slice(0, max);
 
 publicRouter.post('/trial-request', (req, res) => {
+  const lang = pickLang(req);
   if (rateLimited(req.ip)) {
-    return res.status(429).json({ error: 'Terlalu banyak permintaan dari jaringan ini. Coba lagi beberapa saat lagi.' });
+    return res.status(429).json({ error: tr('Terlalu banyak permintaan dari jaringan ini. Coba lagi beberapa saat lagi.', lang) });
   }
 
   const body = req.body || {};
@@ -114,10 +140,10 @@ publicRouter.post('/trial-request', (req, res) => {
   const email = clean(body.email, 160);
 
   const errors = [];
-  if (!organisation) errors.push('Nama cabang/unit wajib diisi.');
-  if (!contactName) errors.push('Nama penanggung jawab wajib diisi.');
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errors.push('Alamat surel tidak valid.');
-  if (errors.length) return res.status(400).json({ error: 'Data belum lengkap.', details: errors });
+  if (!organisation) errors.push(tr('Nama cabang/unit wajib diisi.', lang));
+  if (!contactName) errors.push(tr('Nama penanggung jawab wajib diisi.', lang));
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errors.push(tr('Alamat surel tidak valid.', lang));
+  if (errors.length) return res.status(400).json({ error: tr('Data belum lengkap.', lang), details: errors });
 
   const mod = MODULE_BY_KEY.get('trial_request');
   const row = {
@@ -152,6 +178,8 @@ publicRouter.post('/trial-request', (req, res) => {
   res.status(201).json({
     ok: true,
     code: row.code,
-    message: `Terima kasih. Permintaan uji coba Anda tercatat dengan nomor ${row.code}. Tim kami akan menghubungi ${email} paling lambat 2 hari kerja.`,
+    message: lang === 'en'
+      ? `Thank you. Your trial request has been logged as ${row.code}. Our team will contact ${email} within two working days.`
+      : `Terima kasih. Permintaan uji coba Anda tercatat dengan nomor ${row.code}. Tim kami akan menghubungi ${email} paling lambat 2 hari kerja.`,
   });
 });

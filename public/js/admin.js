@@ -1,7 +1,7 @@
 /** Administration screens: users, role permission matrix, audit trail, system. */
 import { api, state, invalidateUsers, userList } from './api.js';
 import { h, mount, toast, modal, spinner, emptyState, fmtDateTime, fmtDate, fmtNumber, initials } from './ui.js';
-import { t } from './i18n.js';
+import { t, tp } from './i18n.js';
 
 export const ADMIN_PAGES = [
   { key: 'users', name: 'Manajemen Pengguna', icon: '👥', level: 2, render: usersPage },
@@ -25,6 +25,16 @@ const head = (title, subtitle, ...actions) => h('div.page-head', {},
 
 const isAdmin = () => state.user.level === 1;
 
+/** Cakupan akses tersimpan sebagai kunci; yang dibaca pengguna adalah namanya. */
+const scopeLabel = (scope) => t({
+  global: 'Nasional (seluruh unit)',
+  region: 'Regional',
+  branch: 'Cabang',
+  port: 'Pelabuhan',
+  vessel: 'Kapal',
+  own: 'Rekaman milik sendiri',
+}[scope] || scope);
+
 /* ------------------------------------------------------------------ users */
 
 async function usersPage(container) {
@@ -41,15 +51,15 @@ async function usersPage(container) {
         h('div', {}, h('strong', { text: u.full_name }), h('div.small.muted', { text: `${u.username} · ${u.position || '—'}` })))),
       h('td.small', { text: u.role_name }),
       h('td', {}, h('span.badge', { text: `L${u.level}` })),
-      h('td.small', { text: u.scope_type }),
-      h('td.small', { text: u.last_login ? fmtDateTime(u.last_login) : 'belum pernah' }),
-      h('td', {}, h('span.badge', { class: u.active ? 'b-ok' : 'b-danger', text: u.active ? 'Aktif' : 'Nonaktif' })),
+      h('td.small', { text: scopeLabel(u.scope_type) }),
+      h('td.small', { text: u.last_login ? fmtDateTime(u.last_login) : t('belum pernah') }),
+      h('td', {}, h('span.badge', { class: u.active ? 'b-ok' : 'b-danger', text: u.active ? t('Aktif') : t('Nonaktif') })),
       h('td', {}, isAdmin()
         ? h('button.btn-sm', { onclick: () => userDialog(container, roles, u), text: t('Kelola') })
         : null))))));
 
   mount(container,
-    head('Manajemen Pengguna', `${users.length} akun terdaftar pada ${roles.length} peran.`,
+    head(t('Manajemen Pengguna'), tp('{akun} akun terdaftar pada {peran} peran.', { akun: users.length, peran: roles.length }),
       isAdmin() ? h('button.btn-primary', { onclick: () => userDialog(container, roles, null), text: t('+ Pengguna Baru') }) : null),
     h('div.card', {},
       h('h3', { text: t('Hirarki Peran') }),
@@ -65,13 +75,13 @@ async function userDialog(container, roles, existing) {
   const fullName = h('input', { value: existing?.full_name || '' });
   const email = h('input', { type: 'email', value: existing?.email || '' });
   const position = h('input', { value: existing?.position || '' });
-  const password = h('input', { type: 'password', placeholder: editing ? 'Kosongkan bila tidak diubah' : '' });
+  const password = h('input', { type: 'password', placeholder: editing ? t('Kosongkan bila tidak diubah') : '' });
   const role = h('select', {}, ...roles.map((r) => h('option', { value: r.key, text: `L${r.level} — ${r.name}`, selected: existing?.role_key === r.key })));
   const active = h('input', { type: 'checkbox', checked: existing ? !!existing.active : true });
 
   const scopeSelects = {};
   const scopeGrid = h('div.grid.cols-2');
-  for (const [key, label] of [['region', 'Regional'], ['branch', 'Cabang'], ['port', 'Pelabuhan'], ['vessel', 'Kapal'], ['contractor', 'Kontraktor']]) {
+  for (const [key, label] of [['region', t('Regional')], ['branch', t('Cabang')], ['port', t('Pelabuhan')], ['vessel', t('Kapal')], ['contractor', t('Kontraktor')]]) {
     const select = h('select', {}, h('option', { value: '', text: t('— tidak dibatasi —') }));
     scopeSelects[key] = select;
     api.get(`/api/modules/${key}/options`).then(({ options }) => {
@@ -84,16 +94,16 @@ async function userDialog(container, roles, existing) {
   const error = h('div.alert.err.hidden');
 
   modal({
-    title: editing ? `${t('Kelola Pengguna')} — ${existing.full_name}` : 'Pengguna Baru',
+    title: editing ? `${t('Kelola Pengguna')} — ${existing.full_name}` : t('Pengguna Baru'),
     body: h('div', {},
       error,
       h('div.grid.cols-2', {},
-        field('Nama pengguna', username, !editing),
-        field('Nama lengkap', fullName, true),
-        field('Surel', email),
-        field('Jabatan', position),
-        field('Peran', role, true),
-        field(editing ? 'Kata sandi baru' : 'Kata sandi awal', password, !editing)),
+        field(t('Nama pengguna'), username, !editing),
+        field(t('Nama lengkap'), fullName, true),
+        field(t('Surel'), email),
+        field(t('Jabatan'), position),
+        field(t('Peran'), role, true),
+        field(t(editing ? 'Kata sandi baru' : 'Kata sandi awal'), password, !editing)),
       h('div.fieldset-title', { text: t('Cakupan Akses (Row-Level Security)') }),
       h('p.small.muted', { text: t('Batasi rekaman yang dapat dilihat sesuai penempatan. Kosongkan bila peran sudah bersifat nasional.') }),
       scopeGrid,
@@ -103,7 +113,7 @@ async function userDialog(container, roles, existing) {
         label: t('Buka kunci akun'),
         onClick: async () => {
           await api.post(`/api/admin/users/${existing.id}/unlock`);
-          toast('Kunci akun dilepas.', 'ok');
+          toast(t('Kunci akun dilepas.'), 'ok');
         },
       } : null,
       {
@@ -125,7 +135,7 @@ async function userDialog(container, roles, existing) {
             else await api.post('/api/admin/users', payload);
             invalidateUsers();
             close();
-            toast(editing ? 'Pengguna diperbarui.' : 'Pengguna dibuat.', 'ok');
+            toast(t(editing ? 'Pengguna diperbarui.' : 'Pengguna dibuat.'), 'ok');
             usersPage(container);
           } catch (err) {
             error.textContent = err.message;
@@ -149,12 +159,12 @@ async function permissionsPage(container) {
   selector.value = currentRole;
 
   mount(container,
-    head('Hak Akses Peran', 'Matriks kewenangan per modul: lihat, buat, ubah, setujui, hapus.'),
+    head(t('Hak Akses Peran'), t('Matriks kewenangan per modul: lihat, buat, ubah, setujui, hapus.')),
     h('div.card', {}, h('div.toolbar', {}, h('label', { text: t('Peran') }), selector,
       isAdmin() ? h('button.btn-ghost', {
         onclick: async () => {
           await api.post(`/api/admin/permissions/${currentRole}/reset`);
-          toast('Hak akses dikembalikan ke bawaan sistem.', 'ok');
+          toast(t('Hak akses dikembalikan ke bawaan sistem.'), 'ok');
           load();
         },
         text: t('↺ Kembalikan ke bawaan'),
@@ -186,7 +196,7 @@ async function permissionsPage(container) {
       h('div.card', {},
         h('h3', {}, `${role.name} — ${t('Level')} ${role.level}`),
         h('p.small.muted', { text: role.description }),
-        locked ? h('div.alert.info', { text: role.key === 'sysadmin' ? 'Hak akses administrator sistem bersifat tetap dan tidak dapat diubah.' : 'Hanya administrator sistem yang dapat mengubah matriks ini.' }) : null,
+        locked ? h('div.alert.info', { text: t(role.key === 'sysadmin' ? 'Hak akses administrator sistem bersifat tetap dan tidak dapat diubah.' : 'Hanya administrator sistem yang dapat mengubah matriks ini.') }) : null,
         h('div.table-wrap', {}, h('table.perm-matrix', {},
           h('thead', {}, h('tr', {},
             h('th', { text: t('Modul') }), h('th.right', { text: t('Lihat') }), h('th.right', { text: t('Buat') }),
@@ -195,9 +205,9 @@ async function permissionsPage(container) {
         locked ? null : h('div', { style: 'margin-top:.8rem' },
           h('button.btn-primary', {
             onclick: async () => {
-              if (!changed.size) return toast('Tidak ada perubahan.', '');
+              if (!changed.size) return toast(t('Tidak ada perubahan.'), '');
               await api.put(`/api/admin/permissions/${currentRole}`, { permissions: [...changed.values()] });
-              toast(`${changed.size} modul diperbarui. Pengguna terkait perlu memuat ulang halaman.`, 'ok');
+              toast(tp('{n} modul diperbarui. Pengguna terkait perlu memuat ulang halaman.', { n: changed.size }), 'ok');
               load();
             },
             text: t('Simpan Perubahan'),
@@ -217,7 +227,7 @@ async function auditLogPage(container) {
   const userInput = h('input', { placeholder: t('nama pengguna') });
 
   mount(container,
-    head('Jejak Audit Sistem', 'Rekaman aktivitas untuk pemenuhan ISO 27001 A.8.15 dan penelusuran perubahan data.'),
+    head(t('Jejak Audit Sistem'), t('Rekaman aktivitas untuk pemenuhan ISO 27001 A.8.15 dan penelusuran perubahan data.')),
     h('div.card', {}, h('div.toolbar', {},
       actionInput, userInput,
       h('button', {
@@ -234,7 +244,7 @@ async function auditLogPage(container) {
     const data = await api.get(`/api/admin/audit-log?${query}`);
 
     mount(host, h('div.card', {},
-      h('h3', { text: `${fmtNumber(data.total)} entri` }),
+      h('h3', { text: tp('{n} entri', { n: fmtNumber(data.total) }) }),
       data.entries.length
         ? h('div.table-wrap', {}, h('table', {},
           h('thead', {}, h('tr', {},
@@ -248,9 +258,9 @@ async function auditLogPage(container) {
             h('td.small.mono', { text: e.record_code || '—' }),
             h('td.small.cell-truncate', { title: e.detail || '', text: e.detail || '—' }),
             h('td.small.muted', { text: e.ip || '—' }))))))
-        : emptyState('Tidak ada entri yang cocok.'),
+        : emptyState(t('Tidak ada entri yang cocok.')),
       h('div.pager', {},
-        h('span.muted', { text: `Halaman ${data.page}` }),
+        h('span.muted', { text: tp('Halaman {n}', { n: data.page }) }),
         h('button.btn-sm', { disabled: data.page <= 1, onclick: () => { filters.page -= 1; load(); }, text: '‹' }),
         h('button.btn-sm', { disabled: data.page * data.size >= data.total, onclick: () => { filters.page += 1; load(); }, text: '›' }))));
   }
@@ -269,14 +279,14 @@ async function systemPage(container) {
   }
 
   mount(container,
-    head('Informasi Sistem', 'Ringkasan konfigurasi dan volume data platform.'),
+    head(t('Informasi Sistem'), t('Ringkasan konfigurasi dan volume data platform.')),
     h('div.grid.cols-4', {},
       h('div.stat', {}, h('div.label', { text: t('Modul Terpasang') }), h('div.value', { text: String(info.modules) })),
       h('div.stat', {}, h('div.label', { text: t('Total Rekaman') }), h('div.value', { text: fmtNumber(info.records) })),
       h('div.stat', {}, h('div.label', { text: t('Pengguna Aktif') }), h('div.value', { text: String(info.users) })),
       h('div.stat', {}, h('div.label', { text: t('Entri Jejak Audit') }), h('div.value', { text: fmtNumber(info.auditEntries) })),
       h('div.stat', {}, h('div.label', { text: t('Sesi Aktif') }), h('div.value', { text: String(info.sessions) })),
-      h('div.stat', {}, h('div.label', { text: t('Runtime') }), h('div.value', { text: info.node }), h('div.sub', { text: `uptime ${Math.round(info.uptimeSeconds / 60)} menit` }))),
+      h('div.stat', {}, h('div.label', { text: t('Runtime') }), h('div.value', { text: info.node }), h('div.sub', { text: tp('uptime {n} menit', { n: Math.round(info.uptimeSeconds / 60) }) }))),
     h('div.card', { style: 'margin-top:1rem' },
       h('h3', { text: t('Volume Rekaman per Modul') }),
       h('div.table-wrap', {}, h('table', {},

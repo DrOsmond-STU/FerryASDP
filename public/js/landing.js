@@ -5,12 +5,22 @@
  * cabang ASDP, apa saja yang didapat, dan berapa biayanya — dengan panel
  * masuk dan formulir permintaan uji coba. Semua data paket diambil dari
  * API publik sehingga selalu sama dengan yang ditagihkan sistem.
+ *
+ * Halaman ini juga dwibahasa. Pengunjung belum punya sesi, jadi bahasanya
+ * disimpan di peramban dan dikirim sebagai parameter `lang` pada setiap
+ * permintaan publik — nama kelompok modul, kalimat paket dan pesan formulir
+ * datang dari server sudah dalam bahasa yang dipilih.
  */
 import { api } from './api.js';
-import { h, mount, toast, fmtNumber } from './ui.js';
+import { h, mount, toast, fmtNumber, languageSwitch } from './ui.js';
+import { t, tp, lang, setLang, storedLang } from './i18n.js';
 
 const rupiah = (v) => (v ? `Rp ${fmtNumber(v)}` : '—');
-const juta = (v) => (v ? `Rp ${fmtNumber(Math.round(v / 1e6))} juta` : '—');
+const juta = (v) => (v
+  ? (lang() === 'en'
+    ? `Rp ${fmtNumber(Math.round(v / 1e6))} million`
+    : `Rp ${fmtNumber(Math.round(v / 1e6))} juta`)
+  : '—');
 
 /* ------------------------------------------------------------ prolog isi */
 
@@ -66,19 +76,33 @@ const FAQ = [
   ['Apakah mendukung audit SMK3 dan ISO?', 'Ya. Jejak audit mencatat setiap perubahan beserta penggunanya, dan setiap modul mencantumkan klausul standar yang dipenuhi.'],
 ];
 
+const PRIORITY_AREAS = [
+  'Keselamatan Pelayaran & Checklist Kapal',
+  'Keselamatan Kerja (K3) & SMK3',
+  'Pengelolaan Lingkungan & Limbah B3',
+  'Mutu & Kepuasan Pelanggan',
+  'Manajemen Risiko & Audit',
+  'Pelaporan ESG & Keberlanjutan',
+  'Pengelolaan Aset & Sertifikat',
+];
+
 /* --------------------------------------------------------------- render */
 
-export async function renderLanding(root, { onLoggedIn, message } = {}) {
-  document.title = 'QHSE ASDP — Sistem Manajemen QHSE Terintegrasi untuk Cabang ASDP';
+export async function renderLanding(root, options = {}) {
+  const { onLoggedIn, message } = options;
+  document.title = t('QHSE ASDP — Sistem Manajemen QHSE Terintegrasi untuk Cabang ASDP');
 
+  // Parameter `lang` dikirim eksplisit: pengunjung halaman depan belum punya
+  // sesi, jadi server tidak punya cara lain mengetahui bahasa pilihannya.
+  const suffix = `?lang=${lang()}`;
   const [overview, planData] = await Promise.all([
-    api.get('/api/public/overview').catch(() => null),
-    api.get('/api/public/plans').catch(() => ({ plans: [] })),
+    api.get(`/api/public/overview${suffix}`).catch(() => null),
+    api.get(`/api/public/plans${suffix}`).catch(() => ({ plans: [] })),
   ]);
   const plans = planData?.plans || [];
 
   const page = h('div.landing', {},
-    topbar(),
+    topbar(root, options),
     hero(overview, plans, message, onLoggedIn),
     pillars(),
     coverage(overview),
@@ -98,20 +122,28 @@ const jump = (id) => (e) => {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
-function topbar() {
+function topbar(root, options) {
   return h('header.lnd-topbar', {},
     h('div.lnd-wrap.lnd-topbar-inner', {},
       h('a.lnd-brand', { href: '#top' },
         h('span.mark', { text: '⚓' }),
         h('span', {}, h('b', { text: 'QHSE ASDP' }), h('small', { text: 'Integrated Management System' }))),
       h('nav.lnd-nav', {},
-        h('a', { href: '#fitur', onclick: jump('fitur'), text: 'Fitur' }),
-        h('a', { href: '#kepatuhan', onclick: jump('kepatuhan'), text: 'Kepatuhan' }),
-        h('a', { href: '#harga', onclick: jump('harga'), text: 'Harga' }),
-        h('a', { href: '#faq', onclick: jump('faq'), text: 'Tanya Jawab' })),
+        h('a', { href: '#fitur', onclick: jump('fitur'), text: t('Fitur') }),
+        h('a', { href: '#kepatuhan', onclick: jump('kepatuhan'), text: t('Kepatuhan') }),
+        h('a', { href: '#harga', onclick: jump('harga'), text: t('Harga') }),
+        h('a', { href: '#faq', onclick: jump('faq'), text: t('Tanya Jawab') })),
       h('div.lnd-topbar-cta', {},
-        h('a.btn.btn-sm', { href: '#coba', onclick: jump('coba'), text: 'Coba Gratis' }),
-        h('a.btn.btn-sm.btn-primary', { href: '#masuk', onclick: jump('masuk'), text: 'Masuk' }))));
+        // Sakelar bahasa berdiri paling kiri di antara tombol ajakan supaya
+        // pengunjung berbahasa Inggris tidak perlu membaca satu paragraf pun
+        // dalam bahasa Indonesia sebelum menemukannya.
+        languageSwitch((next) => {
+          if (next === lang()) return;
+          setLang(next);
+          renderLanding(root, options);
+        }),
+        h('a.btn.btn-sm', { href: '#coba', onclick: jump('coba'), text: t('Coba Gratis') }),
+        h('a.btn.btn-sm.btn-primary', { href: '#masuk', onclick: jump('masuk'), text: t('Masuk') }))));
 }
 
 function hero(overview, plans, message, onLoggedIn) {
@@ -122,19 +154,22 @@ function hero(overview, plans, message, onLoggedIn) {
   return h('section.lnd-hero', { id: 'top' },
     h('div.lnd-wrap.lnd-hero-grid', {},
       h('div', {},
-        h('span.lnd-eyebrow', { text: 'Perangkat lunak berlangganan untuk cabang PT ASDP Indonesia Ferry (Persero)' }),
-        h('h1.lnd-h1', {}, 'Satu sistem untuk ', h('em', { text: 'seluruh' }), ' kewajiban QHSE cabang Anda.'),
-        h('p.lnd-lead', { text: 'Mutu, kesehatan kerja, K3, lingkungan, keselamatan pelayaran, keselamatan pelabuhan, risiko, aset, kontraktor, audit dan pelaporan ESG — tidak lagi tersebar di puluhan berkas Excel dan map arsip.' }),
+        h('span.lnd-eyebrow', { text: t('Perangkat lunak berlangganan untuk cabang PT ASDP Indonesia Ferry (Persero)') }),
+        h('h1.lnd-h1', {},
+          t('Satu sistem untuk '),
+          h('em', { text: t('seluruh') }),
+          t(' kewajiban QHSE cabang Anda.')),
+        h('p.lnd-lead', { text: t('Mutu, kesehatan kerja, K3, lingkungan, keselamatan pelayaran, keselamatan pelabuhan, risiko, aset, kontraktor, audit dan pelaporan ESG — tidak lagi tersebar di puluhan berkas Excel dan map arsip.') }),
         h('div.lnd-stats', {},
-          heroStat(String(moduleCount), 'modul siap pakai'),
-          heroStat(String(groupCount), 'kelompok fungsi'),
-          heroStat('16', 'standar & kode maritim'),
-          heroStat('10', 'level kewenangan')),
+          heroStat(String(moduleCount), t('modul siap pakai')),
+          heroStat(String(groupCount), t('kelompok fungsi')),
+          heroStat('16', t('standar & kode maritim')),
+          heroStat('10', t('level kewenangan'))),
         h('div.lnd-hero-cta', {},
-          h('a.btn.btn-primary', { href: '#coba', onclick: jump('coba'), text: 'Ajukan Uji Coba 30 Hari' }),
-          h('a.btn', { href: '#harga', onclick: jump('harga'), text: 'Lihat Paket & Harga' })),
+          h('a.btn.btn-primary', { href: '#coba', onclick: jump('coba'), text: t('Ajukan Uji Coba 30 Hari') }),
+          h('a.btn', { href: '#harga', onclick: jump('harga'), text: t('Lihat Paket & Harga') })),
         cheapest
-          ? h('p.lnd-note', { text: `Berlangganan per cabang mulai ${juta(cheapest)}/bulan. Tanpa biaya pemasangan perangkat keras — cukup peramban.` })
+          ? h('p.lnd-note', { text: tp('Berlangganan per cabang mulai {harga}/bulan. Tanpa biaya pemasangan perangkat keras — cukup peramban.', { harga: juta(cheapest) }) })
           : null),
       loginPanel(message, onLoggedIn)));
 }
@@ -144,51 +179,56 @@ const heroStat = (value, label) =>
 
 function loginPanel(message, onLoggedIn) {
   const error = h('div.alert.err', { class: message ? '' : 'hidden', text: message || '' });
-  const username = h('input', { name: 'username', autocomplete: 'username', required: true, placeholder: 'mis. corporate.qhse' });
+  const username = h('input', { name: 'username', autocomplete: 'username', required: true, placeholder: t('mis. corporate.qhse') });
   const password = h('input', { name: 'password', type: 'password', autocomplete: 'current-password', required: true });
-  const submit = h('button.btn-primary', { type: 'submit', style: 'width:100%;justify-content:center', text: 'Masuk ke Aplikasi' });
+  const submit = h('button.btn-primary', { type: 'submit', style: 'width:100%;justify-content:center', text: t('Masuk ke Aplikasi') });
 
   const form = h('form', {
     onsubmit: async (e) => {
       e.preventDefault();
       submit.disabled = true;
-      submit.textContent = 'Memeriksa…';
+      submit.textContent = t('Memeriksa…');
       try {
         await api.post('/api/auth/login', { username: username.value.trim(), password: password.value });
+        // Bahasa yang dipilih pengunjung di halaman depan dibawa ke dalam
+        // akunnya: masuk lalu mendapati aplikasi berganti bahasa sendiri
+        // adalah kejutan yang tidak perlu. Hanya dikirim bila pengunjung
+        // memang memilih — bukan sekadar memakai bawaan.
+        if (storedLang()) await api.put('/api/auth/language', { language: lang() }).catch(() => {});
         await onLoggedIn();
       } catch (err) {
         error.textContent = err.message;
         error.classList.remove('hidden');
         submit.disabled = false;
-        submit.textContent = 'Masuk ke Aplikasi';
+        submit.textContent = t('Masuk ke Aplikasi');
       }
     },
   },
     error,
-    h('div.field.required', {}, h('label', { text: 'Nama Pengguna' }), username),
-    h('div.field.required', {}, h('label', { text: 'Kata Sandi' }), password),
+    h('div.field.required', {}, h('label', { text: t('Nama Pengguna') }), username),
+    h('div.field.required', {}, h('label', { text: t('Kata Sandi') }), password),
     submit);
 
   return h('div.lnd-login', { id: 'masuk' },
-    h('h2', { text: 'Masuk' }),
-    h('p.small.muted', { text: 'Untuk pengguna cabang yang sudah berlangganan.' }),
+    h('h2', { text: t('Masuk') }),
+    h('p.small.muted', { text: t('Untuk pengguna cabang yang sudah berlangganan.') }),
     form,
     h('div.lnd-login-demo', {},
-      h('strong.small', { text: 'Akun demo tersedia' }),
-      h('p.small.muted', { text: 'corporate.qhse (pengelola platform) · port.manager (cabang berlangganan penuh) · qhse.ketapang (paket Profesional) · qhse.bajoe (masa uji coba). Kata sandi demo dapat diminta kepada tim kami.' })));
+      h('strong.small', { text: t('Akun demo tersedia') }),
+      h('p.small.muted', { text: t('corporate.qhse (pengelola platform) · port.manager (cabang berlangganan penuh) · qhse.ketapang (paket Profesional) · qhse.bajoe (masa uji coba). Kata sandi demo dapat diminta kepada tim kami.') })));
 }
 
 function pillars() {
   return h('section.lnd-section', { id: 'fitur' },
     h('div.lnd-wrap', {},
       h('div.lnd-head', {},
-        h('h2', { text: 'Mengapa cabang memilih QHSE ASDP' }),
-        h('p', { text: 'Aplikasi QHSE umumnya dibuat untuk pabrik. Operasi penyeberangan punya kewajiban yang berbeda — dan justru di situ risikonya terbesar.' })),
+        h('h2', { text: t('Mengapa cabang memilih QHSE ASDP') }),
+        h('p', { text: t('Aplikasi QHSE umumnya dibuat untuk pabrik. Operasi penyeberangan punya kewajiban yang berbeda — dan justru di situ risikonya terbesar.') })),
       h('div.lnd-cards', {}, ...PILLARS.map((p) =>
         h('article.lnd-card', {},
           h('div.lnd-card-icon', { text: p.icon }),
-          h('h3', { text: p.title }),
-          h('p', { text: p.body }))))));
+          h('h3', { text: t(p.title) }),
+          h('p', { text: t(p.body) }))))));
 }
 
 function coverage(overview) {
@@ -199,20 +239,20 @@ function coverage(overview) {
   return h('section.lnd-section.lnd-alt', { id: 'kepatuhan' },
     h('div.lnd-wrap', {},
       h('div.lnd-head', {},
-        h('h2', { text: 'Cakupan modul & kepatuhan' }),
-        h('p', { text: 'Setiap modul membawa acuan standar dan regulasinya. Yang Anda catat hari ini adalah bukti yang diminta auditor bulan depan.' })),
+        h('h2', { text: t('Cakupan modul & kepatuhan') }),
+        h('p', { text: t('Setiap modul membawa acuan standar dan regulasinya. Yang Anda catat hari ini adalah bukti yang diminta auditor bulan depan.') })),
 
       h('div.lnd-groups', {}, ...groups.map((g) =>
         h('div.lnd-group', {},
           h('span.lnd-group-icon', { text: g.icon }),
           h('div', {},
             h('strong', { text: `${g.code}. ${g.name}` }),
-            h('span.small.muted', { text: `${g.modules} modul` }))))),
+            h('span.small.muted', { text: `${g.modules} ${t('modul')}` }))))),
 
-      h('h3.lnd-sub', { text: 'Standar yang diakomodasi' }),
+      h('h3.lnd-sub', { text: t('Standar yang diakomodasi') }),
       h('div.chips', {}, ...standards.map((s) => h('span.chip.std', { text: s }))),
 
-      h('h3.lnd-sub', { text: 'Regulasi Indonesia' }),
+      h('h3.lnd-sub', { text: t('Regulasi Indonesia') }),
       h('div.lnd-regs', {}, ...regulators.map((r) =>
         h('div.lnd-reg', {},
           h('strong', { text: r.name }),
@@ -224,10 +264,10 @@ function pricing(plans) {
   return h('section.lnd-section', { id: 'harga' },
     h('div.lnd-wrap', {},
       h('div.lnd-head', {},
-        h('h2', { text: 'Paket langganan per cabang' }),
-        h('p', { text: 'Harga per cabang per bulan, sudah termasuk pembaruan sistem dan penyimpanan data. Berlangganan tahunan hemat dua bulan.' })),
+        h('h2', { text: t('Paket langganan per cabang') }),
+        h('p', { text: t('Harga per cabang per bulan, sudah termasuk pembaruan sistem dan penyimpanan data. Berlangganan tahunan hemat dua bulan.') })),
       h('div.lnd-plans', {}, ...plans.map(planCard)),
-      h('p.lnd-note.center', { text: 'Harga belum termasuk PPN 11%. Penambahan cabang mengikuti tarif yang sama; kontrak lintas cabang dapat dinegosiasikan melalui kantor pusat.' })));
+      h('p.lnd-note.center', { text: t('Harga belum termasuk PPN 11%. Penambahan cabang mengikuti tarif yang sama; kontrak lintas cabang dapat dinegosiasikan melalui kantor pusat.') })));
 }
 
 function planCard(plan) {
@@ -235,83 +275,86 @@ function planCard(plan) {
     h('li', { class: on ? '' : 'off' }, h('span', { text: on ? '✓' : '·' }), label);
 
   return h('article.lnd-plan', { class: plan.recommended ? 'featured' : '' },
-    plan.recommended ? h('span.lnd-plan-tag', { text: 'Paling banyak dipilih' }) : null,
+    plan.recommended ? h('span.lnd-plan-tag', { text: t('Paling banyak dipilih') }) : null,
     h('h3', { text: plan.name }),
     h('p.lnd-plan-tagline', { text: plan.tagline || '' }),
     h('div.lnd-price', {},
       h('strong', { text: rupiah(plan.monthlyPrice) }),
-      h('span', { text: '/cabang/bulan' })),
+      h('span', { text: t('/cabang/bulan') })),
     plan.annualPrice
-      ? h('div.small.muted', { text: `atau ${rupiah(plan.annualPrice)}/tahun — hemat ${plan.annualSavingPercent ?? 0}%` })
+      ? h('div.small.muted', {
+        text: tp('atau {harga}/tahun — hemat {persen}%', {
+          harga: rupiah(plan.annualPrice), persen: plan.annualSavingPercent ?? 0,
+        }),
+      })
       : null,
     h('ul.lnd-plan-list', {},
-      tick(`${plan.moduleCount} modul aktif`),
-      tick(plan.maxUsers ? `${plan.maxUsers} pengguna` : 'Pengguna tanpa batas'),
-      tick(`Penyimpanan ${plan.storageGb} GB`),
+      tick(tp('{n} modul aktif', { n: plan.moduleCount })),
+      tick(plan.maxUsers ? tp('{n} pengguna', { n: plan.maxUsers }) : t('Pengguna tanpa batas')),
+      tick(tp('Penyimpanan {n} GB', { n: plan.storageGb })),
       tick(`SLA ${plan.slaUptime}`),
       tick(plan.supportLevel),
-      tick('Pendampingan implementasi', plan.onboardingIncluded),
-      tick('Pelatihan pengguna', plan.trainingIncluded),
-      tick('Integrasi API', plan.apiAccess),
-      tick('Laporan kustom & analitik lanjutan', plan.dedicatedReport)),
+      tick(t('Pendampingan implementasi'), plan.onboardingIncluded),
+      tick(t('Pelatihan pengguna'), plan.trainingIncluded),
+      tick(t('Integrasi API'), plan.apiAccess),
+      tick(t('Laporan kustom & analitik lanjutan'), plan.dedicatedReport)),
     h('details.lnd-plan-groups', {},
-      h('summary', { text: 'Rincian kelompok modul' }),
-      h('ul', {}, ...plan.groups.map((g) => h('li', { text: `${g.name} (${g.modules} modul)` })))),
+      h('summary', { text: t('Rincian kelompok modul') }),
+      h('ul', {}, ...plan.groups.map((g) => h('li', { text: `${g.name} (${g.modules} ${t('modul')})` })))),
     plan.highlights?.length
       ? h('div.chips', { style: 'margin-top:.7rem' }, ...plan.highlights.slice(0, 4).map((x) => h('span.chip', { text: x })))
       : null,
-    h('a.btn.btn-primary', { href: '#coba', onclick: jump('coba'), style: 'width:100%;justify-content:center;margin-top:1rem', text: 'Ajukan Uji Coba' }));
+    h('a.btn.btn-primary', { href: '#coba', onclick: jump('coba'), style: 'width:100%;justify-content:center;margin-top:1rem', text: t('Ajukan Uji Coba') }));
 }
 
 function howItWorks() {
   return h('section.lnd-section.lnd-alt', {},
     h('div.lnd-wrap', {},
-      h('div.lnd-head', {}, h('h2', { text: 'Dari permintaan sampai berjalan penuh' })),
+      h('div.lnd-head', {}, h('h2', { text: t('Dari permintaan sampai berjalan penuh') })),
       h('ol.lnd-steps', {}, ...STEPS.map(([title, body], i) =>
         h('li', {},
           h('span.lnd-step-no', { text: String(i + 1) }),
-          h('div', {}, h('strong', { text: title }), h('p.small.muted', { text: body })))))));
+          h('div', {}, h('strong', { text: t(title) }), h('p.small.muted', { text: t(body) })))))));
 }
 
 function faq() {
   return h('section.lnd-section', { id: 'faq' },
     h('div.lnd-wrap', {},
-      h('div.lnd-head', {}, h('h2', { text: 'Tanya jawab' })),
+      h('div.lnd-head', {}, h('h2', { text: t('Tanya jawab') })),
       h('div.lnd-faq', {}, ...FAQ.map(([q, a]) =>
-        h('details', {}, h('summary', { text: q }), h('p', { text: a }))))));
+        h('details', {}, h('summary', { text: t(q) }), h('p', { text: t(a) }))))));
 }
 
 function trialForm(plans) {
   const field = (label, el, required) =>
     h('div.field', { class: required ? 'required' : '' }, h('label', { text: label }), el);
 
-  const organisation = h('input', { placeholder: 'mis. Cabang Lembar' });
-  const contact = h('input', { placeholder: 'Nama lengkap' });
-  const position = h('input', { placeholder: 'mis. Kepala QHSE' });
+  const organisation = h('input', { placeholder: t('mis. Cabang Lembar') });
+  const contact = h('input', { placeholder: t('Nama lengkap') });
+  const position = h('input', { placeholder: t('mis. Kepala QHSE') });
   const email = h('input', { type: 'email', placeholder: 'nama@asdp.id' });
   const phone = h('input', { placeholder: '08xxxxxxxxxx' });
   const users = h('input', { type: 'number', min: 1, placeholder: '30' });
   const plan = h('select', {},
-    h('option', { value: 'Belum Menentukan', text: 'Belum menentukan' }),
+    h('option', { value: 'Belum Menentukan', text: t('Belum menentukan') }),
     ...plans.map((p) => h('option', { value: p.name, text: p.name })));
+  // Nilai `value` tetap bahasa Indonesia walau labelnya berpindah bahasa:
+  // itulah yang tersimpan di basis data dan dibaca penyaring modul.
   const area = h('select', {},
-    ...['Keselamatan Pelayaran & Checklist Kapal', 'Keselamatan Kerja (K3) & SMK3',
-      'Pengelolaan Lingkungan & Limbah B3', 'Mutu & Kepuasan Pelanggan',
-      'Manajemen Risiko & Audit', 'Pelaporan ESG & Keberlanjutan', 'Pengelolaan Aset & Sertifikat']
-      .map((o) => h('option', { value: o, text: o })));
-  const message = h('textarea', { placeholder: 'Ceritakan kondisi pengelolaan QHSE di cabang Anda saat ini…' });
+    ...PRIORITY_AREAS.map((o) => h('option', { value: o, text: t(o) })));
+  const message = h('textarea', { placeholder: t('Ceritakan kondisi pengelolaan QHSE di cabang Anda saat ini…') });
 
   const feedback = h('div.alert.hidden');
-  const submit = h('button.btn-primary', { type: 'submit', text: 'Kirim Permintaan Uji Coba' });
+  const submit = h('button.btn-primary', { type: 'submit', text: t('Kirim Permintaan Uji Coba') });
 
   const form = h('form.lnd-form', {
     onsubmit: async (e) => {
       e.preventDefault();
       submit.disabled = true;
-      submit.textContent = 'Mengirim…';
+      submit.textContent = t('Mengirim…');
       feedback.classList.add('hidden');
       try {
-        const result = await api.post('/api/public/trial-request', {
+        const result = await api.post(`/api/public/trial-request?lang=${lang()}`, {
           organisation: organisation.value, contact_name: contact.value, position: position.value,
           email: email.value, phone: phone.value, employee_count: users.value,
           plan_interest: plan.value, priority_area: area.value, message: message.value,
@@ -319,39 +362,39 @@ function trialForm(plans) {
         feedback.className = 'alert info';
         feedback.textContent = result.message;
         form.reset();
-        toast('Permintaan uji coba terkirim.', 'ok');
+        toast(t('Permintaan uji coba terkirim.'), 'ok');
       } catch (err) {
         feedback.className = 'alert err';
         feedback.textContent = [err.message, ...(err.details || [])].join(' ');
       } finally {
         submit.disabled = false;
-        submit.textContent = 'Kirim Permintaan Uji Coba';
+        submit.textContent = t('Kirim Permintaan Uji Coba');
       }
     },
   },
     h('div.grid.cols-2', {},
-      field('Nama cabang / unit', organisation, true),
-      field('Nama penanggung jawab', contact, true),
-      field('Jabatan', position),
-      field('Surel dinas', email, true),
-      field('Telepon', phone),
-      field('Perkiraan jumlah pengguna', users),
-      field('Paket yang diminati', plan),
-      field('Kebutuhan utama', area)),
-    field('Pesan', message),
+      field(t('Nama cabang / unit'), organisation, true),
+      field(t('Nama penanggung jawab'), contact, true),
+      field(t('Jabatan'), position),
+      field(t('Surel dinas'), email, true),
+      field(t('Telepon'), phone),
+      field(t('Perkiraan jumlah pengguna'), users),
+      field(t('Paket yang diminati'), plan),
+      field(t('Kebutuhan utama'), area)),
+    field(t('Pesan'), message),
     feedback,
     submit);
 
   return h('section.lnd-section.lnd-cta', { id: 'coba' },
     h('div.lnd-wrap.lnd-cta-grid', {},
       h('div', {},
-        h('h2', { text: 'Coba gratis 30 hari' }),
-        h('p', { text: 'Cabang Anda mendapat akun lengkap berisi data contoh untuk dicoba bersama tim QHSE, tanpa biaya dan tanpa komitmen. Kami bantu migrasi data dan pelatihan pengguna bila memutuskan berlangganan.' }),
+        h('h2', { text: t('Coba gratis 30 hari') }),
+        h('p', { text: t('Cabang Anda mendapat akun lengkap berisi data contoh untuk dicoba bersama tim QHSE, tanpa biaya dan tanpa komitmen. Kami bantu migrasi data dan pelatihan pengguna bila memutuskan berlangganan.') }),
         h('ul.lnd-check', {},
-          h('li', { text: 'Aktif dalam 2 hari kerja' }),
-          h('li', { text: 'Tanpa pemasangan server di cabang' }),
-          h('li', { text: 'Data dapat diekspor kapan saja' }),
-          h('li', { text: 'Berhenti kapan saja pada akhir periode' }))),
+          h('li', { text: t('Aktif dalam 2 hari kerja') }),
+          h('li', { text: t('Tanpa pemasangan server di cabang') }),
+          h('li', { text: t('Data dapat diekspor kapan saja') }),
+          h('li', { text: t('Berhenti kapan saja pada akhir periode') }))),
       h('div.lnd-form-wrap', {}, form)));
 }
 
@@ -361,17 +404,19 @@ function footer(overview) {
       h('div', {},
         h('div.lnd-brand', {}, h('span.mark', { text: '⚓' }),
           h('span', {}, h('b', { text: 'QHSE ASDP' }), h('small', { text: 'Integrated Management System' }))),
-        h('p.small', { text: 'Platform manajemen QHSE terintegrasi untuk operator kapal penyeberangan dan pelabuhan.' })),
+        h('p.small', { text: t('Platform manajemen QHSE terintegrasi untuk operator kapal penyeberangan dan pelabuhan.') })),
       h('div', {},
-        h('strong.small', { text: 'Produk' }),
+        h('strong.small', { text: t('Produk') }),
         h('ul.lnd-links', {},
-          h('li', {}, h('a', { href: '#fitur', onclick: jump('fitur'), text: 'Fitur' })),
-          h('li', {}, h('a', { href: '#kepatuhan', onclick: jump('kepatuhan'), text: 'Cakupan kepatuhan' })),
-          h('li', {}, h('a', { href: '#harga', onclick: jump('harga'), text: 'Paket & harga' })))),
+          h('li', {}, h('a', { href: '#fitur', onclick: jump('fitur'), text: t('Fitur') })),
+          h('li', {}, h('a', { href: '#kepatuhan', onclick: jump('kepatuhan'), text: t('Cakupan kepatuhan') })),
+          h('li', {}, h('a', { href: '#harga', onclick: jump('harga'), text: t('Paket & harga') })))),
       h('div', {},
-        h('strong.small', { text: 'Dikembangkan oleh' }),
+        h('strong.small', { text: t('Dikembangkan oleh') }),
         h('p.small', { text: overview?.product?.operator || 'PT Semesta Teknologi Utama' }),
-        h('p.small', { text: 'Dukungan: support@semestateknologiutama.com' }))),
+        h('p.small', { text: `${t('Dukungan')}: support@semestateknologiutama.com` }))),
     h('div.lnd-wrap.lnd-footer-note', {},
-      h('p.small', { text: `© ${new Date().getFullYear()} QHSE ASDP. Data yang ditampilkan pada lingkungan demonstrasi bersifat ilustratif dan bukan data operasional PT ASDP Indonesia Ferry (Persero).` })));
+      h('p.small', {
+        text: tp('© {tahun} QHSE ASDP. Data yang ditampilkan pada lingkungan demonstrasi bersifat ilustratif dan bukan data operasional PT ASDP Indonesia Ferry (Persero).', { tahun: new Date().getFullYear() }),
+      })));
 }

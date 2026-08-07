@@ -17,6 +17,9 @@ export const group = { code: 'P', key: 'training', name: 'Competency & Training 
 
 /* --------------------------------------------------------------- pilihan */
 
+/** Status berlaku sertifikat - dihitung, bukan dipilih. Lihat RISK_LEVELS. */
+export const CERT_STATES = ['Berlaku', 'Akan Kedaluwarsa', 'Kedaluwarsa'];
+
 /** Kategori pelatihan wajib - dipakai katalog, matriks dan dashboard. */
 export const TRAINING_CATEGORIES = [
   'QHSE',
@@ -227,7 +230,7 @@ export default [
       dt('issue_date', 'Tanggal Terbit', { required: true }),
       dt('valid_until', 'Berlaku Sampai', { alert: 'expiry', help: 'Kosongkan bila berlaku seumur hidup.' }),
       num('renewal_lead_days', 'Ambang Peringatan (hari sebelum kedaluwarsa)', { default: 30, help: 'Peringatan bertingkat 30 / 14 / 7 hari dan pada hari-H dihitung dari tanggal berlaku.' }),
-      f('cert_status', 'Status Sertifikat', 'text', { computed: 'certStatus', readonly: true }),
+      f('cert_status', 'Status Sertifikat', 'text', { computed: 'certStatus', readonly: true, values: CERT_STATES }),
       num('days_to_expiry', 'Sisa Hari Berlaku', { computed: 'daysToExpiry', readonly: true }),
       f('competency_area', 'Bidang Kompetensi'),
       sel('verification_status', 'Verifikasi Dokumen', ['Terverifikasi', 'Menunggu Verifikasi', 'Tidak Dapat Diverifikasi']),
@@ -534,7 +537,7 @@ export default [
       f('assessor_licence', 'Nomor Lisensi Asesor'),
       dt('valid_until', 'Hasil Berlaku Sampai', { alert: 'expiry' }),
       num('renewal_lead_days', 'Ambang Peringatan (hari)', { default: 60 }),
-      f('cert_status', 'Status Berlaku', 'text', { computed: 'certStatus', readonly: true }),
+      f('cert_status', 'Status Berlaku', 'text', { computed: 'certStatus', readonly: true, values: CERT_STATES }),
       f('follow_up_training', 'Pelatihan Tindak Lanjut'),
       txt('gap_note', 'Uraian Kesenjangan'),
       txt('recommendation', 'Rekomendasi Pengembangan'),
@@ -776,7 +779,11 @@ export default [
       num('kpi_after', 'Nilai KPI Sesudah', { step: 0.01, group: 'Hasil (Level 4)' }),
       num('incident_reduction', 'Penurunan Insiden (%)', { computed: 'incidentReduction', readonly: true, group: 'Hasil (Level 4)' }),
       num('kpi_improvement', 'Kenaikan KPI (%)', { computed: 'kpiImprovement', readonly: true, group: 'Hasil (Level 4)' }),
-      f('effectiveness_level', 'Tingkat Efektivitas', 'text', { computed: 'trainingEffectivenessLevel', readonly: true }),
+      f('effectiveness_level', 'Tingkat Efektivitas', 'text', {
+        computed: 'trainingEffectivenessLevel',
+        readonly: true,
+        values: ['Sangat Efektif', 'Efektif', 'Cukup Efektif', 'Tidak Efektif'],
+      }),
       txt('conclusion', 'Kesimpulan'),
       txt('follow_up', 'Tindak Lanjut'),
     ],

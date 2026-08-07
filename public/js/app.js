@@ -2,13 +2,13 @@
  * Application shell: authentication, layout, navigation and the hash router.
  */
 import { api, state, loadMeta, can, mod, entitled } from './api.js';
-import { h, mount, clear, toast, initials, modal } from './ui.js';
+import { h, mount, clear, toast, initials, modal, languageSwitch } from './ui.js';
 import { renderModuleList, renderRecordForm, renderRecordDetail } from './module.js';
 import { renderDashboard, DASHBOARDS } from './dashboards.js';
 import { renderAdmin, ADMIN_PAGES } from './admin.js';
 import { renderLanding } from './landing.js';
 import { renderCustomDashboard, listCustomDashboards, newDashboardDialog } from './customdash.js';
-import { t, lang, setLang } from './i18n.js';
+import { t, lang, setLang, storedLang } from './i18n.js';
 
 const root = document.getElementById('app');
 
@@ -76,7 +76,7 @@ function navigation() {
     nav.appendChild(h('details.nav-group', {},
       h('summary', {}, h('span', { text: '▾' }), t('Administrasi')),
       ...ADMIN_PAGES.filter((p) => state.user.level <= p.level)
-        .map((p) => link(`#/admin/${p.key}`, p.icon, p.name))));
+        .map((p) => link(`#/admin/${p.key}`, p.icon, t(p.name)))));
   }
 
   function link(href, icon, label) {
@@ -188,16 +188,17 @@ function userMenu() {
           info(t('Peran'), `${u.role_name} (Level ${u.level})`),
           info(t('Cakupan akses'), scopeLabel(u.scope_type)),
           info(t('Surel'), u.email || '—')),
-        // Pengalih bahasa ditaruh pada menu akun, bukan pada bilah atas: ini
-        // preferensi yang tersimpan pada akun dan jarang diubah, bukan sakelar
-        // tampilan sekali pakai.
+        // Pilihan bahasa tetap ada di sini karena tersimpan pada akun, namun
+        // sakelar utamanya ada pada bilah atas: fitur dwibahasa tidak berguna
+        // bila pengguna harus membuka dialog dulu untuk menemukannya.
         h('div.field', { style: 'margin-top:1rem' },
           h('label', { text: t('Bahasa') }),
           h('select', {
             onchange: (e) => switchLanguage(e.target.value),
           },
             h('option', { value: 'id', selected: lang() === 'id', text: 'Bahasa Indonesia' }),
-            h('option', { value: 'en', selected: lang() === 'en', text: 'English' }))),
+            h('option', { value: 'en', selected: lang() === 'en', text: 'English' })),
+          h('div.help', { text: t('Dapat juga diubah lewat tombol ID / EN di bilah atas.') })),
         h('div', { style: 'margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap' },
           h('button', { onclick: passwordDialog, text: t('Ubah kata sandi') }),
           h('button', { onclick: toggleTheme, text: t('Ganti tema terang/gelap') }),
@@ -227,6 +228,12 @@ const scopeLabel = (scope) => t({
 async function switchLanguage(next) {
   if (next === lang()) return;
   setLang(next);
+  // Pada halaman depan belum ada sesi: tidak ada preferensi yang bisa
+  // disimpan dan tidak ada kerangka aplikasi yang perlu dimuat ulang.
+  if (!state.user) {
+    renderLogin();
+    return;
+  }
   try {
     await api.put('/api/auth/language', { language: next });
   } catch {
@@ -307,6 +314,7 @@ function renderShell() {
           h('button.menu-toggle.btn-ghost', { onclick: () => sidebar.classList.toggle('open'), text: '☰' }),
           crumb,
           h('div.spacer'),
+          languageSwitch(switchLanguage),
           subscriptionChip(),
           h('span.badge.small', { text: state.meta.app.organisation }),
           userMenu()),
@@ -357,8 +365,8 @@ async function route() {
 
     if (parts[0] === 'admin') {
       const page = ADMIN_PAGES.find((p) => p.key === parts[1]) || ADMIN_PAGES[0];
-      setCrumb(t('Administrasi'), page.name);
-      document.title = `${page.name} — QHSE ASDP`;
+      setCrumb(t('Administrasi'), t(page.name));
+      document.title = `${t(page.name)} — QHSE ASDP`;
       await renderAdmin(shell.content, page, parts.slice(2));
       return;
     }
@@ -435,6 +443,11 @@ window.addEventListener('qhse:unauthorised', () => {
 
 const savedTheme = localStorage.getItem('qhse-theme');
 if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+
+// Halaman depan tampil sebelum ada sesi, jadi bahasanya diambil dari peramban.
+// Setelah masuk, `loadMeta()` menggantinya dengan bahasa yang tersimpan di akun.
+const savedLang = storedLang();
+if (savedLang) setLang(savedLang);
 
 try {
   await api.get('/api/auth/me');

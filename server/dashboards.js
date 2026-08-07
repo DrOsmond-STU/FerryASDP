@@ -11,9 +11,30 @@ import { scopeClause, can } from './rbac.js';
 import { isEntitled, tenantOverview, tenantContext } from './tenancy.js';
 import { requireAuth } from './auth.js';
 import { EMISSION_FACTORS, round } from './compute.js';
+import { pickLang, tr } from './i18n.js';
 
 export const dashboardRouter = Router();
 dashboardRouter.use(requireAuth);
+
+/**
+ * Bahasa ditempelkan pada salinan `req.user` supaya seluruh pembantu di berkas
+ * ini — yang sudah menerima `user` untuk keperluan hak akses — ikut tahu bahasa
+ * yang diminta tanpa harus menambah satu parameter pada setiap pemanggilan.
+ *
+ * Label grafik dan lencana dashboard berasal dari nilai kolom di basis data,
+ * bukan dari teks tetap di antarmuka; hanya di sinilah tempat menerjemahkannya.
+ * Yang diterjemahkan adalah label yang tampil — bukan nilai yang tersimpan.
+ */
+dashboardRouter.use((req, _res, next) => {
+  if (req.user) req.user = { ...req.user, language: pickLang(req) };
+  next();
+});
+
+const langOf = (user) => (user?.language === 'en' ? 'en' : 'id');
+const trFor = (user, text) => tr(text, langOf(user));
+
+/** Nama modul: `nameId` Indonesia, `name` Inggris — sudah dwibahasa di registry. */
+const moduleName = (user, mod) => (mod ? (langOf(user) === 'en' ? mod.name : mod.nameId) : undefined);
 
 const monthsBack = (n) => {
   const out = [];
@@ -48,13 +69,39 @@ export function countWhere(user, key, extraSql = '', extraParams = []) {
   return get(sql, [...b.params, ...extraParams])?.n || 0;
 }
 
+/**
+ * Label pengelompokan berasal dari isi kolom, dan isi kolom ada dua macam:
+ * nilai pilihan yang sudah tertulis di registry, dan teks bebas yang diketik
+ * pengguna. Hanya yang pertama boleh diterjemahkan — nama kapal, nama pegawai
+ * dan judul rekaman adalah data operasional, bukan istilah antarmuka.
+ *
+ * Kolom `status` menyimpan kunci alur kerja (`in_progress`), bukan teks yang
+ * layak dibaca; kuncinya ditukar dengan label alur kerjanya lebih dulu.
+ */
+function groupLabeller(mod, column, lang) {
+  if (column === 'status') {
+    const labels = new Map(mod.workflow.map((s) => [s.key, s.label]));
+    return (v) => tr(labels.get(v) || v, lang);
+  }
+  const field = mod.fields.find((f) => f.name === column);
+  // `options` untuk yang dipilih pengguna, `values` untuk yang dihitung sistem
+  // namun kosakatanya tetap terbatas (tingkat risiko, status sertifikat).
+  const vocabulary = field?.options?.map((o) => (typeof o === 'string' ? o : o.value)) || field?.values;
+  if (!vocabulary?.length) return (v) => v;
+  const known = new Set(vocabulary);
+  return (v) => (known.has(v) ? tr(v, lang) : v);
+}
+
 export function groupCount(user, key, column, extraSql = '', extraParams = []) {
   const b = base(user, key);
   if (!b) return [];
   const sql = `SELECT t."${column}" AS label, COUNT(*) AS value FROM "${b.mod.table}" t
                WHERE ${b.where}${extraSql ? ` AND ${extraSql}` : ''} AND t."${column}" IS NOT NULL
                GROUP BY t."${column}" ORDER BY value DESC`;
-  return all(sql, [...b.params, ...extraParams]);
+  // Pengelompokan sudah selesai di SQL atas nilai aslinya, jadi mengganti
+  // labelnya di sini tidak dapat menggabungkan atau memecah baris.
+  const label = groupLabeller(b.mod, column, langOf(user));
+  return all(sql, [...b.params, ...extraParams]).map((r) => ({ ...r, label: label(r.label) }));
 }
 
 export function sumOf(user, key, column, extraSql = '', extraParams = []) {
@@ -141,7 +188,7 @@ function carbonTotals(user, year = yearNow()) {
     for (const r of rows) {
       const scope = r.type === 'Listrik PLN' ? 'Scope 2' : 'Scope 1';
       byScope[scope] += r.kg / 1000;
-      bySource.push({ label: r.type, value: round(r.kg / 1000, 3), factor: EMISSION_FACTORS[r.type]?.factor ?? null });
+      bySource.push({ label: trFor(user, r.type), value: round(r.kg / 1000, 3), factor: EMISSION_FACTORS[r.type]?.factor ?? null });
     }
   }
   const declared = base(user, 'carbon_footprint');
@@ -190,12 +237,12 @@ export function collectAlerts(user, { days = 60, limit = 200 } = {}) {
         const overdue = r.target < today;
         alerts.push({
           module: mod.key,
-          moduleName: mod.nameId,
+          moduleName: moduleName(user, mod),
           icon: mod.icon,
           id: r.id,
           code: r.code,
           label: r.label,
-          field: field.label,
+          field: trFor(user, field.label),
           date: r.target,
           kind: field.alert,
           severity: overdue ? 'overdue' : 'soon',
@@ -291,7 +338,7 @@ dashboardRouter.get('/risk', (req, res) => {
   const modules = ['risk_register', 'corporate_risk', 'operational_risk', 'port_risk', 'vessel_risk'];
   const byModule = modules.map((key) => ({
     key,
-    name: MODULE_BY_KEY.get(key)?.nameId,
+    name: moduleName(req.user, MODULE_BY_KEY.get(key)),
     total: countWhere(req.user, key),
     high: countWhere(req.user, key, "t.risk_level IN ('Tinggi','Ekstrem')"),
   }));
@@ -381,7 +428,7 @@ dashboardRouter.get('/esg', (req, res) => {
   const byPillar = ['Environmental', 'Social', 'Governance'].map((p) => {
     const rows = indicators.filter((i) => i.pillar === p && i.achievement !== null);
     return {
-      label: p,
+      label: trFor(req.user, p),
       value: rows.length ? round(rows.reduce((a, r) => a + r.achievement, 0) / rows.length, 1) : 0,
       count: indicators.filter((i) => i.pillar === p).length,
     };
@@ -644,10 +691,10 @@ dashboardRouter.get('/subscription', (req, res) => {
   const collected = paid.reduce((a, i) => a + (i.total || 0), 0);
 
   const aging = [
-    { label: 'Belum jatuh tempo', value: outstanding.filter((i) => (i.days_overdue || 0) === 0).reduce((a, i) => a + i.total, 0) },
-    { label: '1–30 hari', value: outstanding.filter((i) => i.days_overdue > 0 && i.days_overdue <= 30).reduce((a, i) => a + i.total, 0) },
-    { label: '31–60 hari', value: outstanding.filter((i) => i.days_overdue > 30 && i.days_overdue <= 60).reduce((a, i) => a + i.total, 0) },
-    { label: '> 60 hari', value: outstanding.filter((i) => i.days_overdue > 60).reduce((a, i) => a + i.total, 0) },
+    { label: trFor(req.user, 'Belum jatuh tempo'), value: outstanding.filter((i) => (i.days_overdue || 0) === 0).reduce((a, i) => a + i.total, 0) },
+    { label: trFor(req.user, '1–30 hari'), value: outstanding.filter((i) => i.days_overdue > 0 && i.days_overdue <= 30).reduce((a, i) => a + i.total, 0) },
+    { label: trFor(req.user, '31–60 hari'), value: outstanding.filter((i) => i.days_overdue > 30 && i.days_overdue <= 60).reduce((a, i) => a + i.total, 0) },
+    { label: trFor(req.user, '> 60 hari'), value: outstanding.filter((i) => i.days_overdue > 60).reduce((a, i) => a + i.total, 0) },
   ];
 
   const revenueByMonth = monthsBack(12).map((m) => ({
@@ -657,7 +704,7 @@ dashboardRouter.get('/subscription', (req, res) => {
 
   const byPlan = new Map();
   for (const s of active) {
-    const entry = byPlan.get(s.plan_name) || { label: s.plan_name || 'Tanpa paket', value: 0, mrr: 0 };
+    const entry = byPlan.get(s.plan_name) || { label: s.plan_name || trFor(req.user, 'Tanpa paket'), value: 0, mrr: 0 };
     entry.value += 1;
     entry.mrr += s.effective_fee || 0;
     byPlan.set(s.plan_name, entry);
@@ -696,7 +743,7 @@ dashboardRouter.get('/subscription', (req, res) => {
     revenueByMonth,
     byPlan: [...byPlan.values()],
     byStatus: ['trial', 'active', 'past_due', 'suspended', 'ended'].map((s) => ({
-      label: { trial: 'Uji Coba', active: 'Aktif', past_due: 'Menunggak', suspended: 'Ditangguhkan', ended: 'Berhenti' }[s],
+      label: trFor(req.user, { trial: 'Uji Coba', active: 'Aktif', past_due: 'Menunggak', suspended: 'Ditangguhkan', ended: 'Berhenti' }[s]),
       value: subs.filter((x) => x.status === s).length,
     })).filter((x) => x.value > 0),
     aging,
@@ -717,7 +764,7 @@ dashboardRouter.get('/subscription', (req, res) => {
     adoption,
     leads: leadRows.slice(0, 20),
     leadFunnel: ['new', 'contacted', 'demo', 'trial', 'converted', 'lost'].map((s) => ({
-      label: { new: 'Permintaan Baru', contacted: 'Dihubungi', demo: 'Demo', trial: 'Uji Coba', converted: 'Berlangganan', lost: 'Tidak Lanjut' }[s],
+      label: trFor(req.user, { new: 'Permintaan Baru', contacted: 'Dihubungi', demo: 'Demo', trial: 'Uji Coba', converted: 'Berlangganan', lost: 'Tidak Lanjut' }[s]),
       value: leadRows.filter((l) => l.status === s).length,
     })),
   });
@@ -983,7 +1030,7 @@ dashboardRouter.get('/analytics', (req, res) => {
   }));
 
   const yoy = (label, key, dateCol, extra = '') => ({
-    label,
+    label: trFor(req.user, label),
     current: countWhere(req.user, key, `t."${dateCol}" LIKE ?${extra ? ` AND ${extra}` : ''}`, thisYear),
     previous: countWhere(req.user, key, `t."${dateCol}" LIKE ?${extra ? ` AND ${extra}` : ''}`, lastYear),
   });
@@ -1004,7 +1051,7 @@ dashboardRouter.get('/analytics', (req, res) => {
   }));
 
   const closure = ['capa', 'non_conformity', 'incident', 'customer_complaint', 'near_miss', 'skill_gap']
-    .map((key) => ({ key, name: MODULE_BY_KEY.get(key)?.nameId, ...closureDays(req.user, key) }))
+    .map((key) => ({ key, name: moduleName(req.user, MODULE_BY_KEY.get(key)), ...closureDays(req.user, key) }))
     .filter((r) => r.closed > 0);
 
   /**
@@ -1037,14 +1084,14 @@ dashboardRouter.get('/analytics', (req, res) => {
     totalRecords += row.total;
     recent30 += row.baru || 0;
     volumeByModule.push({
-      label: mod.nameId,
+      label: moduleName(req.user, mod),
       value: row.total,
       module: mod.key,
       // Kode kelompok saja terbaca sebagai huruf lepas pada grafik sebaran;
       // namanya ikut supaya sumbu grafik dapat dibaca tanpa tabel rujukan.
-      group: `${mod.groupCode}. ${mod.groupName}`,
+      group: `${mod.groupCode}. ${langOf(req.user) === 'en' ? mod.groupNameEn || mod.groupName : mod.groupName}`,
     });
-    if (row.mandek) stale.push({ module: mod.key, name: mod.nameId, icon: mod.icon, count: row.mandek });
+    if (row.mandek) stale.push({ module: mod.key, name: moduleName(req.user, mod), icon: mod.icon, count: row.mandek });
   }
   volumeByModule.sort((a, b) => b.value - a.value);
   stale.sort((a, b) => b.count - a.count);

@@ -2,22 +2,22 @@
 import { api, can } from './api.js';
 import { h, mount, stat, spinner, emptyState, fmtNumber, fmtDecimal, fmtCurrency, fmtDate, statusBadge, riskPill } from './ui.js';
 import { lineChart, barList, donut, riskHeatmap, targetBars, PALETTE } from './charts.js';
-import { t } from './i18n.js';
+import { t, tp, lang } from './i18n.js';
 
 export const DASHBOARDS = [
-  { key: 'executive', name: 'Executive Dashboard', icon: '📊', path: '/api/dashboard/executive', render: executive },
-  { key: 'incident', name: 'Incident Dashboard', icon: '🚨', path: '/api/dashboard/incident', render: incident, requires: 'incident' },
-  { key: 'risk', name: 'Risk Dashboard', icon: '⚠', path: '/api/dashboard/risk', render: risk, requires: 'risk_register' },
-  { key: 'audit', name: 'Audit Dashboard', icon: '🔎', path: '/api/dashboard/audit', render: audit, requires: 'internal_audit' },
-  { key: 'quality', name: 'Quality Dashboard', icon: '🎯', path: '/api/dashboard/quality', render: quality, requires: 'quality_objective' },
-  { key: 'health', name: 'Health Dashboard', icon: '🩺', path: '/api/dashboard/health', render: health, requires: 'mcu' },
-  { key: 'carbon', name: 'Carbon Dashboard', icon: '🌍', path: '/api/dashboard/carbon', render: carbon, requires: 'fuel_consumption' },
-  { key: 'esg', name: 'ESG Dashboard', icon: '🌱', path: '/api/dashboard/esg', render: esg, requires: 'esg' },
-  { key: 'vessel', name: 'Vessel Dashboard', icon: '🚢', path: '/api/dashboard/vessel', render: vessel, requires: 'vessel' },
-  { key: 'port', name: 'Port Dashboard', icon: '⚓', path: '/api/dashboard/port', render: port, requires: 'port' },
-  { key: 'contractor', name: 'Contractor Dashboard', icon: '🤝', path: '/api/dashboard/contractor', render: contractor, requires: 'contractor' },
-  { key: 'asset', name: 'Asset Dashboard', icon: '🛠', path: '/api/dashboard/asset', render: asset, requires: 'asset' },
-  { key: 'training', name: 'Training & Competency', icon: '🎓', path: '/api/dashboard/training', render: training, requires: 'training_master' },
+  { key: 'executive', name: 'Dashboard Eksekutif', icon: '📊', path: '/api/dashboard/executive', render: executive },
+  { key: 'incident', name: 'Dashboard Insiden', icon: '🚨', path: '/api/dashboard/incident', render: incident, requires: 'incident' },
+  { key: 'risk', name: 'Dashboard Risiko', icon: '⚠', path: '/api/dashboard/risk', render: risk, requires: 'risk_register' },
+  { key: 'audit', name: 'Dashboard Audit', icon: '🔎', path: '/api/dashboard/audit', render: audit, requires: 'internal_audit' },
+  { key: 'quality', name: 'Dashboard Mutu', icon: '🎯', path: '/api/dashboard/quality', render: quality, requires: 'quality_objective' },
+  { key: 'health', name: 'Dashboard Kesehatan Kerja', icon: '🩺', path: '/api/dashboard/health', render: health, requires: 'mcu' },
+  { key: 'carbon', name: 'Dashboard Jejak Karbon', icon: '🌍', path: '/api/dashboard/carbon', render: carbon, requires: 'fuel_consumption' },
+  { key: 'esg', name: 'Dashboard ESG', icon: '🌱', path: '/api/dashboard/esg', render: esg, requires: 'esg' },
+  { key: 'vessel', name: 'Dashboard Kapal', icon: '🚢', path: '/api/dashboard/vessel', render: vessel, requires: 'vessel' },
+  { key: 'port', name: 'Dashboard Pelabuhan', icon: '⚓', path: '/api/dashboard/port', render: port, requires: 'port' },
+  { key: 'contractor', name: 'Dashboard Kontraktor', icon: '🤝', path: '/api/dashboard/contractor', render: contractor, requires: 'contractor' },
+  { key: 'asset', name: 'Dashboard Aset', icon: '🛠', path: '/api/dashboard/asset', render: asset, requires: 'asset' },
+  { key: 'training', name: 'Pelatihan & Kompetensi', icon: '🎓', path: '/api/dashboard/training', render: training, requires: 'training_master' },
   { key: 'bsc', name: 'Balanced Scorecard', icon: '🧭', path: '/api/dashboard/bsc', render: bsc, requires: 'quality_objective' },
   { key: 'analytics', name: 'Dashboard Analitik', icon: '🔬', path: '/api/dashboard/analytics', render: analytics },
   { key: 'subscription', name: 'Langganan & Pendapatan', icon: '💳', path: '/api/dashboard/subscription', render: subscription, platformOnly: true },
@@ -47,20 +47,20 @@ function executive(d) {
   const wrap = h('div');
 
   wrap.appendChild(h('div.grid.cols-4', {},
-    stat(t('Insiden Tahun Berjalan'), num(c.incidents), { sub: `${num(c.lti)} lost time · ${num(c.fatality)} fatality`, tone: c.fatality ? 'danger' : c.lti ? 'warn' : 'ok' }),
-    stat(t('LTIFR'), dec(c.ltifr, 2), { sub: 'per 1 juta jam kerja', tone: (c.ltifr ?? 0) > 1 ? 'warn' : 'ok' }),
-    stat(t('TRIR'), dec(c.trir, 2), { sub: `${num(c.manhours)} jam kerja tercatat` }),
-    stat(t('Near Miss & Unsafe'), num((c.nearMiss || 0) + (c.unsafeFindings || 0)), { sub: `${num(c.nearMiss)} near miss · ${num(c.unsafeFindings)} temuan`, tone: 'ok' }),
-    stat(t('CAPA Terbuka'), num(c.openCapa), { sub: `${num(c.overdueCapa)} melewati target`, tone: c.overdueCapa ? 'warn' : '' }),
+    stat(t('Insiden Tahun Berjalan'), num(c.incidents), { sub: tp('{lti} lost time · {fatality} fatality', { lti: num(c.lti), fatality: num(c.fatality) }), tone: c.fatality ? 'danger' : c.lti ? 'warn' : 'ok' }),
+    stat(t('LTIFR'), dec(c.ltifr, 2), { sub: t('per 1 juta jam kerja'), tone: (c.ltifr ?? 0) > 1 ? 'warn' : 'ok' }),
+    stat(t('TRIR'), dec(c.trir, 2), { sub: tp('{n} jam kerja tercatat', { n: num(c.manhours) }) }),
+    stat(t('Near Miss & Unsafe'), num((c.nearMiss || 0) + (c.unsafeFindings || 0)), { sub: tp('{nm} near miss · {temuan} temuan', { nm: num(c.nearMiss), temuan: num(c.unsafeFindings) }), tone: 'ok' }),
+    stat(t('CAPA Terbuka'), num(c.openCapa), { sub: tp('{n} melewati target', { n: num(c.overdueCapa) }), tone: c.overdueCapa ? 'warn' : '' }),
     stat(t('Risiko Tinggi/Ekstrem'), num(c.highRisks), { tone: c.highRisks ? 'warn' : 'ok' }),
-    stat(t('Kepatuhan Regulasi'), c.complianceRate === null ? '—' : `${dec(c.complianceRate, 1)}%`, { sub: 'daftar peraturan dievaluasi', tone: (c.complianceRate ?? 100) >= 95 ? 'ok' : 'warn' }),
-    stat(t('Emisi GRK'), dec(c.carbonTon, 1), { unit: 't CO₂e', sub: 'Scope 1 & 2 tahun berjalan' }),
+    stat(t('Kepatuhan Regulasi'), c.complianceRate === null ? '—' : `${dec(c.complianceRate, 1)}%`, { sub: t('daftar peraturan dievaluasi'), tone: (c.complianceRate ?? 100) >= 95 ? 'ok' : 'warn' }),
+    stat(t('Emisi GRK'), dec(c.carbonTon, 1), { unit: 't CO₂e', sub: t('Scope 1 & 2 tahun berjalan') }),
     stat(t('Insiden Pelayaran'), num(c.marineIncidents), { tone: c.marineIncidents ? 'warn' : 'ok' }),
-    stat(t('Audit Internal'), num(c.internalAudits), { sub: `${num(c.majorNc)} ketidaksesuaian mayor` }),
+    stat(t('Audit Internal'), num(c.internalAudits), { sub: tp('{n} ketidaksesuaian mayor', { n: num(c.majorNc) }) }),
     stat(t('Keluhan Pelanggan'), num(c.complaints)),
-    stat(t('Pelatihan & Latihan Darurat'), `${num(c.trainings)} / ${num(c.drills)}`, { sub: 'pelatihan · drill' }),
+    stat(t('Pelatihan & Latihan Darurat'), `${num(c.trainings)} / ${num(c.drills)}`, { sub: t('pelatihan · drill') }),
     stat(t('Kepatuhan Pelatihan Wajib'), c.trainingCompliance === null ? '—' : `${dec(c.trainingCompliance, 1)}%`, {
-      sub: 'pemenuhan matriks kompetensi',
+      sub: t('pemenuhan matriks kompetensi'),
       tone: (c.trainingCompliance ?? 100) >= 95 ? 'ok' : 'warn',
     }),
     stat(t('Sertifikat Kompetensi Kedaluwarsa'), num(c.expiredCertificates), { tone: c.expiredCertificates ? 'danger' : 'ok' })));
@@ -83,18 +83,18 @@ function executive(d) {
 }
 
 function alertsCard(alerts) {
-  if (!alerts?.length) return card(t('⏰ Peringatan Kedaluwarsa'), h('p.muted.small', { text: 'Tidak ada dokumen, sertifikat atau tindakan yang mendekati jatuh tempo.' }));
+  if (!alerts?.length) return card(t('⏰ Peringatan Kedaluwarsa'), h('p.muted.small', { text: t('Tidak ada dokumen, sertifikat atau tindakan yang mendekati jatuh tempo.') }));
   return card(t('⏰ Peringatan Kedaluwarsa & Jatuh Tempo'),
     h('div.table-wrap', {}, h('table', {},
       h('thead', {}, h('tr', {},
-        h('th', { text: 'Modul' }), h('th', { text: 'Rekaman' }), h('th', { text: 'Item' }),
-        h('th', { text: 'Tanggal' }), h('th', { text: 'Sisa Hari' }))),
+        h('th', { text: t('Modul') }), h('th', { text: t('Rekaman') }), h('th', { text: t('Item') }),
+        h('th', { text: t('Tanggal') }), h('th', { text: t('Sisa Hari') }))),
       h('tbody', {}, ...alerts.map((a) => h('tr.clickable', { onclick: () => { location.hash = `#/m/${a.module}/${a.id}`; } },
         h('td.small', {}, `${a.icon} ${a.moduleName}`),
         h('td.small', {}, h('span.mono', { text: a.code }), ' ', a.label || ''),
         h('td.small', { text: a.field }),
         h('td.small.nowrap', { text: fmtDate(a.date) }),
-        h('td', {}, h('span.badge', { class: a.severity === 'overdue' ? 'b-danger' : 'b-warn', text: a.severity === 'overdue' ? `Lewat ${Math.abs(a.daysLeft)} hari` : `${a.daysLeft} hari` }))))))));
+        h('td', {}, h('span.badge', { class: a.severity === 'overdue' ? 'b-danger' : 'b-warn', text: a.severity === 'overdue' ? tp('Lewat {n} hari', { n: Math.abs(a.daysLeft) }) : tp('{n} hari', { n: a.daysLeft }) }))))))));
 }
 
 /* --------------------------------------------------------------- incident */
@@ -107,9 +107,9 @@ function incident(d) {
       stat(t('Lost Time Injury'), num(r.lti), { tone: r.lti ? 'warn' : 'ok' }),
       stat(t('Medical Treatment'), num(r.mtc)),
       stat(t('First Aid Case'), num(r.fac)),
-      stat(t('LTIFR'), dec(r.ltifr, 2), { sub: 'per 1 juta jam kerja' }),
+      stat(t('LTIFR'), dec(r.ltifr, 2), { sub: t('per 1 juta jam kerja') }),
       stat(t('TRIR'), dec(r.trir, 2)),
-      stat(t('Severity Rate'), dec(r.severityRate, 2), { sub: `${num(r.lostDays)} hari kerja hilang` }),
+      stat(t('Severity Rate'), dec(r.severityRate, 2), { sub: tp('{n} hari kerja hilang', { n: num(r.lostDays) }) }),
       stat(t('Jam Kerja'), num(r.manhours))),
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Tren Insiden'), lineChart(d.trend, { color: PALETTE[4] })),
@@ -125,11 +125,11 @@ function incident(d) {
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Piramida Pelaporan Keselamatan'),
         barList([
-          { label: 'Insiden', value: d.reportingRatio.incidents },
-          { label: 'Near miss', value: d.reportingRatio.nearMiss },
-          { label: 'Tindakan/kondisi tidak aman', value: d.reportingRatio.unsafe },
+          { label: t('Insiden'), value: d.reportingRatio.incidents },
+          { label: t('Near miss'), value: d.reportingRatio.nearMiss },
+          { label: t('Tindakan/kondisi tidak aman'), value: d.reportingRatio.unsafe },
         ], { format: num }),
-        h('p.small.muted', { style: 'margin-top:.5rem', text: 'Rasio pelaporan proaktif yang sehat menunjukkan dasar piramida jauh lebih besar dari puncaknya.' })),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: t('Rasio pelaporan proaktif yang sehat menunjukkan dasar piramida jauh lebih besar dari puncaknya.') })),
       card(t('Tren Observasi & Toolbox Meeting'),
         lineChart(d.observationTrend, { color: PALETTE[1] }),
         lineChart(d.toolboxTrend, { color: PALETTE[6] }))));
@@ -140,7 +140,7 @@ function incident(d) {
 function risk(d) {
   return h('div', {},
     h('div.grid.cols-4', {},
-      ...d.byModule.map((m) => stat(m.name, num(m.total), { sub: `${num(m.high)} tinggi/ekstrem`, tone: m.high ? 'warn' : '' }))),
+      ...d.byModule.map((m) => stat(m.name, num(m.total), { sub: tp('{n} tinggi/ekstrem', { n: num(m.high) }), tone: m.high ? 'warn' : '' }))),
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Peta Panas Risiko (Register Risiko)'), riskHeatmap(d.heatmap)),
       card(t('Peta Panas Bahaya Kerja (HIRA)'), riskHeatmap(d.hiraHeatmap))),
@@ -152,11 +152,11 @@ function risk(d) {
       card(t('Bahaya Dominan pada HIRA'), barList(d.hiraByHazard, { format: num, color: PALETTE[2] })),
       card(t('Status Perlakuan Risiko'),
         barList(d.treatmentByStatus, { format: num, color: PALETTE[1] }),
-        h('p.small.muted', { style: 'margin-top:.5rem', text: `${num(d.appetiteBreaches)} risiko melebihi selera risiko perusahaan.` }))),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: tp('{n} risiko melebihi selera risiko perusahaan.', { n: num(d.appetiteBreaches) }) }))),
     card(t('10 Risiko Tertinggi'),
       d.topRisks?.length
         ? h('div.table-wrap', {}, h('table', {},
-          h('thead', {}, h('tr', {}, h('th', { text: 'Kode' }), h('th', { text: 'Risiko' }), h('th', { text: 'Kategori' }), h('th', { text: 'Nilai' }), h('th', { text: 'Tingkat' }), h('th', { text: 'Residual' }))),
+          h('thead', {}, h('tr', {}, h('th', { text: t('Kode') }), h('th', { text: t('Risiko') }), h('th', { text: t('Kategori') }), h('th', { text: t('Nilai') }), h('th', { text: t('Tingkat') }), h('th', { text: t('Residual') }))),
           h('tbody', {}, ...d.topRisks.map((r) => h('tr.clickable', { onclick: () => { location.hash = `#/m/risk_register/${r.id}`; } },
             h('td.mono', { text: r.code }), h('td', { text: r.title }), h('td.small', { text: r.risk_category || '—' }),
             h('td', { text: num(r.risk_score) }), h('td', {}, riskPill(r.risk_level)), h('td', {}, riskPill(r.res_risk_level)))))))
@@ -168,7 +168,7 @@ function risk(d) {
 function audit(d) {
   return h('div', {},
     h('div.grid.cols-4', {},
-      stat(t('Audit Internal Terlaksana'), `${num(d.internal.executed)} / ${num(d.internal.planned)}`, { sub: 'realisasi terhadap program' }),
+      stat(t('Audit Internal Terlaksana'), `${num(d.internal.executed)} / ${num(d.internal.planned)}`, { sub: t('realisasi terhadap program') }),
       stat(t('Ketidaksesuaian Mayor'), num(d.internal.majorNc + d.external.majorNc), { tone: (d.internal.majorNc + d.external.majorNc) ? 'warn' : 'ok' }),
       stat(t('Ketidaksesuaian Minor'), num(d.internal.minorNc + d.external.minorNc)),
       stat(t('Audit Eksternal'), num(d.external.total)),
@@ -195,8 +195,8 @@ function quality(d) {
     h('div.grid.cols-4', {},
       stat(t('Indikator Mutu'), num(d.kpis.length)),
       stat(t('Keluhan Pelanggan'), num(d.complaintTrend.reduce((a, r) => a + r.value, 0))),
-      stat(t('Dokumen Terbit'), num(d.documents.published), { sub: `${num(d.documents.dueReview)} jatuh tempo tinjauan`, tone: d.documents.dueReview ? 'warn' : 'ok' }),
-      stat(t('Penghematan Perbaikan'), fmtCurrency(d.improvement.saving), { sub: `${num(d.improvement.total)} inisiatif` })),
+      stat(t('Dokumen Terbit'), num(d.documents.published), { sub: tp('{n} jatuh tempo tinjauan', { n: num(d.documents.dueReview) }), tone: d.documents.dueReview ? 'warn' : 'ok' }),
+      stat(t('Penghematan Perbaikan'), fmtCurrency(d.improvement.saving), { sub: tp('{n} inisiatif', { n: num(d.improvement.total) }) })),
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Pencapaian Sasaran Mutu & KPI'), targetBars(d.kpis)),
       card(t('Status Pencapaian KPI'), donut(d.kpiByStatus, { format: num }))),
@@ -214,11 +214,11 @@ function quality(d) {
 function health(d) {
   return h('div', {},
     h('div.grid.cols-4', {},
-      stat(t('MCU Terlaksana'), num(d.mcu.total), { sub: `${num(d.mcu.followUp)} perlu tindak lanjut` }),
+      stat(t('MCU Terlaksana'), num(d.mcu.total), { sub: tp('{n} perlu tindak lanjut', { n: num(d.mcu.followUp) }) }),
       stat(t('Kelelahan Berisiko Tinggi'), num(d.fatigue.highRisk), { tone: d.fatigue.highRisk ? 'warn' : 'ok' }),
-      stat(t('Jam Istirahat Tidak Memenuhi'), num(d.fatigue.nonCompliantRest), { sub: 'acuan STCW 10 jam/24 jam', tone: d.fatigue.nonCompliantRest ? 'warn' : 'ok' }),
+      stat(t('Jam Istirahat Tidak Memenuhi'), num(d.fatigue.nonCompliantRest), { sub: t('acuan STCW 10 jam/24 jam'), tone: d.fatigue.nonCompliantRest ? 'warn' : 'ok' }),
       stat(t('Penyakit Akibat Kerja'), num(d.occupationalDisease.total), { tone: d.occupationalDisease.total ? 'warn' : 'ok' }),
-      stat(t('Kunjungan Klinik'), num(d.clinic.visits), { sub: `${num(d.clinic.workRelated)} terkait pekerjaan` }),
+      stat(t('Kunjungan Klinik'), num(d.clinic.visits), { sub: tp('{n} terkait pekerjaan', { n: num(d.clinic.workRelated) }) }),
       stat(t('Program Promosi Kesehatan'), num(d.campaigns))),
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Tren MCU'), lineChart(d.mcu.trend, { color: PALETTE[1] })),
@@ -237,9 +237,9 @@ function health(d) {
 function carbon(d) {
   return h('div', {},
     h('div.grid.cols-4', {},
-      stat(t('Total Emisi'), dec(d.total, 1), { unit: 't CO₂e', sub: 'Scope 1 & 2 tahun berjalan' }),
+      stat(t('Total Emisi'), dec(d.total, 1), { unit: 't CO₂e', sub: t('Scope 1 & 2 tahun berjalan') }),
       ...d.byScope.map((s) => stat(s.label, dec(s.value, 1), { unit: 't CO₂e' })),
-      stat(t('Penghematan Energi'), fmtCurrency(d.energyPrograms.saving), { sub: `${num(d.energyPrograms.total)} program efisiensi` }),
+      stat(t('Penghematan Energi'), fmtCurrency(d.energyPrograms.saving), { sub: tp('{n} program efisiensi', { n: num(d.energyPrograms.total) }) }),
       stat(t('Emisi Dihindari'), dec(d.energyPrograms.co2Avoided, 2), { unit: 't CO₂e', tone: 'ok' })),
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Tren Emisi Bulanan (t CO₂e)'), lineChart(d.trend, { color: PALETTE[4] })),
@@ -251,10 +251,10 @@ function carbon(d) {
       card(t('Emisi per Pengguna Energi'), donut(d.byConsumer, { format: num })),
       card(t('Faktor Emisi yang Digunakan'),
         h('div.table-wrap', {}, h('table', {},
-          h('thead', {}, h('tr', {}, h('th', { text: 'Jenis Energi' }), h('th', { text: 'Faktor' }), h('th', { text: 'Satuan' }), h('th', { text: 'Sumber' }))),
+          h('thead', {}, h('tr', {}, h('th', { text: t('Jenis Energi') }), h('th', { text: t('Faktor') }), h('th', { text: t('Satuan') }), h('th', { text: t('Sumber') }))),
           h('tbody', {}, ...d.factors.map((f) => h('tr', {},
             h('td.small', { text: f.type }), h('td.small', { text: String(f.factor) }),
-            h('td.small', { text: `kg CO₂e/${f.unit}` }), h('td.small.muted', { text: f.source })))))))));
+            h('td.small', { text: `kg CO₂e/${t(f.unit)}` }), h('td.small.muted', { text: f.source })))))))));
 }
 
 /* -------------------------------------------------------------------- ESG */
@@ -262,16 +262,16 @@ function carbon(d) {
 function esg(d) {
   return h('div', {},
     h('div.grid.cols-4', {},
-      ...d.byPillar.map((p) => stat(p.label, `${dec(p.value, 1)}%`, { sub: `${num(p.count)} indikator`, tone: p.value >= 100 ? 'ok' : p.value >= 90 ? '' : 'warn' })),
+      ...d.byPillar.map((p) => stat(p.label, `${dec(p.value, 1)}%`, { sub: tp('{n} indikator', { n: num(p.count) }), tone: p.value >= 100 ? 'ok' : p.value >= 90 ? '' : 'warn' })),
       stat(t('Emisi GRK'), dec(d.carbon.total, 1), { unit: 't CO₂e' })),
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Pencapaian Indikator ESG'), targetBars(d.indicators)),
       card(t('Kinerja Lingkungan'),
         h('div.grid.cols-2', {},
-          stat(t('Limbah Non-B3'), dec(d.waste.nonB3 / 1000, 2), { unit: 'ton' }),
-          stat(t('Limbah Didaur Ulang'), dec(d.waste.recycled / 1000, 2), { unit: 'ton', tone: 'ok' }),
-          stat(t('Limbah B3'), dec(d.waste.b3, 1), { unit: 'kg/liter' }),
-          stat(t('Tumpahan'), num(d.spills.count), { sub: `${dec(d.spills.volume, 0)} liter, pulih ${dec(d.spills.recovered, 0)} liter`, tone: d.spills.count ? 'warn' : 'ok' })))),
+          stat(t('Limbah Non-B3'), dec(d.waste.nonB3 / 1000, 2), { unit: t('ton') }),
+          stat(t('Limbah Didaur Ulang'), dec(d.waste.recycled / 1000, 2), { unit: t('ton'), tone: 'ok' }),
+          stat(t('Limbah B3'), dec(d.waste.b3, 1), { unit: t('kg/liter') }),
+          stat(t('Tumpahan'), num(d.spills.count), { sub: tp('{volume} liter, pulih {pulih} liter', { volume: dec(d.spills.volume, 0), pulih: dec(d.spills.recovered, 0) }), tone: d.spills.count ? 'warn' : 'ok' })))),
     h('div.grid.cols-3', { style: 'margin-top:1rem' },
       card(t('Kinerja Sosial'),
         h('div.grid.cols-2', {},
@@ -281,12 +281,12 @@ function esg(d) {
           stat(t('Keluhan Pelanggan'), num(d.social.complaints)))),
       card(t('Tata Kelola'),
         barList(d.governance.compliance, { format: num }),
-        h('p.small.muted', { style: 'margin-top:.5rem', text: `${num(d.governance.securityEvents)} kejadian keamanan informasi · ${num(d.governance.contractorEvaluated)} kontraktor dievaluasi` })),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: tp('{kejadian} kejadian keamanan informasi · {kontraktor} kontraktor dievaluasi', { kejadian: num(d.governance.securityEvents), kontraktor: num(d.governance.contractorEvaluated) }) })),
       card(t('Kepatuhan Baku Mutu Lingkungan'),
-        h('div.small.muted', { text: 'Emisi udara' }), barList(d.environmentCompliance.emission, { format: num, color: PALETTE[2] }),
-        h('div.small.muted', { style: 'margin-top:.6rem', text: 'Air limbah & air laut' }), barList(d.environmentCompliance.water, { format: num, color: PALETTE[1] }))),
+        h('div.small.muted', { text: t('Emisi udara') }), barList(d.environmentCompliance.emission, { format: num, color: PALETTE[2] }),
+        h('div.small.muted', { style: 'margin-top:.6rem', text: t('Air limbah & air laut') }), barList(d.environmentCompliance.water, { format: num, color: PALETTE[1] }))),
     card(t('Catatan Pelaporan'),
-      h('p.small.muted', { text: 'Indikator mengikuti GRI Standards dan dilaporkan dalam Laporan Keberlanjutan sesuai POJK No. 51/POJK.03/2017 serta SEOJK No. 16/SEOJK.04/2021.' })));
+      h('p.small.muted', { text: t('Indikator mengikuti GRI Standards dan dilaporkan dalam Laporan Keberlanjutan sesuai POJK No. 51/POJK.03/2017 serta SEOJK No. 16/SEOJK.04/2021.') })));
 }
 
 /* ----------------------------------------------------------------- vessel */
@@ -295,13 +295,13 @@ function vessel(d) {
   return h('div', {},
     h('div.grid.cols-4', {},
       stat(t('Armada'), num(d.fleet.length)),
-      stat(t('Checklist Pra-Berlayar'), num(d.checklist.total), { sub: `${num(d.checklist.delayed)} ditunda/dibatalkan`, tone: d.checklist.delayed ? 'warn' : 'ok' }),
-      stat(t('Inspeksi Kapal'), num(d.inspections.total), { sub: `${num(d.inspections.notSeaworthy)} tidak laik laut`, tone: d.inspections.notSeaworthy ? 'danger' : 'ok' }),
+      stat(t('Checklist Pra-Berlayar'), num(d.checklist.total), { sub: tp('{n} ditunda/dibatalkan', { n: num(d.checklist.delayed) }), tone: d.checklist.delayed ? 'warn' : 'ok' }),
+      stat(t('Inspeksi Kapal'), num(d.inspections.total), { sub: tp('{n} tidak laik laut', { n: num(d.inspections.notSeaworthy) }), tone: d.inspections.notSeaworthy ? 'danger' : 'ok' }),
       stat(t('Insiden Pelayaran'), num(d.marineIncidents.total), { tone: d.marineIncidents.total ? 'warn' : 'ok' }),
-      stat(t('SPB Diterbitkan'), num(d.clearance.issued), { sub: `${num(d.clearance.held)} ditahan/ditunda` }),
-      stat(t('Stabilitas Tidak Memenuhi'), num(d.stability.nonCompliant), { sub: `${num(d.stability.records)} perhitungan GM`, tone: d.stability.nonCompliant ? 'warn' : 'ok' }),
-      stat(t('Kendaraan Over Dimension'), num(d.loading.overDimension), { sub: `${num(d.loading.dgShipments)} pengangkutan barang berbahaya` }),
-      stat(t('Penumpang Melebihi Kapasitas'), num(d.passenger.overCapacity), { sub: `${num(d.passenger.records)} pemeriksaan`, tone: d.passenger.overCapacity ? 'danger' : 'ok' })),
+      stat(t('SPB Diterbitkan'), num(d.clearance.issued), { sub: tp('{n} ditahan/ditunda', { n: num(d.clearance.held) }) }),
+      stat(t('Stabilitas Tidak Memenuhi'), num(d.stability.nonCompliant), { sub: tp('{n} perhitungan GM', { n: num(d.stability.records) }), tone: d.stability.nonCompliant ? 'warn' : 'ok' }),
+      stat(t('Kendaraan Over Dimension'), num(d.loading.overDimension), { sub: tp('{n} pengangkutan barang berbahaya', { n: num(d.loading.dgShipments) }) }),
+      stat(t('Penumpang Melebihi Kapasitas'), num(d.passenger.overCapacity), { sub: tp('{n} pemeriksaan', { n: num(d.passenger.records) }), tone: d.passenger.overCapacity ? 'danger' : 'ok' })),
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Tren Checklist Pra-Berlayar'), lineChart(d.checklist.trend, { color: PALETTE[1] })),
       card(t('Tren Insiden Pelayaran'), lineChart(d.marineIncidents.trend, { color: PALETTE[4] }))),
@@ -316,8 +316,8 @@ function vessel(d) {
     card(t('Status Armada & Sertifikat'),
       h('div.table-wrap', {}, h('table', {},
         h('thead', {}, h('tr', {},
-          h('th', { text: 'Kapal' }), h('th', { text: 'Tipe' }), h('th', { text: 'Lintasan' }), h('th', { text: 'GT' }),
-          h('th', { text: 'Status' }), h('th', { text: 'SMC' }), h('th', { text: 'ISSC' }), h('th', { text: 'Sert. Keselamatan' }), h('th', { text: 'Survey Klas' }), h('th', { text: 'Docking' }))),
+          h('th', { text: t('Kapal') }), h('th', { text: t('Tipe') }), h('th', { text: t('Lintasan') }), h('th', { text: 'GT' }),
+          h('th', { text: t('Status') }), h('th', { text: 'SMC' }), h('th', { text: 'ISSC' }), h('th', { text: t('Sert. Keselamatan') }), h('th', { text: t('Survey Klas') }), h('th', { text: t('Docking') }))),
         h('tbody', {}, ...d.fleet.map((v) => h('tr.clickable', { onclick: () => { location.hash = `#/m/vessel/${v.id}`; } },
           h('td', { text: v.name }), h('td.small', { text: v.vessel_type || '—' }), h('td.small', { text: v.route || '—' }),
           h('td', { text: num(v.gt) }), h('td', {}, h('span.badge', { class: v.operational_status === 'Beroperasi' ? 'b-ok' : 'b-warn', text: v.operational_status || '—' })),
@@ -338,12 +338,12 @@ function port(d) {
   return h('div', {},
     h('div.grid.cols-4', {},
       stat(t('Pelabuhan Dikelola'), num(d.ports.length)),
-      stat(t('Patroli Keselamatan'), num(d.patrol.total), { sub: `${num(d.patrol.findings)} temuan` }),
+      stat(t('Patroli Keselamatan'), num(d.patrol.total), { sub: tp('{n} temuan', { n: num(d.patrol.findings) }) }),
       stat(t('Kesesuaian Patroli'), `${dec(d.patrol.avgConformity, 1)}%`, { tone: d.patrol.avgConformity >= 90 ? 'ok' : 'warn' }),
-      stat(t('Inspeksi Fasilitas'), num(d.facility.inspections), { sub: `${num(d.facility.criticalFindings)} temuan kritis`, tone: d.facility.criticalFindings ? 'warn' : 'ok' }),
+      stat(t('Inspeksi Fasilitas'), num(d.facility.inspections), { sub: tp('{n} temuan kritis', { n: num(d.facility.criticalFindings) }), tone: d.facility.criticalFindings ? 'warn' : 'ok' }),
       stat(t('Kesesuaian Fasilitas'), `${dec(d.facility.avgConformity, 1)}%`),
       stat(t('Kejadian Keamanan (ISPS)'), num(d.security.events)),
-      stat(t('Latihan Tanggap Darurat'), num(d.emergency.drills), { sub: `${num(d.emergency.realEvents)} kejadian nyata` }),
+      stat(t('Latihan Tanggap Darurat'), num(d.emergency.drills), { sub: tp('{n} kejadian nyata', { n: num(d.emergency.realEvents) }) }),
       stat(t('Temuan Kebersihan'), num(d.environment.housekeepingFindings))),
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Tren Patroli Keselamatan'), lineChart(d.patrol.trend, { color: PALETTE[1] })),
@@ -360,7 +360,7 @@ function port(d) {
       card(t('Kepatuhan Air Limbah & Air Laut'), barList(d.environment.waterCompliance, { format: num, color: PALETTE[1] }))),
     card(t('Daftar Pelabuhan'),
       h('div.table-wrap', {}, h('table', {},
-        h('thead', {}, h('tr', {}, h('th', { text: 'Pelabuhan' }), h('th', { text: 'Kelas' }), h('th', { text: 'Provinsi' }), h('th', { text: 'Dermaga' }))),
+        h('thead', {}, h('tr', {}, h('th', { text: t('Pelabuhan') }), h('th', { text: t('Kelas') }), h('th', { text: t('Provinsi') }), h('th', { text: t('Dermaga') }))),
         h('tbody', {}, ...d.ports.map((p) => h('tr.clickable', { onclick: () => { location.hash = `#/m/port/${p.id}`; } },
           h('td', { text: p.name }), h('td.small', { text: p.port_class || '—' }),
           h('td.small', { text: p.province || '—' }), h('td', { text: num(p.berth_count) }))))))));
@@ -372,9 +372,9 @@ function contractor(d) {
   return h('div', {},
     h('div.grid.cols-4', {},
       stat(t('Kontraktor Terdaftar'), num(d.contractors.length)),
-      stat(t('Izin Aktif'), num(d.permits.active), { sub: `${num(d.permits.total)} izin diterbitkan` }),
+      stat(t('Izin Aktif'), num(d.permits.active), { sub: tp('{n} izin diterbitkan', { n: num(d.permits.total) }) }),
       stat(t('Jam Kerja Kontraktor'), num(d.performance.manhours)),
-      stat(t('LTI Kontraktor'), num(d.performance.lti), { tone: d.performance.lti ? 'warn' : 'ok', sub: `${num(d.performance.fatality)} fatality` })),
+      stat(t('LTI Kontraktor'), num(d.performance.lti), { tone: d.performance.lti ? 'warn' : 'ok', sub: tp('{n} fatality', { n: num(d.performance.fatality) }) })),
     h('div.grid.cols-3', { style: 'margin-top:1rem' },
       card(t('Grade CSMS'), donut(d.byGrade, { format: num })),
       card(t('Hasil Prakualifikasi'), barList(d.prequalification, { format: num, color: PALETTE[1] })),
@@ -385,8 +385,8 @@ function contractor(d) {
     card(t('Daftar Kontraktor'),
       h('div.table-wrap', {}, h('table', {},
         h('thead', {}, h('tr', {},
-          h('th', { text: 'Kontraktor' }), h('th', { text: 'Jenis Pekerjaan' }), h('th', { text: 'Risiko' }),
-          h('th', { text: 'Skor CSMS' }), h('th', { text: 'Grade' }), h('th', { text: 'Status' }), h('th', { text: 'Akhir Kontrak' }))),
+          h('th', { text: t('Kontraktor') }), h('th', { text: t('Jenis Pekerjaan') }), h('th', { text: t('Risiko') }),
+          h('th', { text: t('Skor CSMS') }), h('th', { text: t('Grade') }), h('th', { text: t('Status') }), h('th', { text: t('Akhir Kontrak') }))),
         h('tbody', {}, ...d.contractors.map((c) => h('tr.clickable', { onclick: () => { location.hash = `#/m/contractor/${c.id}`; } },
           h('td', { text: c.name }), h('td.small', { text: c.work_type || '—' }), h('td.small', { text: c.risk_category || '—' }),
           h('td', { text: dec(c.csms_score, 0) }), h('td.small', { text: c.csms_grade || '—' }),
@@ -400,11 +400,11 @@ function asset(d) {
   return h('div', {},
     h('div.grid.cols-4', {},
       stat(t('Aset Terdaftar'), num(d.assets.total)),
-      stat(t('Inspeksi Peralatan'), num(d.inspections.total), { sub: `${num(d.inspections.notFit)} tidak laik operasi`, tone: d.inspections.notFit ? 'danger' : 'ok' }),
-      stat(t('Pemeliharaan'), num(d.maintenance.total), { sub: `${dec(d.maintenance.downtime, 1)} jam downtime` }),
+      stat(t('Inspeksi Peralatan'), num(d.inspections.total), { sub: tp('{n} tidak laik operasi', { n: num(d.inspections.notFit) }), tone: d.inspections.notFit ? 'danger' : 'ok' }),
+      stat(t('Pemeliharaan'), num(d.maintenance.total), { sub: tp('{n} jam downtime', { n: dec(d.maintenance.downtime, 1) }) }),
       stat(t('Biaya Pemeliharaan'), fmtCurrency(d.maintenance.cost)),
-      stat(t('Kalibrasi'), num(d.calibration.total), { sub: `${num(d.calibration.outOfTolerance)} di luar toleransi`, tone: d.calibration.outOfTolerance ? 'warn' : 'ok' }),
-      stat(t('Sertifikat Aktif'), num(d.certificates.total), { sub: `${num(d.certificates.expiring.length)} mendekati jatuh tempo`, tone: d.certificates.expiring.length ? 'warn' : 'ok' })),
+      stat(t('Kalibrasi'), num(d.calibration.total), { sub: tp('{n} di luar toleransi', { n: num(d.calibration.outOfTolerance) }), tone: d.calibration.outOfTolerance ? 'warn' : 'ok' }),
+      stat(t('Sertifikat Aktif'), num(d.certificates.total), { sub: tp('{n} mendekati jatuh tempo', { n: num(d.certificates.expiring.length) }), tone: d.certificates.expiring.length ? 'warn' : 'ok' })),
     h('div.grid.cols-3', { style: 'margin-top:1rem' },
       card(t('Aset per Kategori'), barList(d.assets.byCategory, { format: num })),
       card(t('Kondisi Aset'), donut(d.assets.byCondition, { format: num })),
@@ -425,15 +425,20 @@ const scoreColor = (s) => (s === null || s === undefined ? PALETTE[8] : s >= 100
 const deltaChip = (d) => {
   if (d === null || d === undefined) return h('span.small.muted', { text: '—' });
   const up = d >= 0;
-  return h('span.badge', { class: up ? 'b-ok' : 'b-danger', text: `${up ? '▲' : '▼'} ${fmtDecimal(Math.abs(d), 1)} poin` });
+  return h('span.badge', { class: up ? 'b-ok' : 'b-danger', text: tp('{arah} {nilai} poin', { arah: up ? '▲' : '▼', nilai: fmtDecimal(Math.abs(d), 1) }) });
 };
+
+/** Perspektif BSC datang dwibahasa dari server; sisi mana yang di depan
+ *  ditentukan bahasa yang sedang dipakai. */
+const layerName = (p) => (lang() === 'en' ? p.en : p.short);
+const layerAlt = (p) => (lang() === 'en' ? p.short : p.en);
 
 function bsc(d) {
   const kpiTable = (rows) => dataTable(
     [
-      { label: 'Indikator' }, { label: 'Sasaran Strategis' }, { label: 'Satuan' },
-      { label: 'Target', right: true }, { label: 'Realisasi', right: true },
-      { label: 'Bobot', right: true }, { label: 'Pencapaian', right: true }, { label: 'Status' },
+      { label: t('Indikator') }, { label: t('Sasaran Strategis') }, { label: t('Satuan') },
+      { label: t('Target'), right: true }, { label: t('Realisasi'), right: true },
+      { label: t('Bobot'), right: true }, { label: t('Pencapaian'), right: true }, { label: t('Status') },
     ],
     rows,
     (k) => [
@@ -447,10 +452,10 @@ function bsc(d) {
       badge(
         k.achievement === null ? 'b-draft'
           : k.achievement >= 100 ? 'b-ok' : k.achievement >= 90 ? 'b-progress' : k.achievement >= 75 ? 'b-warn' : 'b-danger',
-        k.achievement_status || 'Belum diukur',
+        t(k.achievement_status || 'Belum diukur'),
       ),
     ],
-    { onRow: (k) => { location.hash = `#/m/quality_objective/${k.id}`; }, empty: 'Belum ada indikator pada perspektif ini.' },
+    { onRow: (k) => { location.hash = `#/m/quality_objective/${k.id}`; }, empty: t('Belum ada indikator pada perspektif ini.') },
   );
 
   // Peta strategi. Urutan lapisan tetap 1..4 seperti dikirim server; CSS yang
@@ -458,26 +463,29 @@ function bsc(d) {
   const map = h('div.bsc-map', {}, ...d.perspectives.map((p, i) => {
     const layer = h('div.bsc-layer', { style: `--bsc-tone:${scoreColor(p.score)}` },
       h('div', {},
-        h('h4', {}, `${i + 1}. ${p.short}`, h('span.bsc-en', { text: p.en })),
-        h('div.small.muted', { text: `${p.kpiCount} indikator · ${p.achieved} tercapai · ${p.atRisk} di bawah 90%` })),
+        // Nama perspektif sudah dwibahasa dari server (`short` Indonesia, `en`
+        // Inggris). Yang sedang tidak dipakai ditampilkan sebagai keterangan —
+        // istilah Kaplan & Norton sering dicari dalam bahasa aslinya.
+        h('h4', {}, `${i + 1}. ${layerName(p)}`, h('span.bsc-en', { text: layerAlt(p) })),
+        h('div.small.muted', { text: tp('{jumlah} indikator · {tercapai} tercapai · {risiko} di bawah 90%', { jumlah: p.kpiCount, tercapai: p.achieved, risiko: p.atRisk }) })),
       h('div', {},
         h('div.bar-track', {},
           h('div.bar-fill', { style: `width:${Math.min(p.score ?? 0, 120) / 1.2}%;background:${scoreColor(p.score)}` })),
-        h('div.small.muted', { style: 'margin-top:.35rem' }, deltaChip(p.delta), ' dibanding tahun lalu')),
+        h('div.small.muted', { style: 'margin-top:.35rem' }, deltaChip(p.delta), ` ${t('dibanding tahun lalu')}`)),
       h('div.bsc-score', { style: `color:${scoreColor(p.score)}` },
         p.score === null ? '—' : dec(p.score, 1),
-        h('small', { text: p.grade || 'belum terukur' })));
+        h('small', { text: t(p.grade || 'belum terukur') })));
 
     // Panah ditaruh SESUDAH lapisannya di DOM. Karena induknya
     // column-reverse, panah itu muncul di bawah lapisan tersebut — yaitu tepat
     // di antara dua lapisan. Menaruhnya sebelum lapisan menghasilkan satu panah
     // menggantung di paling atas dan tidak ada panah di antara dua lapisan
     // terbawah.
-    return i === 0 ? layer : h('div', {}, layer, h('div.bsc-arrow', { text: '▲ menopang' }));
+    return i === 0 ? layer : h('div', {}, layer, h('div.bsc-arrow', { text: t('▲ menopang') }));
   }));
 
   const objectiveTable = dataTable(
-    [{ label: 'Sasaran Strategis' }, { label: 'Perspektif' }, { label: 'Indikator', right: true }, { label: 'Tercapai', right: true }, { label: 'Skor', right: true }],
+    [{ label: t('Sasaran Strategis') }, { label: t('Perspektif') }, { label: t('Indikator'), right: true }, { label: t('Tercapai'), right: true }, { label: t('Skor'), right: true }],
     d.objectives,
     (o) => [
       h('td.small', { text: o.objective }),
@@ -489,7 +497,7 @@ function bsc(d) {
         text: o.score === null ? 'belum terukur' : `${dec(o.score, 1)}%`,
       })),
     ],
-    { empty: 'Belum ada sasaran strategis yang ditetapkan.' },
+    { empty: t('Belum ada sasaran strategis yang ditetapkan.') },
   );
 
   const ini = d.initiatives;
@@ -499,21 +507,24 @@ function bsc(d) {
     // satu baris empat kolom, yang kelima justru turun sendirian ke baris baru.
     h('div.grid', {},
       stat(t('Skor Kartu Skor Berimbang'), d.overall === null ? '—' : dec(d.overall, 1), {
-        sub: `${d.overallGrade || 'belum terukur'} · rata-rata keempat perspektif dengan bobot sama · tahun lalu ${d.overallPrevious === null ? '—' : dec(d.overallPrevious, 1)}`,
+        sub: tp('{grade} · rata-rata keempat perspektif dengan bobot sama · tahun lalu {lalu}', {
+          grade: t(d.overallGrade || 'belum terukur'),
+          lalu: d.overallPrevious === null ? '—' : dec(d.overallPrevious, 1),
+        }),
         tone: scoreTone(d.overall),
       })),
     h('div.grid.cols-4', { style: 'margin-top:1rem' },
-      ...d.perspectives.map((p) => stat(p.short, p.score === null ? '—' : dec(p.score, 1), {
-        sub: `${p.achieved} dari ${p.kpiCount} indikator tercapai`,
+      ...d.perspectives.map((p) => stat(layerName(p), p.score === null ? '—' : dec(p.score, 1), {
+        sub: tp('{tercapai} dari {jumlah} indikator tercapai', { tercapai: p.achieved, jumlah: p.kpiCount }),
         tone: scoreTone(p.score),
       }))),
 
     card(t('Peta Strategi'), map,
-      h('p.small.muted', { style: 'margin-top:.8rem', text: 'Dibaca dari bawah ke atas mengikuti logika sebab-akibat Kaplan & Norton: kompetensi dan budaya menopang proses internal, proses yang andal menghasilkan kepuasan pelanggan, dan pelanggan yang loyal menghasilkan kinerja keuangan. Perspektif terbawah yang lemah akan menjatuhkan lapisan di atasnya — meski hari ini angkanya masih terlihat baik.' })),
+      h('p.small.muted', { style: 'margin-top:.8rem', text: t('Dibaca dari bawah ke atas mengikuti logika sebab-akibat Kaplan & Norton: kompetensi dan budaya menopang proses internal, proses yang andal menghasilkan kepuasan pelanggan, dan pelanggan yang loyal menghasilkan kinerja keuangan. Perspektif terbawah yang lemah akan menjatuhkan lapisan di atasnya — meski hari ini angkanya masih terlihat baik.') })),
 
     h('div.grid.cols-3', { style: 'margin-top:1rem' },
       card(t('Skor per Perspektif'), barList(
-        d.perspectives.map((p) => ({ label: p.short, value: p.score ?? 0 })),
+        d.perspectives.map((p) => ({ label: layerName(p), value: p.score ?? 0 })),
         { format: (v) => `${dec(v, 1)}%` },
       )),
       card(t('Status Pencapaian Indikator'), donut(d.byStatus, { format: num })),
@@ -523,11 +534,11 @@ function bsc(d) {
           stat(t('CAPA Berjalan'), num(ini.capaOpen), { tone: ini.capaOpen ? 'warn' : 'ok' }),
           stat(t('Perlakuan Risiko'), num(ini.riskTreatment)),
           stat(t('Pelatihan Terjadwal'), num(ini.trainingPlanned))),
-        h('p.small.muted', { style: 'margin-top:.5rem', text: `${num(ini.managementReviews)} tinjauan manajemen tahun berjalan.` }))),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: tp('{n} tinjauan manajemen tahun berjalan.', { n: num(ini.managementReviews) }) }))),
 
     card(t('10 Indikator Paling Tertinggal'),
       dataTable(
-        [{ label: 'Indikator' }, { label: 'Perspektif' }, { label: 'Target', right: true }, { label: 'Realisasi', right: true }, { label: 'Pencapaian', right: true }, { label: 'Unit Penanggung Jawab' }],
+        [{ label: t('Indikator') }, { label: t('Perspektif') }, { label: t('Target'), right: true }, { label: t('Realisasi'), right: true }, { label: t('Pencapaian'), right: true }, { label: t('Unit Penanggung Jawab') }],
         d.laggingKpis,
         (k) => [
           h('td.small', { text: k.title }),
@@ -540,12 +551,12 @@ function bsc(d) {
           })),
           h('td.small.muted', { text: k.owner_unit || '—' }),
         ],
-        { onRow: (k) => { location.hash = `#/m/quality_objective/${k.id}`; }, empty: 'Belum ada indikator terukur.' },
+        { onRow: (k) => { location.hash = `#/m/quality_objective/${k.id}`; }, empty: t('Belum ada indikator terukur.') },
       )),
 
     card(t('Sasaran Strategis, Diurutkan dari yang Paling Tertinggal'), objectiveTable),
 
-    ...d.perspectives.map((p) => card(`${p.short} — ${p.kpiCount} indikator`, kpiTable(p.kpis))));
+    ...d.perspectives.map((p) => card(tp('{perspektif} — {n} indikator', { perspektif: layerName(p), n: p.kpiCount }), kpiTable(p.kpis))));
 }
 
 /* ------------------------------------------------------------- analitik */
@@ -558,10 +569,10 @@ function analytics(d) {
     // dua kolom terakhir keluar layar, dan justru itulah dua kolom yang paling
     // sering dicari — kepatuhan pelatihan dan sertifikat kedaluwarsa.
     [
-      { label }, { label: 'Indeks', right: true }, { label: 'Insiden', right: true },
-      { label: 'Proaktif', right: true }, { label: 'Temuan', right: true },
-      { label: 'CAPA Telat', right: true }, { label: 'Keluhan', right: true },
-      { label: 'Pelatihan', right: true }, { label: 'Sert. Mati', right: true },
+      { label }, { label: t('Indeks'), right: true }, { label: t('Insiden'), right: true },
+      { label: t('Proaktif'), right: true }, { label: t('Temuan'), right: true },
+      { label: t('CAPA Telat'), right: true }, { label: t('Keluhan'), right: true },
+      { label: t('Pelatihan'), right: true }, { label: t('Sert. Mati'), right: true },
     ],
     rows,
     (u) => [
@@ -578,7 +589,7 @@ function analytics(d) {
       h('td.right', { text: u.trainingCompliance === null ? '—' : `${dec(u.trainingCompliance, 1)}%` }),
       h('td.right', { text: num(u.expiredCerts) }),
     ],
-    { empty: 'Belum ada unit yang dapat dibandingkan pada cakupan akses Anda.' },
+    { empty: t('Belum ada unit yang dapat dibandingkan pada cakupan akses Anda.') },
   );
 
   const paretoCard = (title, p, color) => card(title,
@@ -587,37 +598,38 @@ function analytics(d) {
         h('span', { title: r.label, text: r.label }),
         h('div.bar-track', {}, h('div.bar-fill', { style: `width:${r.percent}%;background:${color}` })),
         h('strong', { text: String(r.value) })),
-      h('div.small.muted', { text: `${dec(r.percent, 1)}% · kumulatif ${dec(r.cumulative, 1)}%` })))),
-    h('p.small.muted', { style: 'margin-top:.4rem', text: `Total ${num(p.total)} rekaman.` }));
+      h('div.small.muted', { text: tp('{persen}% · kumulatif {kumulatif}%', { persen: dec(r.percent, 1), kumulatif: dec(r.cumulative, 1) }) })))),
+    h('p.small.muted', { style: 'margin-top:.4rem', text: tp('Total {n} rekaman.', { n: num(p.total) }) }));
 
   const r = d.leadingLagging.correlation;
   const corrText = r === null
-    ? 'Data belum cukup untuk menghitung hubungan antar deret (minimal tiga bulan berisi).'
-    : r <= -0.5 ? `Korelasi ${fmtDecimal(r, 2)} — kuat dan berlawanan arah: bulan dengan pelaporan proaktif tinggi cenderung berinsiden rendah. Inilah pola yang diharapkan.`
-      : r < -0.2 ? `Korelasi ${fmtDecimal(r, 2)} — berlawanan arah namun lemah.`
-        : r < 0.2 ? `Korelasi ${fmtDecimal(r, 2)} — praktis tidak ada hubungan pada periode ini.`
-          : `Korelasi ${fmtDecimal(r, 2)} — searah. Pelaporan yang naik bersamaan dengan insiden biasanya menandakan kesadaran melapor baru tumbuh setelah kejadian, bukan sebelum.`;
+    ? t('Data belum cukup untuk menghitung hubungan antar deret (minimal tiga bulan berisi).')
+    : tp(r <= -0.5 ? 'Korelasi {r} — kuat dan berlawanan arah: bulan dengan pelaporan proaktif tinggi cenderung berinsiden rendah. Inilah pola yang diharapkan.'
+      : r < -0.2 ? 'Korelasi {r} — berlawanan arah namun lemah.'
+        : r < 0.2 ? 'Korelasi {r} — praktis tidak ada hubungan pada periode ini.'
+          : 'Korelasi {r} — searah. Pelaporan yang naik bersamaan dengan insiden biasanya menandakan kesadaran melapor baru tumbuh setelah kejadian, bukan sebelum.',
+    { r: fmtDecimal(r, 2) });
 
   return h('div', {},
     h('div.grid.cols-4', {},
-      stat(t('Total Rekaman'), num(c.totalRecords), { sub: `${num(c.activeModules)} modul terisi` }),
+      stat(t('Total Rekaman'), num(c.totalRecords), { sub: tp('{n} modul terisi', { n: num(c.activeModules) }) }),
       stat(t('Rekaman 30 Hari Terakhir'), num(c.recent30)),
       stat(t('Rasio Pelaporan Proaktif'), `${dec(c.proactiveRatio, 1)}×`, {
-        sub: 'laporan proaktif per satu insiden',
+        sub: t('laporan proaktif per satu insiden'),
         tone: c.proactiveRatio >= 10 ? 'ok' : c.proactiveRatio >= 5 ? '' : 'warn',
       }),
       stat(t('Rekaman Tidak Bergerak'), num(c.staleRecords), {
-        sub: '> 30 hari masih di status awal',
+        sub: t('> 30 hari masih di status awal'),
         tone: c.staleRecords ? 'warn' : 'ok',
       }),
       stat(t('Tindakan Lewat Jatuh Tempo'), num(c.overdueOpen), { tone: c.overdueOpen ? 'danger' : 'ok' }),
-      stat(t('Rata-rata Penutupan CAPA'), c.avgCapaClosure === null ? '—' : dec(c.avgCapaClosure, 1), { unit: 'hari' }),
-      stat(t('Unit Dibandingkan'), num(c.branchesCompared), { sub: 'cabang dalam cakupan akses Anda' })),
+      stat(t('Rata-rata Penutupan CAPA'), c.avgCapaClosure === null ? '—' : dec(c.avgCapaClosure, 1), { unit: t('hari') }),
+      stat(t('Unit Dibandingkan'), num(c.branchesCompared), { sub: t('cabang dalam cakupan akses Anda') })),
 
-    card(t('Peringkat Kinerja QHSE Antar Cabang'), orgTable(d.branches, 'Cabang'),
-      h('p.small.muted', { style: 'margin-top:.5rem', text: 'Indeks 0–100 adalah pembanding antar unit, bukan nilai mutlak. Pelaporan proaktif menaikkan indeks — unit yang melaporkan banyak near miss sedang bekerja dengan benar, bukan sedang berkinerja buruk. Insiden, CAPA lewat jatuh tempo dan sertifikat kedaluwarsa menurunkannya.' })),
+    card(t('Peringkat Kinerja QHSE Antar Cabang'), orgTable(d.branches, t('Cabang')),
+      h('p.small.muted', { style: 'margin-top:.5rem', text: t('Indeks 0–100 adalah pembanding antar unit, bukan nilai mutlak. Pelaporan proaktif menaikkan indeks — unit yang melaporkan banyak near miss sedang bekerja dengan benar, bukan sedang berkinerja buruk. Insiden, CAPA lewat jatuh tempo dan sertifikat kedaluwarsa menurunkannya.') })),
 
-    card(t('Peringkat Kinerja QHSE Antar Pelabuhan'), orgTable(d.ports, 'Pelabuhan')),
+    card(t('Peringkat Kinerja QHSE Antar Pelabuhan'), orgTable(d.ports, t('Pelabuhan'))),
 
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Indikator Proaktif (Leading) — Near Miss & Observasi'), lineChart(d.leadingLagging.proactiveTrend, { color: PALETTE[1] })),
@@ -625,11 +637,11 @@ function analytics(d) {
 
     card(t('Hubungan Pelaporan Proaktif dengan Insiden'),
       h('p', { text: corrText }),
-      h('p.small.muted', { text: 'Korelasi bukan sebab-akibat. Angka ini menunjukkan pola yang layak ditanyakan pada rapat tinjauan, bukan kesimpulan yang bisa langsung dipakai.' })),
+      h('p.small.muted', { text: t('Korelasi bukan sebab-akibat. Angka ini menunjukkan pola yang layak ditanyakan pada rapat tinjauan, bukan kesimpulan yang bisa langsung dipakai.') })),
 
-    card(`Perbandingan Tahun ${d.year} dengan ${d.previousYear}`,
+    card(tp('Perbandingan Tahun {tahun} dengan {pembanding}', { tahun: d.year, pembanding: d.previousYear }),
       dataTable(
-        [{ label: 'Metrik' }, { label: d.previousYear, right: true }, { label: d.year, right: true }, { label: 'Perubahan', right: true }],
+        [{ label: t('Metrik') }, { label: d.previousYear, right: true }, { label: d.year, right: true }, { label: t('Perubahan'), right: true }],
         d.yearOverYear,
         (y) => [
           h('td.small', { text: y.label }),
@@ -640,7 +652,7 @@ function analytics(d) {
             : h('span.badge', { class: y.change > 0 ? 'b-warn' : y.change < 0 ? 'b-ok' : 'b-draft', text: `${y.change > 0 ? '+' : ''}${dec(y.change, 1)}%` })),
         ],
       ),
-      h('p.small.muted', { style: 'margin-top:.5rem', text: 'Kenaikan tidak selalu buruk: naiknya near miss, inspeksi, audit dan pelatihan justru menandakan sistem berjalan. Yang perlu dibaca berpasangan adalah naiknya pelaporan proaktif berbarengan dengan turunnya insiden.' })),
+      h('p.small.muted', { style: 'margin-top:.5rem', text: t('Kenaikan tidak selalu buruk: naiknya near miss, inspeksi, audit dan pelatihan justru menandakan sistem berjalan. Yang perlu dibaca berpasangan adalah naiknya pelaporan proaktif berbarengan dengan turunnya insiden.') })),
 
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       paretoCard(t('Pareto Jenis Insiden'), d.pareto.incidentType, PALETTE[4]),
@@ -652,17 +664,17 @@ function analytics(d) {
 
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Kecepatan Penutupan Rekaman'),
-        barList(d.closure.map((x) => ({ label: x.name, value: x.days ?? 0 })), { format: (v) => `${dec(v, 1)} hari`, color: PALETTE[6] }),
-        h('p.small.muted', { style: 'margin-top:.5rem', text: 'Rata-rata hari dari rekaman dibuat sampai ditutup, dihitung hanya atas rekaman yang benar-benar sudah tertutup.' })),
+        barList(d.closure.map((x) => ({ label: x.name, value: x.days ?? 0 })), { format: (v) => tp('{n} hari', { n: dec(v, 1) }), color: PALETTE[6] }),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: t('Rata-rata hari dari rekaman dibuat sampai ditutup, dihitung hanya atas rekaman yang benar-benar sudah tertutup.') })),
       card(t('Rekaman Tidak Bergerak per Modul'),
         dataTable(
-          [{ label: 'Modul' }, { label: 'Rekaman', right: true }],
+          [{ label: t('Modul') }, { label: t('Rekaman'), right: true }],
           d.stale,
           (s) => [
             h('td.small', {}, `${s.icon} ${s.name}`),
             h('td.right', {}, h('span.badge.b-warn', { text: num(s.count) })),
           ],
-          { onRow: (s) => { location.hash = `#/m/${s.module}`; }, empty: 'Tidak ada rekaman yang tertahan di status awal.' },
+          { onRow: (s) => { location.hash = `#/m/${s.module}`; }, empty: t('Tidak ada rekaman yang tertahan di status awal.') },
         ))),
 
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
@@ -679,9 +691,9 @@ function training(d) {
 
   const gapTable = dataTable(
     [
-      { label: 'Pegawai' }, { label: 'Jabatan' },
-      { label: 'Wajib', right: true }, { label: 'Dimiliki', right: true }, { label: 'Gap', right: true },
-      { label: 'Pemenuhan', right: true }, { label: 'Status' }, { label: 'Target Tutup' },
+      { label: t('Pegawai') }, { label: t('Jabatan') },
+      { label: t('Wajib'), right: true }, { label: t('Dimiliki'), right: true }, { label: t('Gap'), right: true },
+      { label: t('Pemenuhan'), right: true }, { label: t('Status') }, { label: t('Target Tutup') },
     ],
     d.topGaps,
     (g) => [
@@ -693,18 +705,18 @@ function training(d) {
       h('td.right', { text: pct1(g.compliance_percent) }),
       badge(
         g.gap_status === 'Patuh Penuh' ? 'b-ok' : g.gap_status === 'Kritis' ? 'b-danger' : 'b-warn',
-        g.gap_status,
+        t(g.gap_status),
       ),
       h('td.small.nowrap', { text: fmtDate(g.target_date) }),
     ],
     {
       onRow: (g) => { location.hash = `#/m/skill_gap/${g.id}`; },
-      empty: 'Belum ada analisis kesenjangan kompetensi.',
+      empty: t('Belum ada analisis kesenjangan kompetensi.'),
     },
   );
 
   const certTable = dataTable(
-    [{ label: 'Sertifikat' }, { label: 'Pemegang' }, { label: 'Jenis' }, { label: 'Penerbit' }, { label: 'Berlaku Sampai' }, { label: 'Sisa Hari', right: true }],
+    [{ label: t('Sertifikat') }, { label: t('Pemegang') }, { label: t('Jenis') }, { label: t('Penerbit') }, { label: t('Berlaku Sampai') }, { label: t('Sisa Hari'), right: true }],
     d.expiringCertificates,
     (s) => [
       h('td.small', { text: s.certificate_name }),
@@ -714,17 +726,17 @@ function training(d) {
       expiryCell(s.valid_until),
       h('td.right', {}, h('span.badge', {
         class: (s.days_to_expiry ?? 0) < 0 ? 'b-danger' : (s.days_to_expiry ?? 0) <= 30 ? 'b-warn' : 'b-progress',
-        text: (s.days_to_expiry ?? 0) < 0 ? `Lewat ${Math.abs(s.days_to_expiry)} hari` : `${s.days_to_expiry} hari`,
+        text: (s.days_to_expiry ?? 0) < 0 ? tp('Lewat {n} hari', { n: Math.abs(s.days_to_expiry) }) : tp('{n} hari', { n: s.days_to_expiry }),
       })),
     ],
     {
       onRow: (s) => { location.hash = `#/m/employee_certification/${s.id}`; },
-      empty: 'Tidak ada sertifikat yang mendekati atau melewati masa berlaku.',
+      empty: t('Tidak ada sertifikat yang mendekati atau melewati masa berlaku.'),
     },
   );
 
   const vendorTable = dataTable(
-    [{ label: 'Lembaga Pelatihan' }, { label: 'Jenis' }, { label: 'Pelatihan', right: true }, { label: 'Peserta', right: true }, { label: 'Skor', right: true }, { label: 'Grade' }, { label: 'Akreditasi s.d.' }],
+    [{ label: t('Lembaga Pelatihan') }, { label: t('Jenis') }, { label: t('Pelatihan'), right: true }, { label: t('Peserta'), right: true }, { label: t('Skor'), right: true }, { label: t('Grade') }, { label: t('Akreditasi s.d.') }],
     d.vendors,
     (v) => [
       h('td.small', { text: v.name }),
@@ -737,7 +749,7 @@ function training(d) {
     ],
     {
       onRow: (v) => { location.hash = `#/m/training_vendor/${v.id}`; },
-      empty: 'Belum ada vendor pelatihan yang dinilai.',
+      empty: t('Belum ada vendor pelatihan yang dinilai.'),
     },
   );
 
@@ -745,13 +757,13 @@ function training(d) {
   // tingkatannya cukup jadi kolom tersendiri - bukan awalan yang mengulang.
   const complianceTable = dataTable(
     [
-      { label: 'Tingkat' }, { label: 'Unit' },
-      { label: 'Pegawai Dianalisis', right: true }, { label: 'Total Kesenjangan', right: true },
-      { label: 'Kepatuhan', right: true },
+      { label: t('Tingkat') }, { label: t('Unit') },
+      { label: t('Pegawai Dianalisis'), right: true }, { label: t('Total Kesenjangan'), right: true },
+      { label: t('Kepatuhan'), right: true },
     ],
     [
-      ...d.complianceByBranch.map((r) => ({ ...r, scope: 'Cabang' })),
-      ...d.complianceByPort.map((r) => ({ ...r, scope: 'Pelabuhan' })),
+      ...d.complianceByBranch.map((r) => ({ ...r, scope: t('Cabang') })),
+      ...d.complianceByPort.map((r) => ({ ...r, scope: t('Pelabuhan') })),
     ],
     (r) => [
       h('td.small.muted', { text: r.scope }),
@@ -763,33 +775,33 @@ function training(d) {
         text: pct1(r.value),
       })),
     ],
-    { empty: 'Belum ada data kepatuhan per unit.' },
+    { empty: t('Belum ada data kepatuhan per unit.') },
   );
 
   return h('div', {},
     h('div.grid.cols-4', {},
-      stat(t('Katalog Pelatihan'), num(c.catalogue), { sub: `${num(c.mandatoryCatalogue)} bersifat wajib` }),
+      stat(t('Katalog Pelatihan'), num(c.catalogue), { sub: tp('{n} bersifat wajib', { n: num(c.mandatoryCatalogue) }) }),
       stat(t('Kepatuhan Pelatihan Wajib'), pct1(c.mandatoryCompliance), {
-        sub: `${num(c.gapEmployees)} pegawai belum lengkap`,
+        sub: tp('{n} pegawai belum lengkap', { n: num(c.gapEmployees) }),
         tone: (c.mandatoryCompliance ?? 0) >= 95 ? 'ok' : (c.mandatoryCompliance ?? 0) >= 80 ? 'warn' : 'danger',
       }),
-      stat(t('Kesenjangan Kompetensi'), num(c.totalGaps), { sub: 'total pelatihan wajib belum dipenuhi', tone: c.totalGaps ? 'warn' : 'ok' }),
+      stat(t('Kesenjangan Kompetensi'), num(c.totalGaps), { sub: t('total pelatihan wajib belum dipenuhi'), tone: c.totalGaps ? 'warn' : 'ok' }),
       stat(t('Sertifikat Kedaluwarsa'), num(c.certificatesExpired), {
-        sub: `${num(c.certificatesExpiring)} akan habis dalam 90 hari`,
+        sub: tp('{n} akan habis dalam 90 hari', { n: num(c.certificatesExpiring) }),
         tone: c.certificatesExpired ? 'danger' : c.certificatesExpiring ? 'warn' : 'ok',
       }),
-      stat(t('Pelatihan Tahun Ini'), num(c.trainingsThisYear), { sub: `${num(c.participants)} peserta` }),
+      stat(t('Pelatihan Tahun Ini'), num(c.trainingsThisYear), { sub: tp('{n} peserta', { n: num(c.participants) }) }),
       stat(t('Rencana vs Realisasi'), pct1(c.planAchievement), {
-        sub: `${num(c.completedSchedules)} dari ${num(c.plannedSchedules)} jadwal terlaksana`,
+        sub: tp('{selesai} dari {rencana} jadwal terlaksana', { selesai: num(c.completedSchedules), rencana: num(c.plannedSchedules) }),
         tone: (c.planAchievement ?? 0) >= 90 ? 'ok' : 'warn',
       }),
-      stat(t('Jam Pelatihan per Pegawai'), dec(c.hoursPerEmployee, 1), { unit: 'jam', sub: `${num(c.trainingHours)} jam keseluruhan` }),
-      stat(t('Biaya Pelatihan'), fmtCurrency(c.actualCost), { sub: `anggaran ${fmtCurrency(c.budget)}` }),
+      stat(t('Jam Pelatihan per Pegawai'), dec(c.hoursPerEmployee, 1), { unit: t('jam'), sub: tp('{n} jam keseluruhan', { n: num(c.trainingHours) }) }),
+      stat(t('Biaya Pelatihan'), fmtCurrency(c.actualCost), { sub: tp('anggaran {nilai}', { nilai: fmtCurrency(c.budget) }) }),
       stat(t('Tingkat Kehadiran'), pct1(c.attendanceRate), { tone: (c.attendanceRate ?? 0) >= 90 ? 'ok' : 'warn' }),
       stat(t('Tingkat Kelulusan Ujian'), pct1(c.examPassRate), { tone: (c.examPassRate ?? 0) >= 85 ? 'ok' : 'warn' }),
-      stat(t('Penyelesaian Materi Daring'), pct1(c.lmsCompletion), { sub: 'rata-rata seluruh materi LMS' }),
+      stat(t('Penyelesaian Materi Daring'), pct1(c.lmsCompletion), { sub: t('rata-rata seluruh materi LMS') }),
       stat(t('Penurunan Insiden Pasca Pelatihan'), pct1(c.incidentReduction), {
-        sub: 'Kirkpatrick level 4',
+        sub: t('Kirkpatrick level 4'),
         tone: (c.incidentReduction ?? 0) > 0 ? 'ok' : 'warn',
       })),
 
@@ -803,19 +815,19 @@ function training(d) {
       card(t('Metode Penyelenggaraan'), barList(d.byMethod, { format: num, color: PALETTE[6] }))),
 
     card(t('Kesenjangan Kompetensi Tertinggi'), gapTable,
-      h('p.small.muted', { style: 'margin-top:.5rem', text: 'Selisih antara pelatihan wajib menurut matriks jabatan dan pelatihan yang dimiliki serta masih berlaku.' })),
+      h('p.small.muted', { style: 'margin-top:.5rem', text: t('Selisih antara pelatihan wajib menurut matriks jabatan dan pelatihan yang dimiliki serta masih berlaku.') })),
 
     card(t('Kepatuhan Pelatihan Wajib per Cabang & Pelabuhan'), complianceTable),
 
     h('div.grid.cols-3', { style: 'margin-top:1rem' },
       card(t('Tingkat Kompetensi Rata-rata per Divisi'),
         barList(d.competencyByDivision, { format: (v) => `${dec(v, 2)} / 5` }),
-        h('p.small.muted', { style: 'margin-top:.5rem', text: 'Skala 1 Beginner sampai 5 Expert, dihitung dari matriks kompetensi pegawai.' })),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: t('Skala 1 Beginner sampai 5 Expert, dihitung dari matriks kompetensi pegawai.') })),
       card(t('Status Kompetensi Pegawai'), donut(d.competencyGapStatus, { format: num })),
       card(t('Jenis Kompetensi Dinilai'), barList(d.competencyByType, { format: num, color: PALETTE[3] }))),
 
     card(t('Sertifikat Kedaluwarsa & Mendekati Jatuh Tempo'), certTable,
-      h('p.small.muted', { style: 'margin-top:.5rem', text: 'Peringatan otomatis dikirim 30, 14 dan 7 hari sebelum masa berlaku berakhir serta pada hari-H.' })),
+      h('p.small.muted', { style: 'margin-top:.5rem', text: t('Peringatan otomatis dikirim 30, 14 dan 7 hari sebelum masa berlaku berakhir serta pada hari-H.') })),
 
     h('div.grid.cols-3', { style: 'margin-top:1rem' },
       card(t('Status Sertifikat'), donut(d.certByStatus, { format: num })),
@@ -830,7 +842,7 @@ function training(d) {
     h('div.grid.cols-3', { style: 'margin-top:1rem' },
       card(t('Efektivitas Pelatihan (Level 3-4)'),
         donut(d.effectiveness, { format: num }),
-        h('p.small.muted', { style: 'margin-top:.5rem', text: `Kepuasan peserta ${pct1(c.satisfaction)} · kenaikan pengetahuan ${pct1(c.knowledgeGain)}.` })),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: tp('Kepuasan peserta {puas} · kenaikan pengetahuan {naik}.', { puas: pct1(c.satisfaction), naik: pct1(c.knowledgeGain) }) })),
       card(t('Penerapan di Tempat Kerja'), barList(d.behaviour, { format: num, color: PALETTE[5] })),
       card(t('Sumber Kebutuhan Pelatihan'), barList(d.requestBySource, { format: num, color: PALETTE[2] }))),
 
@@ -872,40 +884,40 @@ function subscription(d) {
 
   const tenantTable = dataTable(
     [
-      { label: 'Cabang' }, { label: 'Paket' }, { label: 'Status' },
-      { label: 'Biaya/bulan', right: true }, { label: 'Pengguna', right: true },
-      { label: 'Utilisasi', right: true }, { label: 'Tagihan Berikutnya' },
-      { label: 'Kesehatan Akun' }, { label: 'NPS', right: true },
+      { label: t('Cabang') }, { label: t('Paket') }, { label: t('Status') },
+      { label: t('Biaya/bulan'), right: true }, { label: t('Pengguna'), right: true },
+      { label: t('Utilisasi'), right: true }, { label: t('Tagihan Berikutnya') },
+      { label: t('Kesehatan Akun') }, { label: t('NPS'), right: true },
     ],
     d.tenants,
-    (t) => [
-      h('td', { text: t.branch || '—' }),
-      h('td.small', { text: t.plan || '—' }),
-      badge(STATUS_TONE[t.status] || 'b-draft', STATUS_LABEL[t.status] || t.status),
-      h('td.right', { text: fmtCurrency(t.fee) }),
-      h('td.right', { text: `${num(t.activeUsers)} / ${t.seats ? num(t.seats) : '∞'}` }),
-      h('td.right', { text: t.utilisation ? `${dec(t.utilisation, 0)}%` : '—' }),
-      h('td.small', { text: fmtDate(t.nextBilling) }),
-      badge(t.health === 'Sehat' ? 'b-ok' : t.health === 'Berisiko Churn' ? 'b-danger' : 'b-warn', t.health),
-      h('td.right', { text: t.nps ?? '—' }),
+    (row) => [
+      h('td', { text: row.branch || '—' }),
+      h('td.small', { text: row.plan || '—' }),
+      badge(STATUS_TONE[row.status] || 'b-draft', t(STATUS_LABEL[row.status] || row.status)),
+      h('td.right', { text: fmtCurrency(row.fee) }),
+      h('td.right', { text: `${num(row.activeUsers)} / ${row.seats ? num(row.seats) : '∞'}` }),
+      h('td.right', { text: row.utilisation ? `${dec(row.utilisation, 0)}%` : '—' }),
+      h('td.small', { text: fmtDate(row.nextBilling) }),
+      badge(row.health === 'Sehat' ? 'b-ok' : row.health === 'Berisiko Churn' ? 'b-danger' : 'b-warn', t(row.health)),
+      h('td.right', { text: row.nps ?? '—' }),
     ],
-    { onRow: (t) => { location.hash = `#/m/subscription/${t.id}`; }, empty: 'Belum ada langganan tercatat.' },
+    { onRow: (row) => { location.hash = `#/m/subscription/${row.id}`; }, empty: t('Belum ada langganan tercatat.') },
   );
 
   const adoptionTable = dataTable(
-    [{ label: 'Cabang' }, { label: 'Periode' }, { label: 'Pengguna Aktif', right: true }, { label: 'Skor Adopsi', right: true }, { label: 'Status' }],
+    [{ label: t('Cabang') }, { label: t('Periode') }, { label: t('Pengguna Aktif'), right: true }, { label: t('Skor Adopsi'), right: true }, { label: t('Status') }],
     (d.adoption || []).slice(0, 12),
     (a) => [
       h('td.small', { text: a.branch_name || '—' }),
       h('td.small', { text: a.period }),
       h('td.right', { text: num(a.active_users) }),
       h('td.right', { text: a.adoption_score ? `${dec(a.adoption_score, 0)}%` : '—' }),
-      badge(a.adoption_status === 'Sangat Baik' ? 'b-ok' : a.adoption_status === 'Rendah' ? 'b-danger' : 'b-warn', a.adoption_status),
+      badge(a.adoption_status === 'Sangat Baik' ? 'b-ok' : a.adoption_status === 'Rendah' ? 'b-danger' : 'b-warn', t(a.adoption_status)),
     ],
   );
 
   const leadTable = dataTable(
-    [{ label: 'Cabang / Unit' }, { label: 'Kontak' }, { label: 'Paket Diminati' }, { label: 'Status' }],
+    [{ label: t('Cabang / Unit') }, { label: t('Kontak') }, { label: t('Paket Diminati') }, { label: t('Status') }],
     (d.leads || []).slice(0, 12),
     (l) => [
       h('td.small', { text: l.organisation }),
@@ -913,19 +925,19 @@ function subscription(d) {
       h('td.small', { text: l.plan_interest || '—' }),
       badge(l.status === 'converted' ? 'b-ok' : l.status === 'lost' ? 'b-danger' : 'b-progress', l.status),
     ],
-    { onRow: (l) => { location.hash = `#/m/trial_request/${l.id}`; }, empty: 'Belum ada permintaan uji coba.' },
+    { onRow: (l) => { location.hash = `#/m/trial_request/${l.id}`; }, empty: t('Belum ada permintaan uji coba.') },
   );
 
   return h('div', {},
     h('div.grid.cols-4', {},
-      stat(t('MRR'), fmtCurrency(c.mrr), { sub: 'pendapatan berulang bulanan', tone: 'ok' }),
-      stat(t('ARR'), fmtCurrency(c.arr), { sub: 'proyeksi tahunan' }),
-      stat(t('Cabang Berlangganan'), num(c.activeTenants), { sub: `${num(c.trialTenants)} dalam uji coba` }),
-      stat(t('ARPA'), fmtCurrency(c.arpa), { sub: 'rata-rata per cabang' }),
-      stat(t('Pipeline Uji Coba'), fmtCurrency(c.trialPipeline), { sub: 'potensi bila seluruhnya berlanjut' }),
-      stat(t('Tagihan Terkumpul'), fmtCurrency(c.collected), { sub: '12 bulan terakhir', tone: 'ok' }),
-      stat(t('Piutang Berjalan'), fmtCurrency(c.outstanding), { sub: `${num(c.overdueCount)} tagihan lewat jatuh tempo`, tone: c.overdueCount ? 'warn' : 'ok' }),
-      stat(t('Churn'), `${dec(c.churnRate, 1)}%`, { sub: `${num(c.churnedTenants)} cabang berhenti`, tone: c.churnedTenants ? 'warn' : 'ok' })),
+      stat(t('MRR'), fmtCurrency(c.mrr), { sub: t('pendapatan berulang bulanan'), tone: 'ok' }),
+      stat(t('ARR'), fmtCurrency(c.arr), { sub: t('proyeksi tahunan') }),
+      stat(t('Cabang Berlangganan'), num(c.activeTenants), { sub: tp('{n} dalam uji coba', { n: num(c.trialTenants) }) }),
+      stat(t('ARPA'), fmtCurrency(c.arpa), { sub: t('rata-rata per cabang') }),
+      stat(t('Pipeline Uji Coba'), fmtCurrency(c.trialPipeline), { sub: t('potensi bila seluruhnya berlanjut') }),
+      stat(t('Tagihan Terkumpul'), fmtCurrency(c.collected), { sub: t('12 bulan terakhir'), tone: 'ok' }),
+      stat(t('Piutang Berjalan'), fmtCurrency(c.outstanding), { sub: tp('{n} tagihan lewat jatuh tempo', { n: num(c.overdueCount) }), tone: c.overdueCount ? 'warn' : 'ok' }),
+      stat(t('Churn'), `${dec(c.churnRate, 1)}%`, { sub: tp('{n} cabang berhenti', { n: num(c.churnedTenants) }), tone: c.churnedTenants ? 'warn' : 'ok' })),
 
     h('div.grid.cols-2', { style: 'margin-top:1rem' },
       card(t('Pendapatan Tertagih per Bulan'), lineChart(d.revenueByMonth, { color: PALETTE[6], format: (v) => fmtCurrency(v) })),

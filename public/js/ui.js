@@ -82,6 +82,30 @@ export const initials = (name) =>
     .map((w) => w[0].toUpperCase())
     .join('') || '?';
 
+/* ------------------------------------------------------------- bahasa */
+
+/**
+ * Sakelar bahasa ID | EN.
+ *
+ * Dibuat sebagai dua tombol yang selalu terlihat, bukan daftar pilihan di
+ * dalam dialog: bahasa yang sedang aktif terbaca sekali lihat dan berpindah
+ * cukup satu ketukan. Apa yang terjadi setelah pergantian berbeda antara
+ * halaman depan dan aplikasi, jadi ditentukan pemanggilnya lewat `onSwitch`.
+ */
+export function languageSwitch(onSwitch) {
+  const button = (code, label, title) => h('button', {
+    type: 'button',
+    class: `lang-btn${lang() === code ? ' active' : ''}`,
+    title,
+    'aria-pressed': lang() === code ? 'true' : 'false',
+    onclick: () => onSwitch(code),
+    text: label,
+  });
+  return h('div.langswitch', { role: 'group', 'aria-label': t('Bahasa') },
+    button('id', 'ID', 'Bahasa Indonesia'),
+    button('en', 'EN', 'English'));
+}
+
 /* -------------------------------------------------------------- badges */
 
 const POSITIVE = ['closed', 'verified', 'approved', 'published', 'validated', 'active', 'completed', 'monitored'];

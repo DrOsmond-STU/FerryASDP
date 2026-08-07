@@ -55,7 +55,11 @@ export default [
       num('actual', 'Realisasi', { step: 0.01 }),
       sel('polarity', 'Arah Pencapaian', ['Semakin Tinggi Semakin Baik', 'Semakin Rendah Semakin Baik']),
       num('achievement', 'Pencapaian (%)', { computed: 'kpiAchievement', readonly: true }),
-      f('achievement_status', 'Status Pencapaian', 'text', { computed: 'kpiStatus', readonly: true }),
+      f('achievement_status', 'Status Pencapaian', 'text', {
+        computed: 'kpiStatus',
+        readonly: true,
+        values: ['Tercapai', 'Hampir Tercapai', 'Perlu Perhatian', 'Tidak Tercapai'],
+      }),
       f('owner_unit', 'Unit Penanggung Jawab'),
       txt('analysis', 'Analisis Pencapaian'),
       txt('improvement_plan', 'Rencana Perbaikan'),

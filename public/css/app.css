@@ -278,7 +278,14 @@ button:disabled { cursor: not-allowed; }
 .lnd-nav { display: flex; gap: 1.2rem; margin-left: auto; }
 .lnd-nav a { color: #cfe4f4; text-decoration: none; font-size: .88rem; }
 .lnd-nav a:hover { color: #fff; }
-.lnd-topbar-cta { display: flex; gap: .5rem; }
+.lnd-topbar-cta { display: flex; gap: .5rem; align-items: center; }
+
+/* Bilah halaman depan berlatar navy: sakelar bahasa mengikuti nadanya. */
+.lnd-topbar .langswitch {
+  border-color: rgba(157, 198, 228, .28); background: rgba(255, 255, 255, .08); box-shadow: none;
+}
+.lnd-topbar .lang-btn { color: #cfe4f4; }
+.lnd-topbar .lang-btn:hover { color: #fff; }
 
 .lnd-hero {
   position: relative; overflow: hidden;
@@ -453,7 +460,10 @@ button:disabled { cursor: not-allowed; }
 
 @media (max-width: 940px) {
   .lnd-hero-grid, .lnd-cta-grid, .lnd-footer-grid { grid-template-columns: 1fr; }
+  /* Menu bagian halaman disembunyikan di layar sempit; tanpa ini tombol
+     ajakan ikut merapat ke kiri karena kehilangan pendorongnya. */
   .lnd-nav { display: none; }
+  .lnd-topbar-cta { margin-left: auto; }
 }
 
 /* ============================================================== tata letak */
@@ -530,6 +540,26 @@ button:disabled { cursor: not-allowed; }
 }
 .topbar .crumb { font-size: .84rem; color: var(--text-dim); }
 .topbar .spacer { flex: 1; }
+
+/* Sakelar bahasa: dua tombol berdampingan, yang aktif diberi warna penuh
+   supaya bahasa yang sedang dipakai terbaca tanpa harus dibuka dulu. */
+.langswitch {
+  display: inline-flex; flex: none; padding: 2px;
+  border-radius: 999px; border: 1px solid var(--card-ring);
+  background: var(--q-gradient-surface-2); box-shadow: var(--shadow-xs);
+}
+.langswitch .lang-btn {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  padding: .22rem .6rem; border-radius: 999px; min-height: 0;
+  font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+  color: var(--text-dim); transition: background 140ms ease, color 140ms ease;
+}
+.langswitch .lang-btn:hover { color: var(--text); }
+.langswitch .lang-btn.active {
+  background: var(--q-gradient-ink); color: #fff; box-shadow: var(--shadow-brand);
+}
+
+.lnd-topbar-cta .langswitch { align-self: center; }
 
 .userchip {
   display: flex; align-items: center; gap: .6rem; padding: .3rem .55rem .3rem .35rem;
@@ -879,6 +909,12 @@ td.cell-truncate { max-width: 340px; overflow: hidden; text-overflow: ellipsis; 
 }
 @media (max-width: 760px) {
   .dash-grid > .widget { grid-column: span 12 !important; }
+}
+
+/* Pada layar sempit nama organisasi adalah yang paling mudah dilepas: ia
+   hanya keterangan, sedangkan sakelar bahasa dan menu akun adalah kendali. */
+@media (max-width: 700px) {
+  .topbar > .badge.small { display: none; }
 }
 
 /* ==================================================== peta strategi (BSC) */

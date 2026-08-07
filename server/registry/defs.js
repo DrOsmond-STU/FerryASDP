@@ -136,6 +136,14 @@ export const LIKELIHOOD = [
   { value: '5', label: '5 - Hampir Pasti' },
 ];
 
+/**
+ * Tingkat risiko tidak dipilih pengguna melainkan dihitung dari matriks 5×5,
+ * jadi tidak berupa `options`. Kosakatanya tetap terbatas dan dideklarasikan
+ * di sini supaya dashboard dapat menerjemahkan labelnya tanpa menebak mana
+ * nilai baku dan mana teks bebas.
+ */
+export const RISK_LEVELS = ['Rendah', 'Sedang', 'Tinggi', 'Ekstrem'];
+
 export const YESNO = ['Ya', 'Tidak'];
 export const CHECK_RESULT = ['Baik', 'Perlu Perbaikan', 'Tidak Berfungsi', 'Tidak Berlaku'];
 export const PRIORITY = ['Rendah', 'Sedang', 'Tinggi', 'Kritis'];
@@ -145,7 +153,7 @@ export const riskFields = (prefix = '') => [
   sel(`${prefix}likelihood`, 'Kemungkinan (Likelihood)', LIKELIHOOD, { required: true, group: 'Penilaian Risiko' }),
   sel(`${prefix}severity`, 'Keparahan (Severity)', SEVERITY, { required: true, group: 'Penilaian Risiko' }),
   num(`${prefix}risk_score`, 'Nilai Risiko', { computed: `${prefix}likelihood*${prefix}severity`, readonly: true, group: 'Penilaian Risiko' }),
-  f(`${prefix}risk_level`, 'Tingkat Risiko', 'text', { computed: `${prefix}riskLevel`, readonly: true, group: 'Penilaian Risiko' }),
+  f(`${prefix}risk_level`, 'Tingkat Risiko', 'text', { computed: `${prefix}riskLevel`, readonly: true, values: RISK_LEVELS, group: 'Penilaian Risiko' }),
 ];
 
 /** Residual risk after treatment. */
@@ -153,7 +161,7 @@ export const residualFields = () => [
   sel('res_likelihood', 'Kemungkinan Residual', LIKELIHOOD, { group: 'Risiko Residual' }),
   sel('res_severity', 'Keparahan Residual', SEVERITY, { group: 'Risiko Residual' }),
   num('res_risk_score', 'Nilai Risiko Residual', { computed: 'res_likelihood*res_severity', readonly: true, group: 'Risiko Residual' }),
-  f('res_risk_level', 'Tingkat Risiko Residual', 'text', { computed: 'resRiskLevel', readonly: true, group: 'Risiko Residual' }),
+  f('res_risk_level', 'Tingkat Risiko Residual', 'text', { computed: 'resRiskLevel', readonly: true, values: RISK_LEVELS, group: 'Risiko Residual' }),
 ];
 
 /**
