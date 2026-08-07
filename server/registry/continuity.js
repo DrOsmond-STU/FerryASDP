@@ -7,7 +7,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, riskFields, PRIORITY } from './defs.js';
 
-export const group = { code: 'N', key: 'continuity', name: 'Continuity, Energy & Security', icon: '🔐' };
+export const group = { code: 'N', key: 'continuity', name: 'Continuity, Energy & Security', nameId: 'Kelangsungan Usaha, Energi & Keamanan', icon: '🔐' };
 
 export default [
   m({

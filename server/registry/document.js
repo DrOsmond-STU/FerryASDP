@@ -3,7 +3,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF } from './defs.js';
 
-export const group = { code: 'B', key: 'document', name: 'Document Management', icon: '📄' };
+export const group = { code: 'B', key: 'document', name: 'Document Management', nameId: 'Manajemen Dokumen', icon: '📄' };
 
 const DOC_LEVELS = ['Level 1 - Manual', 'Level 2 - Prosedur', 'Level 3 - Instruksi Kerja', 'Level 4 - Formulir & Rekaman'];
 const SYSTEMS = ['ISO 9001', 'ISO 14001', 'ISO 45001', 'ISO 27001', 'ISO 50001', 'ISO 55001', 'ISO 22301', 'SMK3', 'ISM Code', 'ISPS Code', 'Terintegrasi'];

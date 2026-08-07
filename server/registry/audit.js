@@ -3,7 +3,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF } from './defs.js';
 
-export const group = { code: 'G', key: 'audit', name: 'Audit & Compliance', icon: '🔎' };
+export const group = { code: 'G', key: 'audit', name: 'Audit & Compliance', nameId: 'Audit & Kepatuhan', icon: '🔎' };
 
 const SYSTEMS = ['ISO 9001:2015', 'ISO 14001:2015', 'ISO 45001:2018', 'ISO 27001:2022', 'ISO 50001:2018', 'ISO 55001:2014', 'ISO 22301:2019', 'ISO 31000:2018', 'SMK3 PP 50/2012', 'ISM Code', 'ISPS Code', 'Terintegrasi'];
 

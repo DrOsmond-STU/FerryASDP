@@ -3,7 +3,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, CHECK_RESULT, riskFields } from './defs.js';
 
-export const group = { code: 'I', key: 'assetsafety', name: 'Asset Safety', icon: '🛠' };
+export const group = { code: 'I', key: 'assetsafety', name: 'Asset Safety', nameId: 'Keselamatan Aset', icon: '🛠' };
 
 export default [
   m({

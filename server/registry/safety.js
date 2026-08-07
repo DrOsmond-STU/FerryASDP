@@ -3,7 +3,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, riskFields, residualFields, PRIORITY, CHECK_RESULT } from './defs.js';
 
-export const group = { code: 'E', key: 'safety', name: 'Occupational Safety', icon: '🦺' };
+export const group = { code: 'E', key: 'safety', name: 'Occupational Safety', nameId: 'Keselamatan & Kesehatan Kerja', icon: '🦺' };
 
 const PPE = ['Helm', 'Sepatu Safety', 'Rompi Reflektif', 'Sarung Tangan', 'Kacamata Safety', 'Face Shield', 'Pelindung Telinga', 'Masker/Respirator', 'Life Jacket', 'Full Body Harness', 'Wearpack', 'Sepatu Boot Karet'];
 

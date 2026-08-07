@@ -1,4 +1,5 @@
 /** Thin fetch wrapper plus the client-side cache of registry metadata. */
+import { setLang } from './i18n.js';
 
 async function request(path, { method = 'GET', body, raw = false } = {}) {
   const res = await fetch(path, {
@@ -44,7 +45,11 @@ export const state = {
 };
 
 export async function loadMeta() {
+  // Tanpa parameter lang, server memakai bahasa yang tersimpan pada akun —
+  // itulah sumber kebenarannya, supaya pengguna yang berpindah perangkat tetap
+  // menemukan aplikasi dalam bahasa yang ia pilih.
   const meta = await api.get('/api/meta');
+  setLang(meta.lang);
   state.meta = meta;
   state.user = meta.user;
   state.permissions = meta.permissions || {};

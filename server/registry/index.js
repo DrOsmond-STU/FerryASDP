@@ -79,7 +79,10 @@ for (const [group, modules] of SOURCES) {
       nameId: raw.nameId || raw.name,
       group: g.key,
       groupCode: g.code,
-      groupName: g.name,
+      // Bahasa Indonesia adalah sumber; nama Inggris dibawa berdampingan agar
+      // lapisan i18n cukup menukar, bukan mencari di kamus.
+      groupName: g.nameId || g.name,
+      groupNameEn: g.name,
       table: `m_${raw.key}`,
       labelField: raw.labelField || (raw.fields.some((f) => f.name === 'title') ? 'title' : 'name'),
       orgFields: raw.orgFields || orgDefault.fields,
@@ -130,7 +133,9 @@ export function moduleOrThrow(key) {
 /** Compact catalogue for the client - the UI is generated from this. */
 export function catalogue() {
   return {
-    groups: GROUPS.map((g) => ({ code: g.code, key: g.key, name: g.name, icon: g.icon, modules: g.modules })),
+    groups: GROUPS.map((g) => ({
+      code: g.code, key: g.key, name: g.nameId || g.name, nameEn: g.name, icon: g.icon, modules: g.modules,
+    })),
     modules: MODULES.map((m) => ({
       key: m.key,
       name: m.name,
@@ -139,6 +144,7 @@ export function catalogue() {
       group: m.group,
       groupCode: m.groupCode,
       groupName: m.groupName,
+      groupNameEn: m.groupNameEn,
       codePrefix: m.codePrefix,
       scope: m.scope,
       master: m.master,

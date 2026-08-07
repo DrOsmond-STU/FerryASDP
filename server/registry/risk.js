@@ -3,7 +3,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, riskFields, residualFields } from './defs.js';
 
-export const group = { code: 'H', key: 'risk', name: 'Risk Management', icon: '⚠' };
+export const group = { code: 'H', key: 'risk', name: 'Risk Management', nameId: 'Manajemen Risiko', icon: '⚠' };
 
 const TREATMENT = ['Menghindari Risiko (Avoid)', 'Mengurangi Kemungkinan', 'Mengurangi Dampak', 'Membagi / Mengalihkan (Transfer)', 'Menerima Risiko (Accept)', 'Mengambil Risiko untuk Peluang'];
 

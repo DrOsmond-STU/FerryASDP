@@ -3,7 +3,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, PRIORITY } from './defs.js';
 
-export const group = { code: 'C', key: 'quality', name: 'Quality Management', icon: '🎯' };
+export const group = { code: 'C', key: 'quality', name: 'Quality Management', nameId: 'Manajemen Mutu', icon: '🎯' };
 
 const ROOT_CAUSE_METHOD = ['5 Why', 'Fishbone (Ishikawa)', 'Fault Tree Analysis', 'FMEA', 'Pareto', 'Brainstorming Terstruktur'];
 

@@ -3,7 +3,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF } from './defs.js';
 
-export const group = { code: 'J', key: 'contractorsafety', name: 'Contractor Safety', icon: '🤝' };
+export const group = { code: 'J', key: 'contractorsafety', name: 'Contractor Safety', nameId: 'Keselamatan Kontraktor', icon: '🤝' };
 
 export default [
   m({

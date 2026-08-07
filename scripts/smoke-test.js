@@ -456,6 +456,56 @@ check('Katalog sumber widget tersedia', sources.status === 200 && sources.json.m
 check('Katalog hanya memuat modul yang boleh dilihat',
   (await ketapang('/api/custom-dashboards/sources')).json.modules.length < sources.json.modules.length);
 
+section('19. Dwibahasa Indonesia & Inggris');
+const metaId = (await corporate('/api/meta?lang=id')).json;
+const metaEn = (await corporate('/api/meta?lang=en')).json;
+check('Bahasa dilaporkan pada metadata', metaId.lang === 'id' && metaEn.lang === 'en');
+check('Dua bahasa tersedia', Array.isArray(metaEn.languages) && metaEn.languages.length === 2);
+
+const incId = metaId.modules.find((m) => m.key === 'incident');
+const incEn = metaEn.modules.find((m) => m.key === 'incident');
+check('Nama modul berpindah bahasa', incId.nameId !== incEn.nameId && incEn.nameId === 'Incident',
+  `${incId.nameId} -> ${incEn.nameId}`);
+check('Nama kelompok berpindah bahasa', incId.groupName !== incEn.groupName,
+  `${incId.groupName} -> ${incEn.groupName}`);
+check('Label isian berpindah bahasa',
+  incId.fields[0].label === 'Judul Kejadian' && incEn.fields[0].label === 'Event Title',
+  `${incId.fields[0].label} -> ${incEn.fields[0].label}`);
+check('Nama status berpindah bahasa',
+  incEn.workflow.some((w) => w.label === 'Closed') && incId.workflow.some((w) => w.label === 'Ditutup'));
+check('Nama peran berpindah bahasa',
+  metaEn.roles[0].name === 'System Administrator' && metaId.roles[0].name === 'Administrator Sistem');
+check('Tingkat risiko berpindah bahasa',
+  metaEn.riskBands[0].level === 'Low' && metaId.riskBands[0].level === 'Rendah');
+
+// Nilai tersimpan TIDAK boleh ikut berpindah bahasa: rekaman yang dibuat dalam
+// bahasa Inggris harus tetap cocok dengan penyaring dalam bahasa Indonesia.
+const sevId = incId.fields.find((f) => f.name === 'severity_class');
+const sevEn = incEn.fields.find((f) => f.name === 'severity_class');
+if (sevId?.options?.length) {
+  const valId = sevId.options.map((o) => (typeof o === 'string' ? o : o.value));
+  const valEn = sevEn.options.map((o) => (typeof o === 'string' ? o : o.value));
+  check('Nilai opsi tetap sama di kedua bahasa', JSON.stringify(valId) === JSON.stringify(valEn));
+}
+const anyTranslated = metaEn.modules.some((m) => m.fields.some((f) => (f.options || []).some(
+  (o) => typeof o === 'object' && o.label !== o.value)));
+check('Label opsi diterjemahkan terpisah dari nilainya', anyTranslated);
+
+check('Struktur katalog kedua bahasa identik',
+  metaId.modules.length === metaEn.modules.length && metaId.groups.length === metaEn.groups.length);
+check('Setiap modul tetap punya label di bahasa Inggris',
+  metaEn.modules.every((m) => m.fields.every((f) => typeof f.label === 'string' && f.label.length > 0)));
+
+// Preferensi bahasa tersimpan pada akun, bukan hanya di peramban.
+const setLang = await corporate('/api/auth/language', { method: 'PUT', body: { language: 'en' } });
+check('Bahasa dapat disimpan pada akun', setLang.status === 200 && setLang.json.language === 'en');
+const metaDefault = (await corporate('/api/meta')).json;
+check('Metadata tanpa parameter mengikuti preferensi akun', metaDefault.lang === 'en', metaDefault.lang);
+const badLang = await corporate('/api/auth/language', { method: 'PUT', body: { language: 'fr' } });
+check('Bahasa yang tidak didukung ditolak', badLang.status === 400);
+await corporate('/api/auth/language', { method: 'PUT', body: { language: 'id' } });
+check('Preferensi dapat dikembalikan', (await corporate('/api/meta')).json.lang === 'id');
+
 console.log(`\n${'─'.repeat(56)}`);
 console.log(`  ${passed} lulus, ${failed} gagal`);
 console.log(`${'─'.repeat(56)}\n`);

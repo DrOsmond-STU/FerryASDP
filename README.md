@@ -22,7 +22,8 @@ permintaan uji coba.
 npm install          # hanya memerlukan Express; basis data memakai node:sqlite bawaan Node 22
 npm run seed         # memuat master data, 12 akun demo dan ±1.830 rekaman contoh
 npm start            # http://localhost:3000
-npm run check        # 147 pemeriksaan end-to-end terhadap server yang sedang berjalan
+npm run check        # 162 pemeriksaan end-to-end terhadap server yang sedang berjalan
+npm run i18n         # laporan cakupan terjemahan Indonesia → Inggris
 ```
 
 Prasyarat: **Node.js 22.5 atau lebih baru** (menggunakan modul inti `node:sqlite`,
@@ -116,6 +117,8 @@ server/
   public.js          endpoint publik halaman depan (paket & permintaan uji coba)
   admin.js           pengguna, matriks hak akses, jejak audit, informasi sistem
   customdash.js      dashboard susunan sendiri: katalog widget & penyelesai datanya
+  i18n.js            dwibahasa: menerjemahkan katalog registry sebelum dikirim
+  i18n/en.js         kamus Indonesia → Inggris
   index.js           bootstrap Express, header keamanan, penyajian antarmuka
   seed.js            master data + rekaman contoh yang realistis
 
@@ -127,6 +130,7 @@ public/
   js/charts.js       grafik SVG tanpa pustaka pihak ketiga
   js/admin.js        layar administrasi
   js/customdash.js   penampil & penyunting dashboard (seret-lepas, warna, ukuran)
+  js/i18n.js         kamus teks antarmuka + pengalih bahasa
   css/app.css        tema terang & gelap
 ```
 
@@ -315,6 +319,24 @@ sehingga kolom karangan ditolak, dan seluruh angka tetap melewati filter hak aks
 paket yang sama dengan daftar rekaman. Widget tidak dapat dipakai sebagai jalan pintas
 melihat data cabang lain. Warna teks dihitung otomatis dari luminansi latar yang dipilih,
 supaya latar gelap tidak menghasilkan tulisan yang tak terbaca.
+
+**Dwibahasa Indonesia & Inggris** — bahasa dipilih per pengguna dan tersimpan pada akunnya,
+bukan hanya di peramban, sehingga auditor yang masuk dari perangkat lain tetap menemukan
+aplikasi dalam bahasa yang ia pilih. Angka dan tanggal ikut berpindah lokal: pemisah desimal
+Indonesia (koma) dan Inggris (titik) berbeda, dan angka keselamatan yang terbaca 1.234 di satu
+bahasa serta 1,234 di bahasa lain adalah kekeliruan yang mahal.
+
+Bahasa Indonesia adalah sumber kebenaran. Label isian, opsi pilihan dan nama status ditulis
+dalam bahasa Indonesia di registry, lalu **diterjemahkan di server** melalui kamus yang dikunci
+oleh teks Indonesianya sendiri — sehingga formulir, tabel, penyaring dan ekspor CSV ikut
+berpindah bahasa tanpa satu pun perubahan di sisi antarmuka, dan satu istilah yang dipakai 116
+modul cukup diterjemahkan satu kali. **Nilai** opsi tidak pernah ikut diterjemahkan, hanya
+labelnya: kalau nilainya ikut berubah, rekaman yang dibuat dalam bahasa Inggris tidak akan
+cocok dengan penyaring dalam bahasa Indonesia.
+
+Istilah yang belum ada di kamus tampil dalam bahasa Indonesia — bukan kosong, bukan kunci
+mentah. `npm run i18n` melaporkan cakupannya, dan `npm run i18n -- --missing` mencetak persis
+apa yang masih tertinggal.
 
 **Jejak audit** — setiap pembuatan, perubahan (beserta daftar kolom yang berubah), transisi
 status, penghapusan, ekspor, unggah lampiran dan percobaan login tercatat.

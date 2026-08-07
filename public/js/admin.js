@@ -1,6 +1,7 @@
 /** Administration screens: users, role permission matrix, audit trail, system. */
 import { api, state, invalidateUsers, userList } from './api.js';
 import { h, mount, toast, modal, spinner, emptyState, fmtDateTime, fmtDate, fmtNumber, initials } from './ui.js';
+import { t } from './i18n.js';
 
 export const ADMIN_PAGES = [
   { key: 'users', name: 'Manajemen Pengguna', icon: '👥', level: 2, render: usersPage },
@@ -11,8 +12,8 @@ export const ADMIN_PAGES = [
 
 export async function renderAdmin(container, page, params) {
   if (state.user.level > page.level) {
-    return mount(container, h('div.card', {}, h('h2', { text: 'Akses ditolak' }),
-      h('p.muted', { text: 'Halaman administrasi ini hanya untuk peran dengan level lebih tinggi.' })));
+    return mount(container, h('div.card', {}, h('h2', { text: t('Akses ditolak') }),
+      h('p.muted', { text: t('Halaman administrasi ini hanya untuk peran dengan level lebih tinggi.') })));
   }
   mount(container, spinner());
   await page.render(container, params);
@@ -32,8 +33,8 @@ async function usersPage(container) {
 
   const table = h('div.table-wrap', {}, h('table', {},
     h('thead', {}, h('tr', {},
-      h('th', { text: 'Pengguna' }), h('th', { text: 'Peran' }), h('th', { text: 'Level' }),
-      h('th', { text: 'Cakupan' }), h('th', { text: 'Terakhir Masuk' }), h('th', { text: 'Status' }), h('th', { text: '' }))),
+      h('th', { text: t('Pengguna') }), h('th', { text: t('Peran') }), h('th', { text: t('Level') }),
+      h('th', { text: t('Cakupan') }), h('th', { text: t('Terakhir Masuk') }), h('th', { text: t('Status') }), h('th', { text: '' }))),
     h('tbody', {}, ...users.map((u) => h('tr', {},
       h('td', {}, h('div', { style: 'display:flex;align-items:center;gap:.5rem' },
         h('div.avatar', { text: initials(u.full_name) }),
@@ -44,14 +45,14 @@ async function usersPage(container) {
       h('td.small', { text: u.last_login ? fmtDateTime(u.last_login) : 'belum pernah' }),
       h('td', {}, h('span.badge', { class: u.active ? 'b-ok' : 'b-danger', text: u.active ? 'Aktif' : 'Nonaktif' })),
       h('td', {}, isAdmin()
-        ? h('button.btn-sm', { onclick: () => userDialog(container, roles, u), text: 'Kelola' })
+        ? h('button.btn-sm', { onclick: () => userDialog(container, roles, u), text: t('Kelola') })
         : null))))));
 
   mount(container,
     head('Manajemen Pengguna', `${users.length} akun terdaftar pada ${roles.length} peran.`,
-      isAdmin() ? h('button.btn-primary', { onclick: () => userDialog(container, roles, null), text: '+ Pengguna Baru' }) : null),
+      isAdmin() ? h('button.btn-primary', { onclick: () => userDialog(container, roles, null), text: t('+ Pengguna Baru') }) : null),
     h('div.card', {},
-      h('h3', { text: 'Hirarki Peran' }),
+      h('h3', { text: t('Hirarki Peran') }),
       h('div.chips', {}, ...roles.map((r) => h('span.chip', { title: r.description, text: `L${r.level} ${r.name} (${r.users})` })))),
     table);
 }
@@ -71,7 +72,7 @@ async function userDialog(container, roles, existing) {
   const scopeSelects = {};
   const scopeGrid = h('div.grid.cols-2');
   for (const [key, label] of [['region', 'Regional'], ['branch', 'Cabang'], ['port', 'Pelabuhan'], ['vessel', 'Kapal'], ['contractor', 'Kontraktor']]) {
-    const select = h('select', {}, h('option', { value: '', text: '— tidak dibatasi —' }));
+    const select = h('select', {}, h('option', { value: '', text: t('— tidak dibatasi —') }));
     scopeSelects[key] = select;
     api.get(`/api/modules/${key}/options`).then(({ options }) => {
       for (const o of options) select.appendChild(h('option', { value: o.id, text: o.label }));
@@ -83,7 +84,7 @@ async function userDialog(container, roles, existing) {
   const error = h('div.alert.err.hidden');
 
   modal({
-    title: editing ? `Kelola Pengguna — ${existing.full_name}` : 'Pengguna Baru',
+    title: editing ? `${t('Kelola Pengguna')} — ${existing.full_name}` : 'Pengguna Baru',
     body: h('div', {},
       error,
       h('div.grid.cols-2', {},
@@ -93,20 +94,20 @@ async function userDialog(container, roles, existing) {
         field('Jabatan', position),
         field('Peran', role, true),
         field(editing ? 'Kata sandi baru' : 'Kata sandi awal', password, !editing)),
-      h('div.fieldset-title', { text: 'Cakupan Akses (Row-Level Security)' }),
-      h('p.small.muted', { text: 'Batasi rekaman yang dapat dilihat sesuai penempatan. Kosongkan bila peran sudah bersifat nasional.' }),
+      h('div.fieldset-title', { text: t('Cakupan Akses (Row-Level Security)') }),
+      h('p.small.muted', { text: t('Batasi rekaman yang dapat dilihat sesuai penempatan. Kosongkan bila peran sudah bersifat nasional.') }),
       scopeGrid,
-      h('div.checkbox', { style: 'margin-top:.6rem' }, active, h('span', { text: 'Akun aktif' }))),
+      h('div.checkbox', { style: 'margin-top:.6rem' }, active, h('span', { text: t('Akun aktif') }))),
     actions: [
       editing ? {
-        label: 'Buka kunci akun',
+        label: t('Buka kunci akun'),
         onClick: async () => {
           await api.post(`/api/admin/users/${existing.id}/unlock`);
           toast('Kunci akun dilepas.', 'ok');
         },
       } : null,
       {
-        label: 'Simpan',
+        label: t('Simpan'),
         class: 'btn-primary',
         onClick: async (close) => {
           const payload = {
@@ -149,14 +150,14 @@ async function permissionsPage(container) {
 
   mount(container,
     head('Hak Akses Peran', 'Matriks kewenangan per modul: lihat, buat, ubah, setujui, hapus.'),
-    h('div.card', {}, h('div.toolbar', {}, h('label', { text: 'Peran' }), selector,
+    h('div.card', {}, h('div.toolbar', {}, h('label', { text: t('Peran') }), selector,
       isAdmin() ? h('button.btn-ghost', {
         onclick: async () => {
           await api.post(`/api/admin/permissions/${currentRole}/reset`);
           toast('Hak akses dikembalikan ke bawaan sistem.', 'ok');
           load();
         },
-        text: '↺ Kembalikan ke bawaan',
+        text: t('↺ Kembalikan ke bawaan'),
       }) : null)),
     host);
 
@@ -183,13 +184,13 @@ async function permissionsPage(container) {
 
     mount(host,
       h('div.card', {},
-        h('h3', {}, `${role.name} — Level ${role.level}`),
+        h('h3', {}, `${role.name} — ${t('Level')} ${role.level}`),
         h('p.small.muted', { text: role.description }),
         locked ? h('div.alert.info', { text: role.key === 'sysadmin' ? 'Hak akses administrator sistem bersifat tetap dan tidak dapat diubah.' : 'Hanya administrator sistem yang dapat mengubah matriks ini.' }) : null,
         h('div.table-wrap', {}, h('table.perm-matrix', {},
           h('thead', {}, h('tr', {},
-            h('th', { text: 'Modul' }), h('th.right', { text: 'Lihat' }), h('th.right', { text: 'Buat' }),
-            h('th.right', { text: 'Ubah' }), h('th.right', { text: 'Setujui' }), h('th.right', { text: 'Hapus' }))),
+            h('th', { text: t('Modul') }), h('th.right', { text: t('Lihat') }), h('th.right', { text: t('Buat') }),
+            h('th.right', { text: t('Ubah') }), h('th.right', { text: t('Setujui') }), h('th.right', { text: t('Hapus') }))),
           h('tbody', {}, ...rows))),
         locked ? null : h('div', { style: 'margin-top:.8rem' },
           h('button.btn-primary', {
@@ -199,7 +200,7 @@ async function permissionsPage(container) {
               toast(`${changed.size} modul diperbarui. Pengguna terkait perlu memuat ulang halaman.`, 'ok');
               load();
             },
-            text: 'Simpan Perubahan',
+            text: t('Simpan Perubahan'),
           }))));
   }
 
@@ -212,8 +213,8 @@ async function auditLogPage(container) {
   const filters = { action: '', username: '', module: '', page: 1 };
   const host = h('div');
 
-  const actionInput = h('input', { placeholder: 'mis. login, create, status' });
-  const userInput = h('input', { placeholder: 'nama pengguna' });
+  const actionInput = h('input', { placeholder: t('mis. login, create, status') });
+  const userInput = h('input', { placeholder: t('nama pengguna') });
 
   mount(container,
     head('Jejak Audit Sistem', 'Rekaman aktivitas untuk pemenuhan ISO 27001 A.8.15 dan penelusuran perubahan data.'),
@@ -221,7 +222,7 @@ async function auditLogPage(container) {
       actionInput, userInput,
       h('button', {
         onclick: () => { filters.action = actionInput.value.trim(); filters.username = userInput.value.trim(); filters.page = 1; load(); },
-        text: 'Terapkan',
+        text: t('Terapkan'),
       }))),
     host);
 
@@ -237,8 +238,8 @@ async function auditLogPage(container) {
       data.entries.length
         ? h('div.table-wrap', {}, h('table', {},
           h('thead', {}, h('tr', {},
-            h('th', { text: 'Waktu' }), h('th', { text: 'Pengguna' }), h('th', { text: 'Aksi' }),
-            h('th', { text: 'Modul' }), h('th', { text: 'Rekaman' }), h('th', { text: 'Rincian' }), h('th', { text: 'IP' }))),
+            h('th', { text: t('Waktu') }), h('th', { text: t('Pengguna') }), h('th', { text: t('Aksi') }),
+            h('th', { text: t('Modul') }), h('th', { text: t('Rekaman') }), h('th', { text: t('Rincian') }), h('th', { text: t('IP') }))),
           h('tbody', {}, ...data.entries.map((e) => h('tr', {},
             h('td.small.nowrap', { text: fmtDateTime(e.ts) }),
             h('td.small', { text: e.username || '—' }),
@@ -270,16 +271,16 @@ async function systemPage(container) {
   mount(container,
     head('Informasi Sistem', 'Ringkasan konfigurasi dan volume data platform.'),
     h('div.grid.cols-4', {},
-      h('div.stat', {}, h('div.label', { text: 'Modul Terpasang' }), h('div.value', { text: String(info.modules) })),
-      h('div.stat', {}, h('div.label', { text: 'Total Rekaman' }), h('div.value', { text: fmtNumber(info.records) })),
-      h('div.stat', {}, h('div.label', { text: 'Pengguna Aktif' }), h('div.value', { text: String(info.users) })),
-      h('div.stat', {}, h('div.label', { text: 'Entri Jejak Audit' }), h('div.value', { text: fmtNumber(info.auditEntries) })),
-      h('div.stat', {}, h('div.label', { text: 'Sesi Aktif' }), h('div.value', { text: String(info.sessions) })),
-      h('div.stat', {}, h('div.label', { text: 'Runtime' }), h('div.value', { text: info.node }), h('div.sub', { text: `uptime ${Math.round(info.uptimeSeconds / 60)} menit` }))),
+      h('div.stat', {}, h('div.label', { text: t('Modul Terpasang') }), h('div.value', { text: String(info.modules) })),
+      h('div.stat', {}, h('div.label', { text: t('Total Rekaman') }), h('div.value', { text: fmtNumber(info.records) })),
+      h('div.stat', {}, h('div.label', { text: t('Pengguna Aktif') }), h('div.value', { text: String(info.users) })),
+      h('div.stat', {}, h('div.label', { text: t('Entri Jejak Audit') }), h('div.value', { text: fmtNumber(info.auditEntries) })),
+      h('div.stat', {}, h('div.label', { text: t('Sesi Aktif') }), h('div.value', { text: String(info.sessions) })),
+      h('div.stat', {}, h('div.label', { text: t('Runtime') }), h('div.value', { text: info.node }), h('div.sub', { text: `uptime ${Math.round(info.uptimeSeconds / 60)} menit` }))),
     h('div.card', { style: 'margin-top:1rem' },
-      h('h3', { text: 'Volume Rekaman per Modul' }),
+      h('h3', { text: t('Volume Rekaman per Modul') }),
       h('div.table-wrap', {}, h('table', {},
-        h('thead', {}, h('tr', {}, h('th', { text: 'Kelompok' }), h('th', { text: 'Modul' }), h('th', { text: 'Kunci' }), h('th.right', { text: 'Rekaman' }))),
+        h('thead', {}, h('tr', {}, h('th', { text: t('Kelompok') }), h('th', { text: t('Modul') }), h('th', { text: t('Kunci') }), h('th.right', { text: t('Rekaman') }))),
         h('tbody', {}, ...info.byModule.map((m) => h('tr.clickable', { onclick: () => { location.hash = `#/m/${m.key}`; } },
           h('td.small.muted', { text: m.group }), h('td', { text: m.name }),
           h('td.small.mono', { text: m.key }), h('td.right', { text: fmtNumber(m.records) }))))))));

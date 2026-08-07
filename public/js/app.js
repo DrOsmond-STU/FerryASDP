@@ -8,6 +8,7 @@ import { renderDashboard, DASHBOARDS } from './dashboards.js';
 import { renderAdmin, ADMIN_PAGES } from './admin.js';
 import { renderLanding } from './landing.js';
 import { renderCustomDashboard, listCustomDashboards, newDashboardDialog } from './customdash.js';
+import { t, lang, setLang } from './i18n.js';
 
 const root = document.getElementById('app');
 
@@ -29,30 +30,30 @@ function renderLogin(message) {
 function navigation() {
   const nav = h('nav.nav');
   const search = h('input', {
-    type: 'search', placeholder: 'Cari modul…', 'aria-label': 'Cari modul',
+    type: 'search', placeholder: t('Cari modul…'), 'aria-label': t('Cari modul'),
     oninput: () => filter(search.value.trim().toLowerCase()),
   });
 
   const dashGroup = h('details.nav-group', { open: true },
-    h('summary', {}, h('span', { text: '▾' }), 'Dashboard'),
+    h('summary', {}, h('span', { text: '▾' }), t('Dashboard')),
     ...DASHBOARDS
       .filter((d) => (!d.requires || (can(d.requires, 'view') && entitled(d.requires))))
       .filter((d) => !d.platformOnly || state.subscription?.platform)
-      .map((d) => link(`#/dashboard/${d.key}`, d.icon, d.name)));
+      .map((d) => link(`#/dashboard/${d.key}`, d.icon, t(d.name))));
   nav.appendChild(dashGroup);
 
   // Dashboard susunan sendiri berdiri sebagai kelompok terpisah supaya jelas
   // mana yang bawaan aplikasi dan mana yang disusun oleh administrator.
   const customGroup = h('details.nav-group', { open: true },
-    h('summary', {}, h('span', { text: '▾' }), 'Dashboard Kustom'),
+    h('summary', {}, h('span', { text: '▾' }), t('Dashboard Kustom')),
     ...customDashboards.dashboards.map((d) =>
-      link(`#/custom/${d.key}`, d.icon || '📌', d.published ? d.name : `${d.name} (draf)`)),
+      link(`#/custom/${d.key}`, d.icon || '📌', d.published ? d.name : `${d.name} (${lang() === 'en' ? 'draft' : 'draf'})`)),
     customDashboards.canEdit
       ? h('a', {
         href: '#',
-        dataset: { label: 'dashboard baru' },
+        dataset: { label: t('Dashboard baru').toLowerCase() },
         onclick: (e) => { e.preventDefault(); newDashboardDialog((key) => { location.hash = `#/custom/${key}`; }); },
-      }, h('span.ic', { text: '＋' }), h('span', { text: 'Dashboard baru' }))
+      }, h('span.ic', { text: '＋' }), h('span', { text: t('Dashboard baru') }))
       : null);
   if (customDashboards.dashboards.length || customDashboards.canEdit) nav.appendChild(customGroup);
 
@@ -64,7 +65,7 @@ function navigation() {
       h('summary', {},
         h('span', { text: '▾' }),
         `${group.code}. ${group.name}`,
-        locked === modules.length ? h('span.nav-lock', { title: 'Di luar paket langganan', text: '🔒' }) : null),
+        locked === modules.length ? h('span.nav-lock', { title: t('Di luar paket langganan'), text: '🔒' }) : null),
       ...modules.map((m) => (entitled(m.key)
         ? link(`#/m/${m.key}`, m.icon, m.nameId)
         : lockedLink(m))));
@@ -73,7 +74,7 @@ function navigation() {
 
   if (state.user.level <= 3) {
     nav.appendChild(h('details.nav-group', {},
-      h('summary', {}, h('span', { text: '▾' }), 'Administrasi'),
+      h('summary', {}, h('span', { text: '▾' }), t('Administrasi')),
       ...ADMIN_PAGES.filter((p) => state.user.level <= p.level)
         .map((p) => link(`#/admin/${p.key}`, p.icon, p.name))));
   }
@@ -88,7 +89,7 @@ function navigation() {
     return h('a.locked', {
       href: '#',
       dataset: { label: m.nameId.toLowerCase() },
-      title: 'Tidak termasuk paket langganan cabang Anda',
+      title: t('Tidak termasuk paket langganan cabang Anda'),
       onclick: (e) => { e.preventDefault(); upgradeDialog(m); },
     }, h('span.ic', { text: '🔒' }), h('span', { text: m.nameId }));
   }
@@ -135,13 +136,13 @@ function subscriptionChip() {
         : ['past_due', 'suspended', 'ended'].includes(sub.status) ? 'b-danger' : 'b-draft';
 
   const label = sub.platform
-    ? 'Pengelola Platform'
-    : `${sub.planName || 'Tanpa paket'} · ${sub.statusLabel}`;
+    ? t('Pengelola Platform')
+    : `${sub.planName || t('Tanpa paket')} · ${sub.statusLabel}`;
 
   return h('span.badge', {
     class: `${tone} clickable`,
     style: 'cursor:pointer',
-    title: 'Rincian langganan cabang',
+    title: t('Rincian langganan cabang'),
     text: label,
     onclick: () => subscriptionDialog(),
   });
@@ -153,21 +154,21 @@ function subscriptionDialog() {
   const money = (v) => (v ? `Rp ${Number(v).toLocaleString('id-ID')}` : '—');
 
   modal({
-    title: 'Langganan Cabang',
+    title: t('Langganan Cabang'),
     body: h('div', {},
       sub.platform
-        ? h('div.alert.info', { text: 'Anda masuk sebagai pengelola platform: seluruh modul dan seluruh tenant dapat diakses.' })
+        ? h('div.alert.info', { text: t('Anda masuk sebagai pengelola platform: seluruh modul dan seluruh tenant dapat diakses.') })
         : sub.reason ? h('div.alert.err', { text: sub.reason }) : null,
       h('div.detail-grid', {},
-        row('Cabang', sub.branch),
-        row('Paket', sub.planName),
-        row('Status', sub.statusLabel),
-        row('Biaya bulanan', money(sub.monthlyFee)),
-        row('Kuota pengguna', sub.seats ? `${sub.activeUsers ?? 0} dari ${sub.seats}` : 'Tanpa batas'),
-        row('Modul aktif', `${sub.moduleCount} dari ${sub.totalModules}`),
-        row('Tagihan berikutnya', sub.nextBilling),
-        row('Akhir uji coba', sub.trialEnd),
-        row('Akhir kontrak', sub.contractEnd)),
+        row(t('Cabang'), sub.branch),
+        row(t('Paket'), sub.planName),
+        row(t('Status'), sub.statusLabel),
+        row(t('Biaya bulanan'), money(sub.monthlyFee)),
+        row(t('Kuota pengguna'), sub.seats ? `${sub.activeUsers ?? 0} ${t('dari')} ${sub.seats}` : t('Tanpa batas')),
+        row(t('Modul aktif'), `${sub.moduleCount} ${t('dari')} ${sub.totalModules}`),
+        row(t('Tagihan berikutnya'), sub.nextBilling),
+        row(t('Akhir uji coba'), sub.trialEnd),
+        row(t('Akhir kontrak'), sub.contractEnd)),
       h('div.progress', { style: 'margin-top:.9rem' },
         h('span', { style: `width:${Math.round((sub.moduleCount / sub.totalModules) * 100)}%` })),
       h('p.small.muted', { style: 'margin-top:.4rem', text: `${Math.round((sub.moduleCount / sub.totalModules) * 100)}% dari seluruh modul platform aktif untuk cabang ini.` })),
@@ -178,19 +179,29 @@ function userMenu() {
   const u = state.user;
   return h('div.userchip', {
     onclick: () => modal({
-      title: 'Akun & Sesi',
+      title: t('Akun & Sesi'),
       body: h('div', {},
         h('div.detail-grid', {},
-          info('Nama', u.full_name),
-          info('Nama pengguna', u.username),
-          info('Jabatan', u.position || '—'),
-          info('Peran', `${u.role_name} (Level ${u.level})`),
-          info('Cakupan akses', scopeLabel(u.scope_type)),
-          info('Surel', u.email || '—')),
+          info(t('Nama'), u.full_name),
+          info(t('Nama pengguna'), u.username),
+          info(t('Jabatan'), u.position || '—'),
+          info(t('Peran'), `${u.role_name} (Level ${u.level})`),
+          info(t('Cakupan akses'), scopeLabel(u.scope_type)),
+          info(t('Surel'), u.email || '—')),
+        // Pengalih bahasa ditaruh pada menu akun, bukan pada bilah atas: ini
+        // preferensi yang tersimpan pada akun dan jarang diubah, bukan sakelar
+        // tampilan sekali pakai.
+        h('div.field', { style: 'margin-top:1rem' },
+          h('label', { text: t('Bahasa') }),
+          h('select', {
+            onchange: (e) => switchLanguage(e.target.value),
+          },
+            h('option', { value: 'id', selected: lang() === 'id', text: 'Bahasa Indonesia' }),
+            h('option', { value: 'en', selected: lang() === 'en', text: 'English' }))),
         h('div', { style: 'margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap' },
-          h('button', { onclick: passwordDialog, text: 'Ubah kata sandi' }),
-          h('button', { onclick: toggleTheme, text: 'Ganti tema terang/gelap' }),
-          h('button.btn-danger', { onclick: logout, text: 'Keluar' }))),
+          h('button', { onclick: passwordDialog, text: t('Ubah kata sandi') }),
+          h('button', { onclick: toggleTheme, text: t('Ganti tema terang/gelap') }),
+          h('button.btn-danger', { onclick: logout, text: t('Keluar') }))),
     }),
   },
     h('div.avatar', { text: initials(u.full_name) }),
@@ -199,7 +210,7 @@ function userMenu() {
 
 const info = (label, value) => h('div.dl-item', {}, h('dt', { text: label }), h('dd', { text: value ?? '—' }));
 
-const scopeLabel = (scope) => ({
+const scopeLabel = (scope) => t({
   global: 'Nasional (seluruh unit)',
   region: 'Regional',
   branch: 'Cabang',
@@ -207,6 +218,26 @@ const scopeLabel = (scope) => ({
   vessel: 'Kapal',
   own: 'Rekaman milik sendiri',
 }[scope] || scope);
+
+/**
+ * Mengganti bahasa berarti memuat ulang metadata: seluruh label isian, opsi
+ * pilihan dan nama status datang dari server sudah dalam bahasa yang dipilih,
+ * jadi tidak ada yang perlu diterjemahkan ulang di sini.
+ */
+async function switchLanguage(next) {
+  if (next === lang()) return;
+  setLang(next);
+  try {
+    await api.put('/api/auth/language', { language: next });
+  } catch {
+    // Preferensi gagal tersimpan bukan alasan menahan pergantian tampilan.
+  }
+  clear(document.getElementById('modal-root'));
+  const hash = location.hash;
+  await start();
+  location.hash = hash;
+  await route();
+}
 
 function toggleTheme() {
   const current = document.documentElement.dataset.theme
@@ -221,20 +252,20 @@ function passwordDialog() {
   const next = h('input', { type: 'password', autocomplete: 'new-password' });
   const error = h('div.alert.err.hidden');
   modal({
-    title: 'Ubah Kata Sandi',
+    title: t('Ubah Kata Sandi'),
     body: h('div', {},
       error,
-      h('div.field.required', {}, h('label', { text: 'Kata sandi saat ini' }), current),
-      h('div.field.required', {}, h('label', { text: 'Kata sandi baru' }), next,
-        h('div.help', { text: 'Minimal 10 karakter, mengandung huruf besar, huruf kecil dan angka.' }))),
+      h('div.field.required', {}, h('label', { text: t('Kata sandi saat ini') }), current),
+      h('div.field.required', {}, h('label', { text: t('Kata sandi baru') }), next,
+        h('div.help', { text: t('Minimal 10 karakter, mengandung huruf besar, huruf kecil dan angka.') }))),
     actions: [{
-      label: 'Simpan',
+      label: t('Simpan'),
       class: 'btn-primary',
       onClick: async (close) => {
         try {
           await api.post('/api/auth/password', { currentPassword: current.value, newPassword: next.value });
           close();
-          toast('Kata sandi diperbarui. Silakan masuk kembali.', 'ok');
+          toast(t('Kata sandi diperbarui. Silakan masuk kembali.'), 'ok');
           renderLogin();
         } catch (err) {
           error.textContent = err.message;
@@ -261,12 +292,12 @@ function renderShell() {
       h('div.mark', { text: '⚓' }),
       h('div', {},
         h('b', { text: 'QHSE ASDP' }),
-        h('span', { text: `${state.meta.app.moduleCount} modul terintegrasi` }))),
+        h('span', { text: `${state.meta.app.moduleCount} ${t('modul terintegrasi')}` }))),
     h('div.nav-search', {}, search),
     nav);
 
   const crumb = h('div.crumb');
-  const content = h('main.content', {}, h('div.empty', { text: 'Memuat…' }));
+  const content = h('main.content', {}, h('div.empty', { text: t('Memuat…') }));
 
   mount(root,
     h('div.layout', {},
@@ -310,15 +341,15 @@ async function route() {
     if (parts[0] === 'dashboard') {
       const key = parts[1] || 'executive';
       const def = DASHBOARDS.find((d) => d.key === key) || DASHBOARDS[0];
-      setCrumb('Dashboard', def.name);
-      document.title = `${def.name} — QHSE ASDP`;
+      setCrumb(t('Dashboard'), t(def.name));
+      document.title = `${t(def.name)} — QHSE ASDP`;
       await renderDashboard(shell.content, def);
       return;
     }
 
     if (parts[0] === 'custom' && parts[1]) {
       const def = customDashboards.dashboards.find((d) => d.key === parts[1]);
-      setCrumb('Dashboard Kustom', def?.name || parts[1]);
+      setCrumb(t('Dashboard Kustom'), def?.name || parts[1]);
       document.title = `${def?.name || 'Dashboard'} — QHSE ASDP`;
       await renderCustomDashboard(shell.content, parts[1]);
       return;
@@ -326,7 +357,7 @@ async function route() {
 
     if (parts[0] === 'admin') {
       const page = ADMIN_PAGES.find((p) => p.key === parts[1]) || ADMIN_PAGES[0];
-      setCrumb('Administrasi', page.name);
+      setCrumb(t('Administrasi'), page.name);
       document.title = `${page.name} — QHSE ASDP`;
       await renderAdmin(shell.content, page, parts.slice(2));
       return;
@@ -335,24 +366,24 @@ async function route() {
     if (parts[0] === 'm' && parts[1]) {
       const module = mod(parts[1]);
       if (!module) {
-        mount(shell.content, h('div.card', {}, h('h2', { text: 'Modul tidak ditemukan' }),
-          h('p.muted', { text: 'Periksa kembali tautan atau pilih modul dari menu di samping.' })));
+        mount(shell.content, h('div.card', {}, h('h2', { text: t('Modul tidak ditemukan') }),
+          h('p.muted', { text: t('Periksa kembali tautan atau pilih modul dari menu di samping.') })));
         return;
       }
       if (!can(module.key, 'view')) {
-        mount(shell.content, h('div.card', {}, h('h2', { text: 'Akses ditolak' }),
+        mount(shell.content, h('div.card', {}, h('h2', { text: t('Akses ditolak') }),
           h('p.muted', { text: `Peran ${state.user.role_name} tidak memiliki hak baca pada modul ini.` })));
         return;
       }
       if (!entitled(module.key)) {
-        setCrumb(module.groupName, module.nameId, 'Di luar paket');
+        setCrumb(module.groupName, module.nameId, t('Di luar paket'));
         mount(shell.content, h('div.card', {},
           h('h2', {}, h('span', { text: '🔒 ' }), module.nameId),
           h('p.muted', { text: `Modul ini tidak termasuk paket ${state.subscription?.planName || 'langganan cabang Anda'}.` }),
-          h('button.btn-primary', { onclick: () => upgradeDialog(module), text: 'Lihat rincian modul & peningkatan paket' })));
+          h('button.btn-primary', { onclick: () => upgradeDialog(module), text: t('Lihat rincian modul & peningkatan paket') })));
         return;
       }
-      setCrumb(module.groupName, module.nameId, parts[2] ? (parts[2] === 'new' ? 'Rekaman baru' : `#${parts[2]}`) : null);
+      setCrumb(module.groupName, module.nameId, parts[2] ? (parts[2] === 'new' ? t('Rekaman baru') : `#${parts[2]}`) : null);
       document.title = `${module.nameId} — QHSE ASDP`;
 
       if (parts[2] === 'new') return renderRecordForm(shell.content, module, null);
@@ -364,7 +395,7 @@ async function route() {
     location.hash = '#/dashboard/executive';
   } catch (err) {
     console.error(err);
-    mount(shell.content, h('div.card', {}, h('h2', { text: 'Terjadi kesalahan' }), h('p.muted', { text: err.message })));
+    mount(shell.content, h('div.card', {}, h('h2', { text: t('Terjadi kesalahan') }), h('p.muted', { text: err.message })));
   }
 }
 
@@ -376,7 +407,7 @@ async function start() {
   shell = renderShell();
   await route();
   if (state.user.must_change_password) {
-    toast('Kata sandi masih bawaan sistem. Silakan ubah melalui menu akun.', 'err');
+    toast(t('Kata sandi masih bawaan sistem. Silakan ubah melalui menu akun.'), 'err');
   }
 }
 
@@ -398,7 +429,7 @@ window.addEventListener('qhse:dashboards-changed', async () => {
 window.addEventListener('qhse:unauthorised', () => {
   if (state.user) {
     state.user = null;
-    renderLogin('Sesi Anda telah berakhir. Silakan masuk kembali.');
+    renderLogin(t('Sesi Anda telah berakhir. Silakan masuk kembali.'));
   }
 });
 

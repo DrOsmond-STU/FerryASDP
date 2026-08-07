@@ -1,4 +1,5 @@
 /** Small DOM + formatting helpers shared by every view. */
+import { t, lang } from './i18n.js';
 
 /** h('div.card', {onclick}, children) - terse element builder. */
 export function h(spec, props = {}, ...children) {
@@ -30,41 +31,47 @@ export const mount = (el, ...children) => { clear(el); append(el, children); ret
 
 /* ---------------------------------------------------------- formatting */
 
-const ID = 'id-ID';
+/**
+ * Format angka dan tanggal mengikuti bahasa yang dipilih. Pemisah desimal
+ * Indonesia (koma) dan Inggris (titik) berbeda, dan angka keselamatan yang
+ * terbaca 1.234 di satu bahasa serta 1,234 di bahasa lain adalah kekeliruan
+ * yang mahal — bukan sekadar selera tampilan.
+ */
+const locale = () => (lang() === 'en' ? 'en-GB' : 'id-ID');
 
 export const fmtNumber = (v, digits = 0) =>
   v === null || v === undefined || v === '' || Number.isNaN(Number(v))
     ? '—'
-    : Number(v).toLocaleString(ID, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    : Number(v).toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 export const fmtDecimal = (v, digits = 2) => {
   if (v === null || v === undefined || v === '') return '—';
   const n = Number(v);
   if (!Number.isFinite(n)) return '—';
-  return n.toLocaleString(ID, { maximumFractionDigits: digits });
+  return n.toLocaleString(locale(), { maximumFractionDigits: digits });
 };
 
 export function fmtCurrency(v) {
   if (v === null || v === undefined || v === '') return '—';
   const n = Number(v);
   if (!Number.isFinite(n)) return '—';
-  if (Math.abs(n) >= 1e9) return `Rp ${(n / 1e9).toLocaleString(ID, { maximumFractionDigits: 2 })} M`;
-  if (Math.abs(n) >= 1e6) return `Rp ${(n / 1e6).toLocaleString(ID, { maximumFractionDigits: 1 })} jt`;
-  return `Rp ${n.toLocaleString(ID)}`;
+  if (Math.abs(n) >= 1e9) return `Rp ${(n / 1e9).toLocaleString(locale(), { maximumFractionDigits: 2 })} ${lang() === 'en' ? 'bn' : 'M'}`;
+  if (Math.abs(n) >= 1e6) return `Rp ${(n / 1e6).toLocaleString(locale(), { maximumFractionDigits: 1 })} ${lang() === 'en' ? 'm' : 'jt'}`;
+  return `Rp ${n.toLocaleString(locale())}`;
 }
 
 export function fmtDate(v) {
   if (!v) return '—';
   const d = new Date(v.length <= 10 ? `${v}T00:00:00` : v);
   if (Number.isNaN(d.getTime())) return v;
-  return d.toLocaleDateString(ID, { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(locale(), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export function fmtDateTime(v) {
   if (!v) return '—';
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return v;
-  return d.toLocaleString(ID, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString(locale(), { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 export const initials = (name) =>
@@ -123,7 +130,7 @@ export function modal({ title, body, actions = [], onClose }) {
     h('div.modal-actions', {},
       ...actions.map((a) =>
         h('button', { class: a.class || '', onclick: () => a.onClick?.(close), text: a.label })),
-      h('button', { class: 'btn-ghost', onclick: close, text: 'Tutup' })),
+      h('button', { class: 'btn-ghost', onclick: close, text: t('Tutup') })),
   );
   const backdrop = h('div.modal-backdrop', {
     onclick: (e) => { if (e.target === backdrop) close(); },
@@ -134,9 +141,9 @@ export function modal({ title, body, actions = [], onClose }) {
 
 export function confirmDialog(message, onConfirm) {
   modal({
-    title: 'Konfirmasi',
+    title: t('Konfirmasi'),
     body: h('p', { text: message }),
-    actions: [{ label: 'Ya, lanjutkan', class: 'btn-danger', onClick: (close) => { close(); onConfirm(); } }],
+    actions: [{ label: t('Ya, lanjutkan'), class: 'btn-danger', onClick: (close) => { close(); onConfirm(); } }],
   });
 }
 
@@ -148,6 +155,6 @@ export const stat = (label, value, { sub, tone = '', unit } = {}) =>
     h('div.value', {}, String(value ?? '—'), unit ? h('small', { text: ` ${unit}` }) : null),
     sub ? h('div.sub', { text: sub }) : null);
 
-export const emptyState = (text = 'Belum ada data.') => h('div.empty', { text });
+export const emptyState = (text = 'Belum ada data.') => h('div.empty', { text: t(text) });
 
-export const spinner = (text = 'Memuat…') => h('div.empty', { text });
+export const spinner = (text = 'Memuat…') => h('div.empty', { text: t(text) });

@@ -9,7 +9,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 
-import { migrate, get, logAudit, setting } from './db.js';
+import { migrate, get, run, logAudit, setting } from './db.js';
 import { catalogue, GROUPS, MODULES } from './registry/index.js';
 import { seedRoles, permissionSummary, ROLES, clearPermissionCache } from './rbac.js';
 import { RISK_BANDS, EMISSION_FACTORS } from './compute.js';
@@ -22,6 +22,7 @@ import { publicRouter } from './public.js';
 import { subscriptionSummary, clearTenancyCache } from './tenancy.js';
 import { dashboardRouter } from './dashboards.js';
 import { adminRouter } from './admin.js';
+import { pickLang, isLang, localiseCatalogue, localiseRoles, localiseRiskBands, LANGS } from './i18n.js';
 import { customRouter } from './customdash.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -85,6 +86,19 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
+/**
+ * Bahasa disimpan pada akun, bukan hanya di peramban: seorang auditor yang
+ * masuk dari perangkat lain harus tetap menemukan aplikasinya dalam bahasa
+ * yang ia pilih.
+ */
+app.put('/api/auth/language', requireAuth, (req, res) => {
+  const lang = req.body?.language;
+  if (!isLang(lang)) return res.status(400).json({ error: 'Bahasa tidak dikenal / Unknown language.' });
+  run('UPDATE users SET language = ?, updated_at = ? WHERE id = ?', [lang, new Date().toISOString(), req.user.id]);
+  logAudit({ user: req.user, action: 'user.language', detail: lang, ip: req.ip });
+  res.json({ ok: true, language: lang });
+});
+
 app.post('/api/auth/password', requireAuth, (req, res, next) => {
   try {
     changePassword(req.user, { currentPassword: req.body?.currentPassword, newPassword: req.body?.newPassword });
@@ -111,6 +125,7 @@ function publicUser(user) {
     port_id: user.port_id,
     vessel_id: user.vessel_id,
     contractor_id: user.contractor_id,
+    language: isLang(user.language) ? user.language : 'id',
     must_change_password: !!user.must_change_password,
   };
 }
@@ -118,6 +133,7 @@ function publicUser(user) {
 /* ------------------------------------------------------------------- meta */
 
 app.get('/api/meta', requireAuth, (req, res) => {
+  const lang = pickLang(req);
   res.json({
     app: {
       name: 'Enterprise Integrated QHSE Management System',
@@ -126,9 +142,11 @@ app.get('/api/meta', requireAuth, (req, res) => {
       moduleCount: MODULES.length,
       groupCount: GROUPS.length,
     },
-    ...catalogue(),
-    roles: ROLES,
-    riskBands: RISK_BANDS,
+    lang,
+    languages: LANGS,
+    ...localiseCatalogue(catalogue(), lang),
+    roles: localiseRoles(ROLES, lang),
+    riskBands: localiseRiskBands(RISK_BANDS, lang),
     emissionFactors: EMISSION_FACTORS,
     user: publicUser(req.user),
     permissions: permissionSummary(req.user),

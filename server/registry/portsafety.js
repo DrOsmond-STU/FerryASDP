@@ -6,7 +6,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, CHECK_RESULT, riskFields } from './defs.js';
 
-export const group = { code: 'M', key: 'portsafety', name: 'Port Safety (ASDP)', icon: '🏖' };
+export const group = { code: 'M', key: 'portsafety', name: 'Port Safety (ASDP)', nameId: 'Keselamatan Pelabuhan (ASDP)', icon: '🏖' };
 
 const CHK = (name, label) => sel(name, label, CHECK_RESULT, { group: 'Checklist' });
 

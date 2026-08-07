@@ -7,7 +7,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, PRIORITY } from './defs.js';
 
-export const group = { code: 'O', key: 'saas', name: 'Langganan & Penagihan', icon: '💳' };
+export const group = { code: 'O', key: 'saas', name: 'Subscription & Billing', nameId: 'Langganan & Penagihan', icon: '💳' };
 
 /** Kelompok modul yang dapat dimasukkan ke dalam sebuah paket. */
 export const GROUP_OPTIONS = [

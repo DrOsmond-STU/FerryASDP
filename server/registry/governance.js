@@ -7,7 +7,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, PRIORITY } from './defs.js';
 
-export const group = { code: 'A', key: 'governance', name: 'Governance & Master Data', icon: '⚙' };
+export const group = { code: 'A', key: 'governance', name: 'Governance & Master Data', nameId: 'Tata Kelola & Data Induk', icon: '⚙' };
 
 export default [
   m({

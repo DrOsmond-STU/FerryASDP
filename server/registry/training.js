@@ -13,7 +13,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, PRIORITY } from './defs.js';
 
-export const group = { code: 'P', key: 'training', name: 'Competency & Training Management', icon: '🎓' };
+export const group = { code: 'P', key: 'training', name: 'Competency & Training Management', nameId: 'Kompetensi & Pelatihan', icon: '🎓' };
 
 /* --------------------------------------------------------------- pilihan */
 

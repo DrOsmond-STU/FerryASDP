@@ -7,7 +7,7 @@
  */
 import { m, f, req, sel, num, dt, txt, WF, CHECK_RESULT, riskFields } from './defs.js';
 
-export const group = { code: 'K', key: 'maritime', name: 'Maritime Safety', icon: '⚓' };
+export const group = { code: 'K', key: 'maritime', name: 'Maritime Safety', nameId: 'Keselamatan Pelayaran', icon: '⚓' };
 
 const CHK = (name, label, help) => sel(name, label, CHECK_RESULT, { group: 'Checklist', ...(help ? { help } : {}) });
 

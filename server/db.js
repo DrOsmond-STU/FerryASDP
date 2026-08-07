@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS users (
   vessel_id INTEGER,
   contractor_id INTEGER,
   active INTEGER NOT NULL DEFAULT 1,
+  language TEXT NOT NULL DEFAULT 'id',
   must_change_password INTEGER NOT NULL DEFAULT 0,
   failed_attempts INTEGER NOT NULL DEFAULT 0,
   locked_until TEXT,
@@ -207,6 +208,12 @@ CREATE TABLE IF NOT EXISTS settings (
 /** Create/upgrade the schema. Adding a field to a module adds a column. */
 export function migrate() {
   db.exec(CORE_SCHEMA);
+
+  // Kolom pada tabel inti tidak dibangkitkan dari registry, jadi penambahannya
+  // perlu disebut satu per satu di sini agar basis data yang sudah berjalan
+  // ikut terbawa.
+  const userCols = new Set(all('PRAGMA table_info(users)').map((c) => c.name));
+  if (!userCols.has('language')) db.exec("ALTER TABLE users ADD COLUMN language TEXT NOT NULL DEFAULT 'id'");
 
   for (const mod of MODULES) {
     const cols = COMMON_COLUMNS.map(([name, type]) => `"${name}" ${type}`);

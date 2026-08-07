@@ -12,6 +12,7 @@
     "dev": "node --watch server/index.js",
     "seed": "node server/seed.js",
     "reset": "node server/seed.js --reset",
+    "i18n": "node scripts/i18n-coverage.js",
     "check": "node scripts/smoke-test.js"
   },
   "dependencies": {
