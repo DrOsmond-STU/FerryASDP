@@ -4,22 +4,25 @@ Berkas di direktori ini adalah **salinan** dari yang berjalan di server. Aslinya
 hanya ada di `/home/semestat/` dan akan hilang seluruhnya bila akun hosting itu
 dibersihkan.
 
-## Status per 7 Agustus 2026, 07.31 WIB
+## Status per 7 Agustus 2026, 10.00 WIB
 
 | Bagian | Keadaan |
 |---|---|
-| Proses aplikasi (Express, port 3500) | **berjalan** — pid 2657583, RSS 74,2 MB |
+| Proses aplikasi (Express, port 3500) | **berjalan** — pid 3409410, RSS 77,5 MB |
 | Modul terpasang | **116 modul dalam 15 kelompok** (`/api/health`) |
-| Basis data SQLite | **tersemai** — 1.794 rekaman, 12 pengguna |
+| Basis data SQLite | **tersemai** — 1.828 rekaman, 12 pengguna |
 | Jalur publik lewat Apache | **200** pada `/`, `/api/health`, `/api/public/plans`, aset statis |
 | Redirect HTTP → HTTPS | **301** |
 | Alur masuk lewat URL publik | **200** (login, `/api/meta`, dashboard langganan) |
 | Kelompok P — pelatihan | **200** dengan isi: katalog 43, matriks 72, kesenjangan 10, sertifikat 25 |
+| Kartu skor berimbang | **200** — skor 85,92 dengan empat perspektif berbobot 100 |
+| Dashboard analitik | **200** — 1.658 rekaman, rata-rata penutupan CAPA 54,5 hari |
+| Dashboard kustom | **200** — 1 dashboard, 10 widget seluruhnya terhitung |
 | Header keamanan | CSP, X-Frame-Options, nosniff, Referrer-Policy, HSTS 2 tahun |
 
-Penambahan kelompok P dipasang di atas basis data yang sudah berjalan:
-penyemaian aditif menambah **368 rekaman** dan tidak menyentuh 1.426 rekaman
-yang sudah ada.
+Seluruh penambahan dipasang di atas basis data yang sudah berjalan, tanpa
+penyemaian ulang: penyemaian aditif hanya mengisi yang kosong dan tidak pernah
+menyentuh rekaman yang sudah ada.
 
 ## Bentuk pemasangan
 
@@ -46,7 +49,8 @@ Apache (subdomain)  ──[P]──►  127.0.0.1:3500  ──►  ~/asdp-data/q
 
 Akun ini berbatas `lve_pmem` **1024 MB keras**, dan tiga aplikasi lain sudah
 memakai ratusan MB untuk melayani pengunjung sungguhan. Aplikasi QHSE ASDP
-terukur **68,8 MB RSS** saat melayani seluruh rute — muat dengan sangat lapang.
+terukur **77,5 MB RSS** saat melayani seluruh rute, termasuk 116 modul dan 16
+dashboard — muat dengan sangat lapang.
 
 Tiga keputusan rancangan yang membuatnya demikian, dan semuanya diambil sebelum
 target pemasangan diketahui:
@@ -71,7 +75,7 @@ Menit yang **tidak pernah** dipakai satu pun dari mereka: `2, 4, 5, 15, 17, 19,
 | Cron | Jadwal | Guna |
 |---|---|---|
 | `asdp-runner.sh` | `2,15,25,37,47,57` | pasang bila diminta, semai bila perlu, nyalakan bila mati |
-| `asdp-live-check.sh` | `22,52` | dijalankan hanya bila penanda `~/asdp-live.request` ada |
+| `asdp-live-check.sh` | `*/6` | dijalankan hanya bila penanda `~/asdp-live.request` ada |
 
 ## Pelajaran mahal: `flock` mematikan runner tanpa satu pun pesan
 
