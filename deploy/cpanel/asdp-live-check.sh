@@ -60,6 +60,19 @@ BASE_PUBLIC=https://asdp.semestateknologiutama.com
   echo "meta:  $(curl -s -m 25 -b "$JAR" -o /dev/null -w '%{http_code}' "$BASE_PUBLIC/api/meta")"
   echo "dashboard langganan: $(curl -s -m 25 -b "$JAR" -o /dev/null -w '%{http_code}' "$BASE_PUBLIC/api/dashboard/subscription")"
   echo "MRR: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/dashboard/subscription" | head -c 160)"
+
+  # Modul baru tidak cukup diperiksa dengan kode 200: tabel yang baru dibuat
+  # menjawab 200 dengan seluruh angka nol. Karena itu isi jawabannya ikut
+  # dicetak — kalau penyemaian aditif tidak jalan, terlihat di sini.
+  echo
+  echo "--- kompetensi & pelatihan (kelompok P) ---"
+  echo "dashboard pelatihan: $(curl -s -m 25 -b "$JAR" -o /dev/null -w '%{http_code}' "$BASE_PUBLIC/api/dashboard/training")"
+  echo "kartu: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/dashboard/training" | head -c 420)"
+  echo
+  echo "katalog: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/modules/training_master/records?size=1" | head -c 90)"
+  echo "matriks: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/modules/training_matrix/records?size=1" | head -c 90)"
+  echo "gap:     $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/modules/skill_gap/records?size=1" | head -c 90)"
+  echo "sertif:  $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/modules/employee_certification/records?size=1" | head -c 90)"
   rm -f "$JAR"
 
   echo
