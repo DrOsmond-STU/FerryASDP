@@ -22,7 +22,7 @@ if (process.argv.includes('--reset')) {
 
 const { db, migrate, get, run, all, nextCode, setting } = await import('./db.js');
 const { seedRoles } = await import('./rbac.js');
-const { MODULE_BY_KEY } = await import('./registry/index.js');
+const { MODULE_BY_KEY, MODULES } = await import('./registry/index.js');
 const { applyComputed } = await import('./compute.js');
 const { hashPassword } = await import('./auth.js');
 
@@ -109,8 +109,19 @@ function insert(moduleKey, data, { status, org = {}, createdAt } = {}) {
    */
   if (mod.workflow.find((s) => s.key === row.status)?.terminal) {
     const [min, max] = CLOSURE_LAG_DAYS[mod.key] || [1, 21];
-    const closed = new Date(row.created_at).getTime() + randInt(min, max) * 86400000;
-    row.closed_at = new Date(Math.min(closed, Date.now())).toISOString();
+    const lag = randInt(min, max) * 86400000;
+    const createdMs = new Date(row.created_at).getTime();
+    if (createdMs + lag > Date.now()) {
+      // Rekaman yang dibuat "sekarang" tidak boleh ditutup di masa depan. Yang
+      // digeser adalah tanggal pembuatannya ke belakang — bukan penutupannya
+      // dipepetkan ke tanggal pembuatan, karena itulah yang menghasilkan nol
+      // hari pada seluruh metrik kecepatan penutupan.
+      row.created_at = new Date(Date.now() - lag).toISOString();
+      row.updated_at = row.created_at;
+      row.closed_at = new Date().toISOString();
+    } else {
+      row.closed_at = new Date(createdMs + lag).toISOString();
+    }
   }
 
   const cols = Object.keys(row);
@@ -720,7 +731,40 @@ if (!hasRows('emergency_response')) {
 
 console.log('  Memuat rekaman mutu & pelanggan ...');
 
-if (!hasRows('quality_objective')) {
+/**
+ * Indikator mutu tidak dijaga dengan hasRows() seperti modul lain.
+ * Alasannya: basis data yang dipasang sebelum lapisan Balanced Scorecard ada
+ * sudah berisi indikator versi lama — tanpa perspektif, sasaran strategis dan
+ * bobot. Dijaga hasRows(), seluruh blok ini akan dilewati dan kartu skornya
+ * kosong padahal tabelnya penuh; dijalankan buta, indikatornya berganda.
+ * Karena itu setiap indikator dicocokkan menurut nama dan periodenya:
+ * yang belum ada dibuat, yang sudah ada dilengkapi lapisan BSC-nya.
+ */
+const findKpi = (title, period) => get(
+  'SELECT * FROM m_quality_objective WHERE title = ? AND period = ? AND deleted_at IS NULL',
+  [title, period],
+);
+
+function upsertKpi(data, options) {
+  const existing = findKpi(data.title, data.period);
+  if (!existing) return insert('quality_objective', data, options);
+  const mod = MODULE_BY_KEY.get('quality_objective');
+  const merged = { ...existing, ...data };
+  applyComputed(mod, merged);
+  run(
+    `UPDATE m_quality_objective SET bsc_perspective = ?, strategic_objective = ?, weight = ?,
+       weighted_score = ?, strategic_initiative = ?, achievement = ?, achievement_status = ?
+     WHERE id = ?`,
+    [
+      merged.bsc_perspective ?? null, merged.strategic_objective ?? null, merged.weight ?? null,
+      merged.weighted_score ?? null, merged.strategic_initiative ?? null,
+      merged.achievement ?? null, merged.achievement_status ?? null, existing.id,
+    ],
+  );
+  return existing.id;
+}
+
+{
   const HIGHER = 'Semakin Tinggi Semakin Baik';
   const LOWER = 'Semakin Rendah Semakin Baik';
   const L_G = '1 - Pembelajaran & Pertumbuhan';
@@ -767,7 +811,7 @@ if (!hasRows('quality_objective')) {
   ];
 
   KPIS.forEach(([title, perspective, bsc, objective, unit, target, actual, polarity, weight], i) => {
-    insert('quality_objective', {
+    upsertKpi({
       title,
       perspective,
       bsc_perspective: bsc,
@@ -791,7 +835,7 @@ if (!hasRows('quality_objective')) {
   const LAST_YEAR = String(new Date().getFullYear() - 1);
   KPIS.forEach(([title, perspective, bsc, objective, unit, target, actual, polarity, weight], i) => {
     const drift = 0.9 + rnd() * 0.16;
-    insert('quality_objective', {
+    upsertKpi({
       title,
       perspective,
       bsc_perspective: bsc,
@@ -3413,6 +3457,35 @@ if (!hasRows('external_regulation')) {
     }, { status: 'active', org: CORPORATE });
   });
 }
+
+/* ------------------------------------------ perapihan data contoh lama */
+
+/**
+ * Sebelum ini, setiap rekaman yang berstatus akhir disimpan dengan closed_at
+ * sama persis dengan created_at. Akibatnya seluruh metrik "kecepatan
+ * penutupan" bernilai nol hari — angka yang terlihat sempurna dan tidak
+ * berarti apa pun. Generator sudah diperbaiki, tetapi basis data yang dipasang
+ * lebih dulu masih menyimpan artefak itu.
+ *
+ * Perbaikan ini hanya menyentuh baris yang closed_at-nya PERSIS SAMA dengan
+ * created_at, yaitu tanda tangan artefak tersebut. Ini skrip data contoh dan
+ * hanya boleh dijalankan pada lingkungan demonstrasi; pada basis data
+ * sungguhan, penutupan di hari yang sama adalah kejadian yang sah.
+ */
+let repaired = 0;
+for (const mod of MODULES) {
+  const [min, max] = CLOSURE_LAG_DAYS[mod.key] || [1, 21];
+  const rows = all(
+    `SELECT id, created_at FROM "${mod.table}" WHERE closed_at IS NOT NULL AND closed_at = created_at`,
+  );
+  for (const row of rows) {
+    const closed = new Date(row.created_at).getTime() + randInt(min, max) * 86400000;
+    run(`UPDATE "${mod.table}" SET closed_at = ? WHERE id = ?`,
+      [new Date(Math.min(closed, Date.now())).toISOString(), row.id]);
+    repaired += 1;
+  }
+}
+if (repaired) console.log(`  Tanggal penutupan dirapikan pada ${repaired} rekaman contoh lama.`);
 
 /* ------------------------------------------- langganan SaaS per cabang */
 
