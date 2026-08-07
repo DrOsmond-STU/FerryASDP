@@ -1905,6 +1905,7 @@ export const EN = {
    * penanda `scripts/i18n-coverage.js`. Paling banyak muncul sebagai status
    * alur kerja dan nilai pilihan yang terbaca di hampir setiap layar.
    */
+  'Klasifikasi Keparahan': 'Severity Classification',
   Diverifikasi: 'Verified',
   'Diverifikasi Efektif': 'Verified Effective',
   'Diverifikasi Pihak Ketiga': 'Third-Party Verified',

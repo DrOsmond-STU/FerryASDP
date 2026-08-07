@@ -552,6 +552,7 @@ const EN = {
   'Peran Anda tidak memiliki hak untuk menyimpan rekaman pada modul ini.':
     'Your role does not have permission to save records in this module.',
   'Penempatan Organisasi': 'Organisational Placement',
+  'Isian Utama': 'Main Details',
   Menyunting: 'Editing',
   Waktu: 'Time',
 

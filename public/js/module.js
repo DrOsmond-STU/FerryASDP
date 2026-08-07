@@ -288,7 +288,9 @@ export async function renderRecordForm(container, module, recordId) {
 
   const groups = new Map();
   for (const field of module.fields) {
-    const key = field.group || 'Isian Utama';
+    // Nama kelompok dari registry sudah diterjemahkan server; hanya judul
+    // bawaan untuk isian tanpa kelompok yang perlu diterjemahkan di sini.
+    const key = field.group || t('Isian Utama');
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(field);
   }
