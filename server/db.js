@@ -181,6 +181,23 @@ CREATE TABLE IF NOT EXISTS counters (
   PRIMARY KEY (prefix, year)
 );
 
+CREATE TABLE IF NOT EXISTS custom_dashboards (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  icon TEXT,
+  description TEXT,
+  layout TEXT NOT NULL DEFAULT '[]',
+  theme TEXT NOT NULL DEFAULT '{}',
+  min_level INTEGER,
+  published INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_by INTEGER,
+  created_at TEXT,
+  updated_by INTEGER,
+  updated_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT

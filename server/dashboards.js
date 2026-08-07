@@ -30,7 +30,7 @@ const yearNow = () => String(new Date().getFullYear());
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 /** Base WHERE for a module honouring soft-delete and the user's scope. */
-function base(user, key) {
+export function base(user, key) {
   const mod = MODULE_BY_KEY.get(key);
   if (!mod || !can(user, key, 'view') || !isEntitled(user, key)) return null;
   const scope = scopeClause(user, mod);
@@ -41,14 +41,14 @@ function base(user, key) {
   };
 }
 
-function countWhere(user, key, extraSql = '', extraParams = []) {
+export function countWhere(user, key, extraSql = '', extraParams = []) {
   const b = base(user, key);
   if (!b) return 0;
   const sql = `SELECT COUNT(*) AS n FROM "${b.mod.table}" t WHERE ${b.where}${extraSql ? ` AND ${extraSql}` : ''}`;
   return get(sql, [...b.params, ...extraParams])?.n || 0;
 }
 
-function groupCount(user, key, column, extraSql = '', extraParams = []) {
+export function groupCount(user, key, column, extraSql = '', extraParams = []) {
   const b = base(user, key);
   if (!b) return [];
   const sql = `SELECT t."${column}" AS label, COUNT(*) AS value FROM "${b.mod.table}" t
@@ -57,7 +57,7 @@ function groupCount(user, key, column, extraSql = '', extraParams = []) {
   return all(sql, [...b.params, ...extraParams]);
 }
 
-function sumOf(user, key, column, extraSql = '', extraParams = []) {
+export function sumOf(user, key, column, extraSql = '', extraParams = []) {
   const b = base(user, key);
   if (!b) return 0;
   const sql = `SELECT COALESCE(SUM(t."${column}"), 0) AS s FROM "${b.mod.table}" t WHERE ${b.where}${extraSql ? ` AND ${extraSql}` : ''}`;
@@ -65,7 +65,7 @@ function sumOf(user, key, column, extraSql = '', extraParams = []) {
 }
 
 /** Monthly series based on a date column. */
-function monthlySeries(user, key, dateColumn, { months = 12, agg = 'COUNT(*)', extraSql = '', extraParams = [] } = {}) {
+export function monthlySeries(user, key, dateColumn, { months = 12, agg = 'COUNT(*)', extraSql = '', extraParams = [] } = {}) {
   const b = base(user, key);
   const labels = monthsBack(months);
   if (!b) return labels.map((m) => ({ label: m, value: 0 }));
@@ -81,7 +81,7 @@ function monthlySeries(user, key, dateColumn, { months = 12, agg = 'COUNT(*)', e
 
 /* ------------------------------------------------------------ risk heatmap */
 
-function riskHeatmap(user, keys = ['risk_register', 'corporate_risk', 'operational_risk', 'port_risk', 'vessel_risk', 'hira']) {
+export function riskHeatmap(user, keys = ['risk_register', 'corporate_risk', 'operational_risk', 'port_risk', 'vessel_risk', 'hira']) {
   const grid = Array.from({ length: 5 }, () => Array(5).fill(0));
   for (const key of keys) {
     const b = base(user, key);
@@ -1101,7 +1101,7 @@ dashboardRouter.get('/analytics', (req, res) => {
  * Membagi dengan COUNT(*) akan menyeret rata-rata ke bawah setiap kali ada
  * rekaman yang kolomnya kosong - itulah kekeliruan yang dihindari di sini.
  */
-function avgOf(user, key, column, extraSql = '', extraParams = []) {
+export function avgOf(user, key, column, extraSql = '', extraParams = []) {
   const b = base(user, key);
   if (!b) return null;
   const row = get(

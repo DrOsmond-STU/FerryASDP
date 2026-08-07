@@ -115,7 +115,12 @@ export function modal({ title, body, actions = [], onClose }) {
   const box = h('div.modal', { role: 'dialog', 'aria-modal': 'true' },
     h('h2', { text: title }),
     body,
-    h('div.modal-actions',
+    // Objek props kosong ini WAJIB ada. Tanpanya, h() memperlakukan argumen
+    // kedua sebagai props — dan argumen kedua di sini adalah tombol aksi
+    // pertama, yang lalu hilang tanpa pesan apa pun. Akibatnya setiap dialog
+    // berisi satu aksi hanya menampilkan tombol "Tutup": simpan kata sandi,
+    // konfirmasi hapus, dan simpan rekaman semuanya tidak dapat ditekan.
+    h('div.modal-actions', {},
       ...actions.map((a) =>
         h('button', { class: a.class || '', onclick: () => a.onClick?.(close), text: a.label })),
       h('button', { class: 'btn-ghost', onclick: close, text: 'Tutup' })),

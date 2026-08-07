@@ -823,6 +823,64 @@ td.cell-truncate { max-width: 340px; overflow: hidden; text-overflow: ellipsis; 
 }
 .progress > span { display: block; height: 100%; background: linear-gradient(135deg, #0b7a3b 0%, #12a150 100%); }
 
+/* ================================================== dashboard kustom */
+
+/*
+ * Papan 12 kolom. Lebar tiap widget disimpan sebagai jumlah kolom (2-12),
+ * bukan piksel, sehingga tata letak yang disusun pada layar lebar tetap masuk
+ * akal pada layar sempit — dan pada layar sangat sempit seluruhnya melebar
+ * penuh lewat media query di bawah.
+ */
+.dash-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem; align-items: start; }
+
+.widget { display: flex; flex-direction: column; gap: .6rem; overflow: hidden; }
+.widget > h3 { margin: 0; }
+.widget .chart, .widget .table-wrap { flex: 1; min-height: 0; }
+
+/* Angka besar pada widget "angka ringkas". */
+.widget-figure { display: flex; flex-direction: column; justify-content: center; flex: 1; }
+.widget-figure strong { font-size: 2.1rem; line-height: 1.1; font-weight: 700; }
+
+/* --- mode penyuntingan --- */
+
+.editor-layout { display: grid; grid-template-columns: 1fr 330px; gap: 1rem; align-items: start; }
+
+.widget-edit { cursor: pointer; outline: 2px solid transparent; transition: outline-color 140ms ease; }
+.widget-edit.selected { outline-color: var(--w-accent, var(--brand)); }
+.widget-edit.dragging { opacity: .4 !important; }
+.widget-edit.drop-target { outline-color: var(--accent); outline-style: dashed; }
+
+.widget-handle {
+  display: flex; align-items: center; gap: .45rem; margin: -.3rem -.3rem .2rem;
+  padding: .3rem .4rem; border-radius: var(--radius-sm); cursor: grab;
+  background: rgba(11, 39, 64, .05);
+}
+.widget-handle:active { cursor: grabbing; }
+.widget-handle .grip { color: var(--text-dim); font-size: 1rem; line-height: 1; }
+.widget-handle strong { font-size: .88rem; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.widget-handle .spacer { flex: 1; }
+.widget-handle button { padding: .15rem .4rem; line-height: 1; }
+
+.widget-panel {
+  position: sticky; top: 1rem;
+  background: var(--q-gradient-surface); border: 1px solid var(--card-ring);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  padding: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto;
+}
+.widget-panel h3 { margin: 0 0 .6rem; }
+.widget-panel h4 { margin: 1rem 0 .4rem; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-dim); }
+.widget-panel .field { margin-bottom: .7rem; }
+.widget-panel input[type=color] { width: 100%; height: 34px; padding: 2px; cursor: pointer; }
+.widget-panel input[type=range] { width: 100%; }
+
+@media (max-width: 1100px) {
+  .editor-layout { grid-template-columns: 1fr; }
+  .widget-panel { position: static; max-height: none; }
+}
+@media (max-width: 760px) {
+  .dash-grid > .widget { grid-column: span 12 !important; }
+}
+
 /* ==================================================== peta strategi (BSC) */
 
 /*

@@ -22,7 +22,7 @@ permintaan uji coba.
 npm install          # hanya memerlukan Express; basis data memakai node:sqlite bawaan Node 22
 npm run seed         # memuat master data, 12 akun demo dan ±1.830 rekaman contoh
 npm start            # http://localhost:3000
-npm run check        # 121 pemeriksaan end-to-end terhadap server yang sedang berjalan
+npm run check        # 147 pemeriksaan end-to-end terhadap server yang sedang berjalan
 ```
 
 Prasyarat: **Node.js 22.5 atau lebih baru** (menggunakan modul inti `node:sqlite`,
@@ -115,6 +115,7 @@ server/
   tenancy.js         resolusi tenant, hak paket langganan, ringkasan berlangganan
   public.js          endpoint publik halaman depan (paket & permintaan uji coba)
   admin.js           pengguna, matriks hak akses, jejak audit, informasi sistem
+  customdash.js      dashboard susunan sendiri: katalog widget & penyelesai datanya
   index.js           bootstrap Express, header keamanan, penyajian antarmuka
   seed.js            master data + rekaman contoh yang realistis
 
@@ -125,6 +126,7 @@ public/
   js/landing.js      halaman depan pemasaran + panel masuk
   js/charts.js       grafik SVG tanpa pustaka pihak ketiga
   js/admin.js        layar administrasi
+  js/customdash.js   penampil & penyunting dashboard (seret-lepas, warna, ukuran)
   css/app.css        tema terang & gelap
 ```
 
@@ -298,6 +300,21 @@ gabungan, korelasi Pearson antara pelaporan proaktif dan insiden, analisis Paret
 persen kumulatif, perbandingan tahun ke tahun, kecepatan penutupan rekaman, serta daftar
 rekaman yang tertahan di status awal lebih dari 30 hari. Yang terakhir menjawab pertanyaan
 yang tidak muncul di dashboard mana pun: pekerjaan yang menumpuk tanpa terlihat.
+
+**Dashboard yang dapat disusun sendiri** — di samping 16 dashboard bawaan, Administrator
+Sistem dan Corporate QHSE dapat menyusun dashboard sendiri: menyeret widget untuk memindahkan
+susunannya, mengatur lebar (2–12 kolom) dan tinggi, mengubah warna aksen, gradasi dua warna
+beserta sudutnya, transparansi, kelengkungan sudut, bayangan dan garis tepi, serta menambah
+widget baru yang mengambil angka dari modul mana pun.
+
+Widget disimpan sebagai data, bukan kode. Setiap widget menyebutkan modul sumbernya, cara
+menghitung (jumlah rekaman, penjumlahan, rata-rata, pengelompokan, tren 12 bulan, daftar
+rekaman terbaru) dan bentuk tampilannya. Dua hal dijaga di sisi server: nama kolom yang
+datang dari klien **dicocokkan dengan deklarasi modul di registry** — bukan sekadar di-escape —
+sehingga kolom karangan ditolak, dan seluruh angka tetap melewati filter hak akses serta hak
+paket yang sama dengan daftar rekaman. Widget tidak dapat dipakai sebagai jalan pintas
+melihat data cabang lain. Warna teks dihitung otomatis dari luminansi latar yang dipilih,
+supaya latar gelap tidak menghasilkan tulisan yang tak terbaca.
 
 **Jejak audit** — setiap pembuatan, perubahan (beserta daftar kolom yang berubah), transisi
 status, penghapusan, ekspor, unggah lampiran dan percobaan login tercatat.

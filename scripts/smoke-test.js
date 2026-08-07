@@ -370,6 +370,92 @@ check('Analitik mengikuti keamanan tingkat baris',
   analyticsPort.status === 200 && analyticsPort.json.cards.totalRecords < analytics.cards.totalRecords,
   `${analyticsPort.json?.cards?.totalRecords} < ${analytics.cards.totalRecords}`);
 
+section('18. Dashboard kustom yang dapat disunting');
+const dashList = await corporate('/api/custom-dashboards');
+check('Daftar dashboard kustom terbaca', dashList.status === 200 && dashList.json.dashboards.length >= 1);
+check('Corporate QHSE berwenang menyunting', dashList.json.canEdit === true);
+
+const sample = (await corporate('/api/custom-dashboards/ringkasan-direksi')).json;
+check('Dashboard contoh memuat widget', sample.layout.length >= 8, String(sample.layout?.length));
+check('Seluruh widget dapat dihitung', sample.data.every((d) => d.ok), sample.data.filter((d) => !d.ok).map((d) => d.reason).join('; '));
+check('Tata letak menyimpan ukuran dan gaya',
+  sample.layout.every((w) => w.layout?.span >= 2 && w.style && typeof w.style.accent === 'string'));
+
+// Widget tidak boleh menjadi jalan pintas melewati keamanan tingkat baris:
+// angkanya harus sama persis dengan yang dilihat pengguna pada daftar rekaman.
+const widgetOf = (call, body) => call('/api/custom-dashboards/preview', { method: 'POST', body });
+const opIncidentList = (await operator('/api/modules/incident/records?size=1')).json.total;
+const opIncidentWidget = await widgetOf(operator, { widget: { kind: 'stat', source: { module: 'incident', metric: 'count', period: 'all' } } });
+check('Angka widget sama dengan daftar rekaman pengguna yang sama',
+  opIncidentWidget.json.result.value === opIncidentList, `${opIncidentWidget.json?.result?.value} vs ${opIncidentList}`);
+
+const pmIncidentList = (await portManager('/api/modules/incident/records?size=1')).json.total;
+const pmIncidentWidget = await widgetOf(portManager, { widget: { kind: 'stat', source: { module: 'incident', metric: 'count', period: 'all' } } });
+check('Cakupan berbeda menghasilkan angka berbeda',
+  pmIncidentWidget.json.result.value === pmIncidentList && pmIncidentList !== opIncidentList,
+  `${pmIncidentList} vs ${opIncidentList}`);
+
+const planBlockedWidget = await widgetOf(ketapang, { widget: { kind: 'stat', source: { module: 'ferry_safety_checklist', metric: 'count' } } });
+check('Widget menolak modul di luar paket langganan',
+  planBlockedWidget.json.result.ok === false && /paket/i.test(planBlockedWidget.json.result.reason), planBlockedWidget.json?.result?.reason);
+
+// Nama kolom datang dari klien; harus dicocokkan dengan registry, bukan
+// diselipkan begitu saja ke dalam SQL.
+const injected = await widgetOf(corporate, {
+  widget: { kind: 'bar', source: { module: 'incident', metric: 'groupBy', groupField: '(SELECT password_hash FROM users)' } },
+});
+check('Nama kolom karangan ditolak', injected.json.result.ok === false, JSON.stringify(injected.json?.result));
+
+const noSuchModule = await widgetOf(corporate, { widget: { kind: 'stat', source: { module: 'm_users', metric: 'count' } } });
+check('Modul karangan ditolak', noSuchModule.json.result.ok === false);
+
+const operatorSave = await operator('/api/custom-dashboards/ringkasan-direksi', { method: 'PUT', body: { layout: [] } });
+check('Pengguna biasa tidak dapat menyimpan tata letak', operatorSave.status === 403, String(operatorSave.status));
+const operatorCreate = await operator('/api/custom-dashboards', { method: 'POST', body: { name: 'Coba' } });
+check('Pengguna biasa tidak dapat membuat dashboard', operatorCreate.status === 403);
+
+const madeByAdmin = await corporate('/api/custom-dashboards', {
+  method: 'POST',
+  body: { name: 'Uji Otomatis Dashboard', icon: '🧪', layout: [] },
+});
+check('Administrator dapat membuat dashboard', madeByAdmin.status === 201, madeByAdmin.json?.error);
+const newKey = madeByAdmin.json.key;
+
+// Nilai di luar batas dibersihkan server, bukan dipercaya apa adanya.
+const savedLayout = await corporate(`/api/custom-dashboards/${newKey}`, {
+  method: 'PUT',
+  body: {
+    layout: [{
+      id: 'x1', title: 'Widget uji', kind: 'stat',
+      source: { module: 'incident', metric: 'count', period: 'year', dateField: 'incident_date' },
+      layout: { span: 99, height: 5000 },
+      style: { accent: 'javascript:alert(1)', opacity: 12, gradientAngle: 999, radius: 900 },
+    }],
+  },
+});
+check('Tata letak tersimpan', savedLayout.status === 200, savedLayout.json?.error);
+const w = savedLayout.json.layout[0];
+check('Lebar dibatasi 12 kolom', w.layout.span === 12, String(w.layout.span));
+check('Tinggi dibatasi 900px', w.layout.height === 900, String(w.layout.height));
+check('Transparansi dibatasi 1', w.style.opacity === 1, String(w.style.opacity));
+check('Warna bukan heksadesimal ditolak', w.style.accent === '#1189c1', w.style.accent);
+check('Sudut gradasi dibatasi 360', w.style.gradientAngle === 360, String(w.style.gradientAngle));
+check('Kelengkungan dibatasi 40', w.style.radius === 40, String(w.style.radius));
+
+const reread = (await corporate(`/api/custom-dashboards/${newKey}`)).json;
+check('Widget tersimpan dapat dihitung ulang', reread.data[0]?.ok === true, reread.data?.[0]?.reason);
+
+const deleteByCorporate = await corporate(`/api/custom-dashboards/${newKey}`, { method: 'DELETE' });
+check('Penghapusan dashboard khusus administrator sistem', deleteByCorporate.status === 403, String(deleteByCorporate.status));
+const deleted = await admin(`/api/custom-dashboards/${newKey}`, { method: 'DELETE' });
+check('Administrator sistem dapat menghapus dashboard', deleted.status === 200);
+check('Dashboard terhapus tidak lagi terbaca', (await corporate(`/api/custom-dashboards/${newKey}`)).status === 404);
+
+const sources = await corporate('/api/custom-dashboards/sources');
+check('Katalog sumber widget tersedia', sources.status === 200 && sources.json.modules.length > 50, String(sources.json?.modules?.length));
+check('Katalog hanya memuat modul yang boleh dilihat',
+  (await ketapang('/api/custom-dashboards/sources')).json.modules.length < sources.json.modules.length);
+
 console.log(`\n${'─'.repeat(56)}`);
 console.log(`  ${passed} lulus, ${failed} gagal`);
 console.log(`${'─'.repeat(56)}\n`);

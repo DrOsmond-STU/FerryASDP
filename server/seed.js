@@ -3487,6 +3487,86 @@ for (const mod of MODULES) {
 }
 if (repaired) console.log(`  Tanggal penutupan dirapikan pada ${repaired} rekaman contoh lama.`);
 
+/* ------------------------------------------------ dashboard kustom contoh */
+
+/**
+ * Satu dashboard susunan sendiri, supaya fitur penyuntingannya langsung
+ * terlihat isinya alih-alih papan kosong. Tata letaknya disimpan sebagai JSON
+ * persis seperti yang dihasilkan penyunting di antarmuka.
+ */
+if (!get('SELECT 1 FROM custom_dashboards LIMIT 1')) {
+  const style = (accent, from, to, extra = {}) => ({
+    accent, gradient: true, gradientFrom: from, gradientTo: to, gradientAngle: 135,
+    opacity: 1, textColor: null, titleColor: null, radius: 16, shadow: true, border: true, ...extra,
+  });
+
+  const layout = [
+    {
+      id: 'w1', title: 'Insiden Tahun Berjalan', kind: 'stat', body: '',
+      source: { module: 'incident', metric: 'count', dateField: 'incident_date', period: 'year', limit: 10 },
+      layout: { span: 3, height: 150 }, style: style('#d13438', '#ffffff', '#fbe9ea'),
+    },
+    {
+      id: 'w2', title: 'Near Miss Dilaporkan', kind: 'stat', body: '',
+      source: { module: 'near_miss', metric: 'count', dateField: 'event_date', period: 'year', limit: 10 },
+      layout: { span: 3, height: 150 }, style: style('#12a150', '#ffffff', '#e4f6ec'),
+    },
+    {
+      id: 'w3', title: 'Hari Kerja Hilang', kind: 'stat', body: '',
+      source: { module: 'incident', metric: 'sum', field: 'lost_days', dateField: 'incident_date', period: 'year', limit: 10 },
+      layout: { span: 3, height: 150 }, style: style('#f7941d', '#ffffff', '#fdf0e0'),
+    },
+    {
+      id: 'w4', title: 'Sertifikat Pegawai Terdaftar', kind: 'stat', body: '',
+      source: { module: 'employee_certification', metric: 'count', period: 'all', limit: 10 },
+      layout: { span: 3, height: 150 }, style: style('#1189c1', '#ffffff', '#e6f2fa'),
+    },
+    {
+      id: 'w5', title: 'Tren Insiden 12 Bulan', kind: 'line', body: '',
+      source: { module: 'incident', metric: 'trend', dateField: 'incident_date', period: 'all', limit: 10 },
+      layout: { span: 6, height: 300 }, style: style('#d13438', '#ffffff', '#f7fbfe'),
+    },
+    {
+      id: 'w6', title: 'Insiden per Klasifikasi', kind: 'donut', body: '',
+      source: { module: 'incident', metric: 'groupBy', groupField: 'classification', period: 'all', limit: 8 },
+      layout: { span: 6, height: 300 }, style: style('#7c3aed', '#ffffff', '#f0eafb'),
+    },
+    {
+      id: 'w7', title: 'Peta Panas Risiko', kind: 'heatmap', body: '',
+      source: { module: null, metric: 'risk', period: 'all', limit: 10 },
+      layout: { span: 5, height: 'auto' }, style: style('#1189c1', '#ffffff', '#eef5fa'),
+    },
+    {
+      id: 'w8', title: 'Bahaya Dominan pada HIRA', kind: 'bar', body: '',
+      source: { module: 'hira', metric: 'groupBy', groupField: 'hazard_type', period: 'all', limit: 8 },
+      layout: { span: 7, height: 'auto' }, style: style('#0e9488', '#ffffff', '#e3f4f2'),
+    },
+    {
+      id: 'w9', title: 'Ketidaksesuaian Terbaru', kind: 'table', body: '',
+      source: { module: 'non_conformity', metric: 'list', period: 'all', limit: 8, fields: ['title', 'category', 'source', 'found_date'] },
+      layout: { span: 8, height: 'auto' }, style: style('#1189c1', '#ffffff', '#f7fbfe'),
+    },
+    {
+      id: 'w10', title: 'Cara memakai dashboard ini', kind: 'note',
+      body: 'Dashboard ini dapat disusun ulang sendiri oleh Administrator Sistem dan Corporate QHSE.\n\nTekan “Sunting dashboard”, lalu:\n• seret kepala widget untuk memindahkannya;\n• geser penggeser Lebar dan Tinggi untuk mengubah ukurannya;\n• ubah warna, gradasi dan transparansi pada panel kanan;\n• tekan “Tambah widget” untuk mengambil angka dari modul mana pun.\n\nSeluruh angka tetap mengikuti hak akses Anda — widget tidak dapat dipakai untuk melihat data cabang lain.',
+      source: { module: null, metric: 'none', period: 'all', limit: 10 },
+      layout: { span: 4, height: 'auto' }, style: style('#0b6d9b', '#0b2740', '#1189c1', { textColor: '#eaf6fd', titleColor: '#ffffff' }),
+    },
+  ];
+
+  run(
+    `INSERT INTO custom_dashboards (key, name, icon, description, layout, theme, published, sort_order,
+                                    created_by, created_at, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?)`,
+    [
+      'ringkasan-direksi', 'Ringkasan Direksi', '📌',
+      'Contoh dashboard yang disusun manual — silakan diubah, ditambah widget, atau dipindahkan susunannya.',
+      JSON.stringify(layout), '{}', 1, nowIso(), 1, nowIso(),
+    ],
+  );
+  console.log('  Dashboard kustom contoh dibuat (10 widget).');
+}
+
 /* ------------------------------------------- langganan SaaS per cabang */
 
 console.log('  Memuat paket langganan & data komersial ...');

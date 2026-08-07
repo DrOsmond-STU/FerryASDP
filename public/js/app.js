@@ -7,8 +7,12 @@ import { renderModuleList, renderRecordForm, renderRecordDetail } from './module
 import { renderDashboard, DASHBOARDS } from './dashboards.js';
 import { renderAdmin, ADMIN_PAGES } from './admin.js';
 import { renderLanding } from './landing.js';
+import { renderCustomDashboard, listCustomDashboards, newDashboardDialog } from './customdash.js';
 
 const root = document.getElementById('app');
+
+/** Dashboard kustom dimuat sekali per sesi dan disegarkan saat berubah. */
+let customDashboards = { dashboards: [], canEdit: false };
 
 /** The boot placeholder carries loading-only styling; drop it on first render. */
 const ready = () => root.classList.remove('app-loading');
@@ -36,6 +40,21 @@ function navigation() {
       .filter((d) => !d.platformOnly || state.subscription?.platform)
       .map((d) => link(`#/dashboard/${d.key}`, d.icon, d.name)));
   nav.appendChild(dashGroup);
+
+  // Dashboard susunan sendiri berdiri sebagai kelompok terpisah supaya jelas
+  // mana yang bawaan aplikasi dan mana yang disusun oleh administrator.
+  const customGroup = h('details.nav-group', { open: true },
+    h('summary', {}, h('span', { text: '▾' }), 'Dashboard Kustom'),
+    ...customDashboards.dashboards.map((d) =>
+      link(`#/custom/${d.key}`, d.icon || '📌', d.published ? d.name : `${d.name} (draf)`)),
+    customDashboards.canEdit
+      ? h('a', {
+        href: '#',
+        dataset: { label: 'dashboard baru' },
+        onclick: (e) => { e.preventDefault(); newDashboardDialog((key) => { location.hash = `#/custom/${key}`; }); },
+      }, h('span.ic', { text: '＋' }), h('span', { text: 'Dashboard baru' }))
+      : null);
+  if (customDashboards.dashboards.length || customDashboards.canEdit) nav.appendChild(customGroup);
 
   for (const group of state.groups) {
     const modules = group.modules.map(mod).filter((m) => m && can(m.key, 'view'));
@@ -297,6 +316,14 @@ async function route() {
       return;
     }
 
+    if (parts[0] === 'custom' && parts[1]) {
+      const def = customDashboards.dashboards.find((d) => d.key === parts[1]);
+      setCrumb('Dashboard Kustom', def?.name || parts[1]);
+      document.title = `${def?.name || 'Dashboard'} — QHSE ASDP`;
+      await renderCustomDashboard(shell.content, parts[1]);
+      return;
+    }
+
     if (parts[0] === 'admin') {
       const page = ADMIN_PAGES.find((p) => p.key === parts[1]) || ADMIN_PAGES[0];
       setCrumb('Administrasi', page.name);
@@ -345,6 +372,7 @@ async function route() {
 
 async function start() {
   await loadMeta();
+  customDashboards = await listCustomDashboards();
   shell = renderShell();
   await route();
   if (state.user.must_change_password) {
@@ -353,6 +381,20 @@ async function start() {
 }
 
 window.addEventListener('hashchange', route);
+
+/**
+ * Menyusun, membuat atau menghapus dashboard mengubah isi menu samping.
+ * Daftarnya dimuat ulang lalu seluruh kerangka digambar ulang — lebih murah
+ * daripada menyisipkan atau mencabut satu tautan dan menjaga urutannya sendiri.
+ */
+window.addEventListener('qhse:dashboards-changed', async () => {
+  customDashboards = await listCustomDashboards();
+  if (!state.user) return;
+  const hash = location.hash;
+  shell = renderShell();
+  location.hash = hash;
+  await route();
+});
 window.addEventListener('qhse:unauthorised', () => {
   if (state.user) {
     state.user = null;

@@ -22,6 +22,7 @@ import { publicRouter } from './public.js';
 import { subscriptionSummary, clearTenancyCache } from './tenancy.js';
 import { dashboardRouter } from './dashboards.js';
 import { adminRouter } from './admin.js';
+import { customRouter } from './customdash.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 3000);
@@ -145,6 +146,7 @@ app.use('/api/public', publicRouter);
 app.use('/api', engineRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/custom-dashboards', customRouter);
 
 /* ------------------------------------------------------------------ static */
 
