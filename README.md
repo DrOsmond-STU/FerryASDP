@@ -20,9 +20,9 @@ permintaan uji coba.
 
 ```bash
 npm install          # hanya memerlukan Express; basis data memakai node:sqlite bawaan Node 22
-npm run seed         # memuat master data, 12 akun demo dan ±1.800 rekaman contoh
+npm run seed         # memuat master data, 12 akun demo dan ±1.830 rekaman contoh
 npm start            # http://localhost:3000
-npm run check        # 100 pemeriksaan end-to-end terhadap server yang sedang berjalan
+npm run check        # 121 pemeriksaan end-to-end terhadap server yang sedang berjalan
 ```
 
 Prasyarat: **Node.js 22.5 atau lebih baru** (menggunakan modul inti `node:sqlite`,
@@ -111,7 +111,7 @@ server/
   auth.js            scrypt, sesi httpOnly, penguncian akun, kebijakan kata sandi
   compute.js         seluruh nilai turunan (LTIFR, CO2e, matriks risiko, CSMS, GM …)
   engine.js          REST generik: CRUD, workflow, komentar, lampiran, CAPA, ekspor CSV
-  dashboards.js      14 dashboard analitik, dihitung melalui filter akses yang sama
+  dashboards.js      16 dashboard analitik, dihitung melalui filter akses yang sama
   tenancy.js         resolusi tenant, hak paket langganan, ringkasan berlangganan
   public.js          endpoint publik halaman depan (paket & permintaan uji coba)
   admin.js           pengguna, matriks hak akses, jejak audit, informasi sistem
@@ -121,7 +121,7 @@ server/
 public/
   js/api.js          klien REST + cache metadata
   js/module.js       daftar, formulir dan detail rekaman — generik untuk semua modul
-  js/dashboards.js   14 tampilan dashboard
+  js/dashboards.js   16 tampilan dashboard
   js/landing.js      halaman depan pemasaran + panel masuk
   js/charts.js       grafik SVG tanpa pustaka pihak ketiga
   js/admin.js        layar administrasi
@@ -283,6 +283,21 @@ lengkap dengan hirarki pengendalian ISO 45001 §8.1.2.
 **Peringatan kedaluwarsa** — seluruh isian bertanda `alert` (sertifikat kapal, izin lingkungan,
 izin TPS B3, suket Disnaker, kalibrasi, HRU life raft, pyrotechnics, baterai EPIRB, jadwal
 tinjauan dokumen, target CAPA) dipindai lintas modul dan ditampilkan dengan sisa hari.
+
+**Kartu skor berimbang (Balanced Scorecard)** — indikator mutu membawa lapisan Kaplan &
+Norton: perspektif, sasaran strategis dan bobot. Skor tiap perspektif adalah rata-rata
+pencapaian tertimbang (dipotong 120% per indikator agar satu target yang kelewat rendah
+tidak menutupi perspektif yang tertinggal), dan skor korporat memberi bobot sama pada
+keempat perspektif — itulah arti "berimbang". Peta strategi dibaca dari bawah ke atas:
+kompetensi menopang proses, proses melayani pelanggan, pelanggan menghasilkan keuangan.
+Indikator bertarget nol ("nihil kecelakaan") dinilai biner terpenuhi/tidak, bukan
+dibiarkan kosong — bentuk sasaran ini justru yang paling sering dipakai di QHSE.
+
+**Analitik lintas modul** — peringkat kinerja antar cabang dan pelabuhan dengan indeks
+gabungan, korelasi Pearson antara pelaporan proaktif dan insiden, analisis Pareto dengan
+persen kumulatif, perbandingan tahun ke tahun, kecepatan penutupan rekaman, serta daftar
+rekaman yang tertahan di status awal lebih dari 30 hari. Yang terakhir menjawab pertanyaan
+yang tidak muncul di dashboard mana pun: pekerjaan yang menumpuk tanpa terlihat.
 
 **Jejak audit** — setiap pembuatan, perubahan (beserta daftar kolom yang berubah), transisi
 status, penghapusan, ekspor, unggah lampiran dan percobaan login tercatat.

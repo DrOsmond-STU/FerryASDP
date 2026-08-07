@@ -5,9 +5,10 @@
  *   npm run check       (terminal 2)
  *
  * Verifies authentication, RBAC boundaries, row-level security, the generic
- * CRUD engine, workflow transitions, CAPA linkage, every dashboard, and the
- * SaaS layer: public marketing endpoints, plan-based module entitlement and
- * the commercial dashboard.
+ * CRUD engine, workflow transitions, CAPA linkage, every dashboard, the SaaS
+ * layer (public marketing endpoints, plan-based module entitlement, commercial
+ * dashboard), the competency & training cycle, and the two analytical layers:
+ * the balanced scorecard arithmetic and the cross-module analytics.
  */
 const BASE = process.env.QHSE_URL || 'http://localhost:3000';
 const PASSWORD = process.env.QHSE_SEED_PASSWORD || 'Asdp#2026Qhse';
@@ -176,7 +177,7 @@ check('Seluruh checklist berasal dari satu kapal',
   new Set(vesselRecords.records.map((r) => r.vessel_id)).size === 1);
 
 section('9. Dashboard');
-for (const key of ['executive', 'incident', 'risk', 'audit', 'quality', 'health', 'carbon', 'esg', 'vessel', 'port', 'contractor', 'asset', 'training']) {
+for (const key of ['executive', 'incident', 'risk', 'audit', 'quality', 'health', 'carbon', 'esg', 'vessel', 'port', 'contractor', 'asset', 'training', 'bsc', 'analytics']) {
   const res = await corporate(`/api/dashboard/${key}`);
   check(`Dashboard ${key} merespons`, res.status === 200 && res.json !== null, res.json?.error);
 }
@@ -319,6 +320,55 @@ await admin(`/api/modules/training_registration/records/${regId}`, { method: 'DE
 const bajoe = await login('qhse.bajoe');
 const bajoeTraining = await bajoe('/api/modules/training_master/records');
 check('Cabang paket Esensial tetap mendapat modul pelatihan', bajoeTraining.status === 200, String(bajoeTraining.status));
+
+section('16. Balanced Scorecard');
+const scorecard = (await corporate('/api/dashboard/bsc')).json;
+check('Empat perspektif Kaplan & Norton lengkap', scorecard.perspectives.length === 4, String(scorecard.perspectives.length));
+check('Setiap perspektif memiliki indikator', scorecard.perspectives.every((p) => p.kpiCount > 0));
+check('Bobot tiap perspektif berjumlah 100', scorecard.perspectives.every((p) => p.weightTotal === 100),
+  scorecard.perspectives.map((p) => p.weightTotal).join('/'));
+const avgOfFour = scorecard.perspectives.reduce((a, p) => a + p.score, 0) / 4;
+check('Skor korporat adalah rata-rata keempat perspektif',
+  Math.abs(scorecard.overall - avgOfFour) < 0.01, `${scorecard.overall} vs ${avgOfFour.toFixed(2)}`);
+check('Perbandingan dengan tahun lalu tersedia', scorecard.overallPrevious !== null, String(scorecard.overallPrevious));
+check('Sasaran strategis terkelompok', scorecard.objectives.length > 0, String(scorecard.objectives.length));
+check('Daftar sasaran diurutkan dari yang paling tertinggal',
+  scorecard.objectives.every((o, i, arr) => i === 0 || (arr[i - 1].score ?? Infinity) <= (o.score ?? Infinity)));
+
+// Target nol ("nihil insiden keamanan informasi") dulu menghasilkan pencapaian
+// null dan indikatornya hilang diam-diam dari kartu skor.
+const zeroTarget = scorecard.laggingKpis.find((k) => k.target === 0);
+check('Indikator bertarget nol tetap dinilai', zeroTarget && zeroTarget.achievement !== null,
+  zeroTarget ? `${zeroTarget.title} = ${zeroTarget.achievement}%` : 'tidak ada indikator bertarget nol');
+
+const bscPort = await portManager('/api/dashboard/bsc');
+check('Kartu skor mengikuti cakupan akses pengguna', bscPort.status === 200
+  && bscPort.json.perspectives.reduce((a, p) => a + p.kpiCount, 0)
+     < scorecard.perspectives.reduce((a, p) => a + p.kpiCount, 0));
+
+section('17. Dashboard analitik');
+const analytics = (await corporate('/api/dashboard/analytics')).json;
+check('Rekaman lintas modul terhitung', analytics.cards.totalRecords > 1000, String(analytics.cards.totalRecords));
+check('Peringkat antar cabang tersedia', analytics.branches.length >= 5, String(analytics.branches.length));
+check('Indeks kinerja berada pada rentang 0-100',
+  analytics.branches.every((b) => b.index >= 0 && b.index <= 100));
+check('Peringkat terurut menurun', analytics.branches.every((b, i, arr) => i === 0 || arr[i - 1].index >= b.index));
+check('Pareto berakhir pada 100% kumulatif', (() => {
+  const rows = analytics.pareto.incidentType.rows;
+  return rows.length > 0 && rows.at(-1).cumulative <= 100.01;
+})());
+check('Persen kumulatif menaik', analytics.pareto.incidentType.rows.every((r, i, arr) => i === 0 || arr[i - 1].cumulative <= r.cumulative));
+check('Perbandingan antar tahun memuat kedua tahun', analytics.yearOverYear.every((y) => typeof y.current === 'number' && typeof y.previous === 'number'));
+check('Kecepatan penutupan bukan nol hari untuk seluruh modul',
+  analytics.closure.some((c) => c.days > 0), analytics.closure.map((c) => c.days).join('/'));
+check('Korelasi berada pada rentang -1 sampai 1',
+  analytics.leadingLagging.correlation === null || Math.abs(analytics.leadingLagging.correlation) <= 1,
+  String(analytics.leadingLagging.correlation));
+
+const analyticsPort = await portManager('/api/dashboard/analytics');
+check('Analitik mengikuti keamanan tingkat baris',
+  analyticsPort.status === 200 && analyticsPort.json.cards.totalRecords < analytics.cards.totalRecords,
+  `${analyticsPort.json?.cards?.totalRecords} < ${analytics.cards.totalRecords}`);
 
 console.log(`\n${'─'.repeat(56)}`);
 console.log(`  ${passed} lulus, ${failed} gagal`);

@@ -723,6 +723,377 @@ dashboardRouter.get('/subscription', (req, res) => {
   });
 });
 
+/* ------------------------------------------------ balanced scorecard (BSC) */
+
+/**
+ * Empat perspektif Kaplan & Norton dalam urutan sebab-akibat: pembelajaran
+ * menopang proses, proses melayani pelanggan, pelanggan menghasilkan kinerja
+ * keuangan. Urutan ini yang dipakai peta strategi, dari bawah ke atas.
+ */
+const BSC_LAYERS = [
+  { key: '1 - Pembelajaran & Pertumbuhan', short: 'Pembelajaran & Pertumbuhan', en: 'Learning & Growth' },
+  { key: '2 - Proses Bisnis Internal', short: 'Proses Bisnis Internal', en: 'Internal Business Process' },
+  { key: '3 - Pelanggan', short: 'Pelanggan', en: 'Customer' },
+  { key: '4 - Keuangan', short: 'Keuangan', en: 'Financial' },
+];
+
+/**
+ * Skor perspektif = rata-rata pencapaian tertimbang, dipotong 120% per
+ * indikator. Bila tidak satu pun indikator diberi bobot, seluruhnya dianggap
+ * berbobot sama - lebih jujur daripada diam-diam menganggap skornya nol.
+ */
+function scorePerspective(rows) {
+  const scored = rows.filter((r) => r.achievement !== null && r.achievement !== undefined);
+  if (!scored.length) return null;
+  const totalWeight = scored.reduce((a, r) => a + (Number(r.weight) || 0), 0);
+  if (totalWeight > 0) {
+    const sum = scored.reduce((a, r) => a + Math.min(r.achievement, 120) * (Number(r.weight) || 0), 0);
+    return round(sum / totalWeight, 2);
+  }
+  return round(scored.reduce((a, r) => a + Math.min(r.achievement, 120), 0) / scored.length, 2);
+}
+
+const scoreGrade = (s) => {
+  if (s === null) return null;
+  if (s >= 100) return 'Sangat Baik';
+  if (s >= 90) return 'Baik';
+  if (s >= 75) return 'Cukup';
+  return 'Perlu Perbaikan';
+};
+
+dashboardRouter.get('/bsc', (req, res) => {
+  const year = req.query.year || yearNow();
+  const b = base(req.user, 'quality_objective');
+  const rows = b
+    ? all(
+      `SELECT t.id, t.code, t.title, t.perspective, t.bsc_perspective, t.strategic_objective,
+              t.weight, t.weighted_score, t.period, t.unit, t.target, t.actual, t.achievement,
+              t.achievement_status, t.polarity, t.owner_unit, t.analysis, t.improvement_plan
+         FROM "${b.mod.table}" t WHERE ${b.where} AND t.period LIKE ?
+        ORDER BY t.bsc_perspective, t.title`,
+      [...b.params, `${year}%`],
+    )
+    : [];
+
+  const previous = b
+    ? all(
+      `SELECT t.bsc_perspective, t.title, t.achievement, t.weight FROM "${b.mod.table}" t
+        WHERE ${b.where} AND t.period LIKE ?`,
+      [...b.params, `${Number(year) - 1}%`],
+    )
+    : [];
+
+  const perspectives = BSC_LAYERS.map((layer) => {
+    const kpis = rows.filter((r) => r.bsc_perspective === layer.key);
+    const score = scorePerspective(kpis);
+    const prior = scorePerspective(previous.filter((r) => r.bsc_perspective === layer.key));
+    return {
+      ...layer,
+      score,
+      grade: scoreGrade(score),
+      previousScore: prior,
+      delta: score !== null && prior !== null ? round(score - prior, 2) : null,
+      kpiCount: kpis.length,
+      achieved: kpis.filter((r) => (r.achievement ?? 0) >= 100).length,
+      atRisk: kpis.filter((r) => r.achievement !== null && r.achievement < 90).length,
+      weightTotal: kpis.reduce((a, r) => a + (Number(r.weight) || 0), 0),
+      kpis,
+    };
+  });
+
+  // Skor korporat memberi bobot sama pada keempat perspektif: itulah inti
+  // "berimbang" pada Balanced Scorecard - keuangan tidak boleh menutupi
+  // perspektif pembelajaran yang tertinggal, dan sebaliknya.
+  const scored = perspectives.filter((p) => p.score !== null);
+  const overall = scored.length ? round(scored.reduce((a, p) => a + p.score, 0) / scored.length, 2) : null;
+  const overallPrev = (() => {
+    const prior = perspectives.filter((p) => p.previousScore !== null);
+    return prior.length ? round(prior.reduce((a, p) => a + p.previousScore, 0) / prior.length, 2) : null;
+  })();
+
+  // Sasaran strategis: satu sasaran dapat diukur beberapa indikator sekaligus.
+  const byObjective = new Map();
+  for (const r of rows) {
+    if (!r.strategic_objective) continue;
+    const entry = byObjective.get(r.strategic_objective)
+      || { objective: r.strategic_objective, perspective: r.bsc_perspective, kpis: [] };
+    entry.kpis.push(r);
+    byObjective.set(r.strategic_objective, entry);
+  }
+  const objectives = [...byObjective.values()].map((o) => ({
+    objective: o.objective,
+    perspective: o.perspective,
+    kpiCount: o.kpis.length,
+    score: scorePerspective(o.kpis),
+    achieved: o.kpis.filter((r) => (r.achievement ?? 0) >= 100).length,
+    // Sasaran tanpa skor diletakkan di belakang: belum terukur bukan berarti
+    // paling buruk, dan daftar ini diurutkan dari yang paling tertinggal.
+  })).sort((a, x) => (a.score ?? Infinity) - (x.score ?? Infinity));
+
+  res.json({
+    year,
+    overall,
+    overallGrade: scoreGrade(overall),
+    overallPrevious: overallPrev,
+    overallDelta: overall !== null && overallPrev !== null ? round(overall - overallPrev, 2) : null,
+    perspectives,
+    objectives,
+    byStatus: groupCount(req.user, 'quality_objective', 'achievement_status', 't.period LIKE ?', [`${year}%`]),
+    laggingKpis: rows.filter((r) => r.achievement !== null).sort((a, x) => a.achievement - x.achievement).slice(0, 10),
+    // Inisiatif yang menutup kesenjangan sasaran - bagian "initiative" pada BSC.
+    initiatives: {
+      improvement: countWhere(req.user, 'continuous_improvement'),
+      improvementSaving: sumOf(req.user, 'continuous_improvement', 'realized_saving'),
+      capaOpen: countWhere(req.user, 'capa', "t.status NOT IN ('closed','overdue_closed')"),
+      riskTreatment: countWhere(req.user, 'risk_treatment'),
+      trainingPlanned: countWhere(req.user, 'training_schedule', 't.start_date LIKE ?', [`${year}-%`]),
+      managementReviews: countWhere(req.user, 'management_review', 't.meeting_date LIKE ?', [`${year}-%`]),
+    },
+  });
+});
+
+/* --------------------------------------------------------- analitik lintas */
+
+/** Rata-rata hari dari rekaman dibuat sampai ditutup. */
+function closureDays(user, key) {
+  const b = base(user, key);
+  if (!b) return null;
+  const row = get(
+    `SELECT AVG(julianday(t.closed_at) - julianday(t.created_at)) AS d, COUNT(*) AS n
+       FROM "${b.mod.table}" t WHERE ${b.where} AND t.closed_at IS NOT NULL AND t.created_at IS NOT NULL`,
+    b.params,
+  );
+  return row?.n ? { days: round(row.d, 1), closed: row.n } : { days: null, closed: 0 };
+}
+
+/**
+ * Korelasi Pearson antara dua deret bulanan.
+ * Dipakai untuk pertanyaan yang sering diperdebatkan tanpa angka: apakah
+ * pelaporan proaktif yang naik benar-benar diikuti insiden yang turun.
+ * Korelasi bukan sebab-akibat, dan itu dinyatakan di antarmuka.
+ */
+function correlation(a, b) {
+  const xs = a.map((d) => Number(d.value) || 0);
+  const ys = b.map((d) => Number(d.value) || 0);
+  const n = Math.min(xs.length, ys.length);
+  if (n < 3) return null;
+  const mx = xs.reduce((s, v) => s + v, 0) / n;
+  const my = ys.reduce((s, v) => s + v, 0) / n;
+  let num = 0; let dx = 0; let dy = 0;
+  for (let i = 0; i < n; i++) {
+    num += (xs[i] - mx) * (ys[i] - my);
+    dx += (xs[i] - mx) ** 2;
+    dy += (ys[i] - my) ** 2;
+  }
+  if (dx === 0 || dy === 0) return null;
+  return round(num / Math.sqrt(dx * dy), 3);
+}
+
+/** Pareto: peringkat menurun beserta persen kumulatifnya. */
+function pareto(rows, limit = 10) {
+  const data = (rows || []).filter((r) => r.label !== null);
+  const total = data.reduce((a, r) => a + r.value, 0);
+  if (!total) return { total: 0, rows: [] };
+  let running = 0;
+  return {
+    total,
+    rows: data.slice(0, limit).map((r) => {
+      running += r.value;
+      return {
+        label: r.label,
+        value: r.value,
+        percent: round((r.value / total) * 100, 1),
+        cumulative: round((running / total) * 100, 1),
+      };
+    }),
+  };
+}
+
+/** Satu metrik dihitung untuk setiap unit organisasi yang terlihat pengguna. */
+function perOrg(user, orgKey, orgTable, metrics) {
+  const b = base(user, orgKey === 'branch_id' ? 'branch' : 'port');
+  if (!b) return [];
+  const units = all(`SELECT t.id, t.name FROM "${b.mod.table}" t WHERE ${b.where} ORDER BY t.name`, b.params);
+  return units.map((u) => {
+    const out = { id: u.id, name: u.name };
+    for (const [name, fn] of Object.entries(metrics)) out[name] = fn(u.id, orgKey);
+    return out;
+  });
+}
+
+dashboardRouter.get('/analytics', (req, res) => {
+  const year = req.query.year || yearNow();
+  const last = String(Number(year) - 1);
+  const thisYear = [`${year}-%`];
+  const lastYear = [`${last}-%`];
+  const today = todayIso();
+
+  const cnt = (key, dateCol, orgCol, orgId, extra = '') => countWhere(
+    req.user, key,
+    `t."${orgCol}" = ?${dateCol ? ` AND t."${dateCol}" LIKE ?` : ''}${extra ? ` AND ${extra}` : ''}`,
+    dateCol ? [orgId, `${year}-%`] : [orgId],
+  );
+
+  const branchMetrics = {
+    incidents: (id, col) => cnt('incident', 'incident_date', col, id),
+    nearMiss: (id, col) => cnt('near_miss', 'event_date', col, id),
+    unsafe: (id, col) => cnt('unsafe_action', 'observed_date', col, id) + cnt('unsafe_condition', 'observed_date', col, id),
+    findings: (id, col) => cnt('non_conformity', 'found_date', col, id),
+    capaOverdue: (id, col) => countWhere(req.user, 'capa', `t."${col}" = ? AND t.status NOT IN ('closed','overdue_closed') AND t.due_date < ?`, [id, today]),
+    complaints: (id, col) => cnt('customer_complaint', 'complaint_date', col, id),
+    trainingCompliance: (id, col) => {
+      const b = base(req.user, 'skill_gap');
+      if (!b) return null;
+      const row = get(
+        `SELECT AVG(t.compliance_percent) AS a FROM "${b.mod.table}" t
+          WHERE ${b.where} AND t."${col}" = ? AND t.compliance_percent IS NOT NULL`,
+        [...b.params, id],
+      );
+      return row?.a === null || row?.a === undefined ? null : round(row.a, 1);
+    },
+    expiredCerts: (id, col) => countWhere(req.user, 'employee_certification', `t."${col}" = ? AND t.valid_until IS NOT NULL AND t.valid_until < ?`, [id, today]),
+  };
+
+  const branches = perOrg(req.user, 'branch_id', 'm_branch', branchMetrics);
+  const ports = perOrg(req.user, 'port_id', 'm_port', branchMetrics);
+
+  /**
+   * Indeks gabungan, 0-100. Bukan nilai mutlak melainkan pembanding antar unit:
+   * pelaporan proaktif menaikkan, kejadian dan tunggakan menurunkan. Rasio
+   * pelaporan sengaja dihitung positif - unit yang melaporkan banyak near miss
+   * sedang bekerja dengan benar, bukan sedang berkinerja buruk.
+   */
+  const withIndex = (list) => list.map((u) => {
+    const proactive = u.nearMiss + u.unsafe;
+    const reporting = u.incidents ? Math.min(proactive / Math.max(u.incidents, 1), 20) : Math.min(proactive, 20);
+    const penalty = u.incidents * 4 + u.capaOverdue * 3 + u.expiredCerts * 2 + u.findings;
+    const training = u.trainingCompliance ?? 70;
+    const raw = 60 + reporting * 1.5 + (training - 70) * 0.4 - penalty;
+    return { ...u, proactive, index: round(Math.max(0, Math.min(100, raw)), 1) };
+  }).sort((a, b) => b.index - a.index);
+
+  const incidentTrend = monthlySeries(req.user, 'incident', 'incident_date');
+  // Kedua deret dihitung sekali lalu dijumlahkan per bulan. Memanggil
+  // monthlySeries() di dalam map() akan mengulang kueri penuh dua belas kali.
+  const nearMissTrend = monthlySeries(req.user, 'near_miss', 'event_date');
+  const observationTrend = monthlySeries(req.user, 'safety_observation', 'observation_date');
+  const proactiveTrend = nearMissTrend.map((m, i) => ({
+    label: m.label,
+    value: m.value + (observationTrend[i]?.value || 0),
+  }));
+
+  const yoy = (label, key, dateCol, extra = '') => ({
+    label,
+    current: countWhere(req.user, key, `t."${dateCol}" LIKE ?${extra ? ` AND ${extra}` : ''}`, thisYear),
+    previous: countWhere(req.user, key, `t."${dateCol}" LIKE ?${extra ? ` AND ${extra}` : ''}`, lastYear),
+  });
+
+  const yearOverYear = [
+    yoy('Insiden', 'incident', 'incident_date'),
+    yoy('Near miss', 'near_miss', 'event_date'),
+    yoy('Tindakan tidak aman', 'unsafe_action', 'observed_date'),
+    yoy('Ketidaksesuaian', 'non_conformity', 'found_date'),
+    yoy('Keluhan pelanggan', 'customer_complaint', 'complaint_date'),
+    yoy('Inspeksi', 'inspection', 'inspection_date'),
+    yoy('Audit internal', 'internal_audit', 'actual_date'),
+    yoy('Insiden pelayaran', 'marine_incident', 'incident_date'),
+    yoy('Pelatihan terlaksana', 'training_competency', 'start_date'),
+  ].map((r) => ({
+    ...r,
+    change: r.previous ? round(((r.current - r.previous) / r.previous) * 100, 1) : null,
+  }));
+
+  const closure = ['capa', 'non_conformity', 'incident', 'customer_complaint', 'near_miss', 'skill_gap']
+    .map((key) => ({ key, name: MODULE_BY_KEY.get(key)?.nameId, ...closureDays(req.user, key) }))
+    .filter((r) => r.closed > 0);
+
+  /**
+   * Satu sapuan lintas modul menghasilkan tiga angka sekaligus: jumlah rekaman,
+   * rekaman 30 hari terakhir, dan rekaman yang tidak bergerak. Tiga sapuan
+   * terpisah berarti tiga kali 116 kueri untuk data yang sama.
+   *
+   * "Tidak bergerak" = dibuat lebih dari 30 hari lalu, masih berstatus awal,
+   * belum ditutup. Inilah yang membuat dashboard terlihat sehat padahal
+   * pekerjaannya menumpuk di kotak masuk seseorang.
+   */
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  const volumeByModule = [];
+  const stale = [];
+  let totalRecords = 0;
+  let recent30 = 0;
+
+  for (const mod of MODULES) {
+    if (mod.master || !can(req.user, mod.key, 'view') || !isEntitled(req.user, mod.key)) continue;
+    const scope = scopeClause(req.user, mod);
+    const where = `t.deleted_at IS NULL${scope.sql ? ` AND ${scope.sql}` : ''}`;
+    const row = get(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN t.created_at >= ? THEN 1 ELSE 0 END) AS baru,
+              SUM(CASE WHEN t.closed_at IS NULL AND t.status = ? AND t.created_at < ? THEN 1 ELSE 0 END) AS mandek
+         FROM "${mod.table}" t WHERE ${where}`,
+      [since, mod.initialStatus, since, ...scope.params],
+    );
+    if (!row?.total) continue;
+    totalRecords += row.total;
+    recent30 += row.baru || 0;
+    volumeByModule.push({
+      label: mod.nameId,
+      value: row.total,
+      module: mod.key,
+      // Kode kelompok saja terbaca sebagai huruf lepas pada grafik sebaran;
+      // namanya ikut supaya sumbu grafik dapat dibaca tanpa tabel rujukan.
+      group: `${mod.groupCode}. ${mod.groupName}`,
+    });
+    if (row.mandek) stale.push({ module: mod.key, name: mod.nameId, icon: mod.icon, count: row.mandek });
+  }
+  volumeByModule.sort((a, b) => b.value - a.value);
+  stale.sort((a, b) => b.count - a.count);
+
+  res.json({
+    year,
+    previousYear: last,
+    cards: {
+      totalRecords,
+      recent30,
+      activeModules: volumeByModule.length,
+      staleRecords: stale.reduce((a, r) => a + r.count, 0),
+      overdueOpen: countWhere(req.user, 'capa', "t.status NOT IN ('closed','overdue_closed') AND t.due_date < ?", [today])
+        + countWhere(req.user, 'non_conformity', "t.closed_at IS NULL AND t.due_date < ?", [today]),
+      proactiveRatio: (() => {
+        const inc = countWhere(req.user, 'incident', 't.incident_date LIKE ?', thisYear);
+        const pro = countWhere(req.user, 'near_miss', 't.event_date LIKE ?', thisYear)
+          + countWhere(req.user, 'unsafe_action', 't.observed_date LIKE ?', thisYear)
+          + countWhere(req.user, 'unsafe_condition', 't.observed_date LIKE ?', thisYear);
+        return inc ? round(pro / inc, 1) : pro;
+      })(),
+      avgCapaClosure: closureDays(req.user, 'capa')?.days ?? null,
+      branchesCompared: branches.length,
+    },
+    branches: withIndex(branches),
+    ports: withIndex(ports),
+    leadingLagging: {
+      incidentTrend,
+      proactiveTrend,
+      correlation: correlation(proactiveTrend, incidentTrend),
+    },
+    yearOverYear,
+    pareto: {
+      incidentType: pareto(groupCount(req.user, 'incident', 'incident_type')),
+      ncSource: pareto(groupCount(req.user, 'non_conformity', 'source')),
+      complaintCategory: pareto(groupCount(req.user, 'customer_complaint', 'category')),
+      hazard: pareto(groupCount(req.user, 'hira', 'hazard_type')),
+    },
+    closure,
+    stale: stale.slice(0, 12),
+    volumeByModule: volumeByModule.slice(0, 15),
+    volumeByGroup: (() => {
+      const map = new Map();
+      for (const r of volumeByModule) map.set(r.group, (map.get(r.group) || 0) + r.value);
+      return [...map.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+    })(),
+  });
+});
+
 /* ------------------------------------------------- kompetensi & pelatihan */
 
 /**

@@ -17,6 +17,8 @@ export const DASHBOARDS = [
   { key: 'contractor', name: 'Contractor Dashboard', icon: '🤝', path: '/api/dashboard/contractor', render: contractor, requires: 'contractor' },
   { key: 'asset', name: 'Asset Dashboard', icon: '🛠', path: '/api/dashboard/asset', render: asset, requires: 'asset' },
   { key: 'training', name: 'Training & Competency', icon: '🎓', path: '/api/dashboard/training', render: training, requires: 'training_master' },
+  { key: 'bsc', name: 'Balanced Scorecard', icon: '🧭', path: '/api/dashboard/bsc', render: bsc, requires: 'quality_objective' },
+  { key: 'analytics', name: 'Dashboard Analitik', icon: '🔬', path: '/api/dashboard/analytics', render: analytics },
   { key: 'subscription', name: 'Langganan & Pendapatan', icon: '💳', path: '/api/dashboard/subscription', render: subscription, platformOnly: true },
 ];
 
@@ -411,6 +413,258 @@ function asset(d) {
       card('Jenis Pemeliharaan', barList(d.maintenance.byType, { format: num })),
       card('Status Sertifikat', donut(d.certificates.byStatus, { format: num }))),
     alertsCard(d.certificates.expiring));
+}
+
+/* ------------------------------------------------ balanced scorecard (BSC) */
+
+const scoreTone = (s) => (s === null || s === undefined ? '' : s >= 100 ? 'ok' : s >= 90 ? '' : s >= 75 ? 'warn' : 'danger');
+const scoreColor = (s) => (s === null || s === undefined ? PALETTE[8] : s >= 100 ? '#12a150' : s >= 90 ? '#1189c1' : s >= 75 ? '#e0a207' : '#d13438');
+const deltaChip = (d) => {
+  if (d === null || d === undefined) return h('span.small.muted', { text: '—' });
+  const up = d >= 0;
+  return h('span.badge', { class: up ? 'b-ok' : 'b-danger', text: `${up ? '▲' : '▼'} ${fmtDecimal(Math.abs(d), 1)} poin` });
+};
+
+function bsc(d) {
+  const kpiTable = (rows) => dataTable(
+    [
+      { label: 'Indikator' }, { label: 'Sasaran Strategis' }, { label: 'Satuan' },
+      { label: 'Target', right: true }, { label: 'Realisasi', right: true },
+      { label: 'Bobot', right: true }, { label: 'Pencapaian', right: true }, { label: 'Status' },
+    ],
+    rows,
+    (k) => [
+      h('td.small', { text: k.title }),
+      h('td.small.muted', { text: k.strategic_objective || '—' }),
+      h('td.small', { text: k.unit || '—' }),
+      h('td.right', { text: dec(k.target, 2) }),
+      h('td.right', { text: dec(k.actual, 2) }),
+      h('td.right', { text: k.weight ? `${dec(k.weight, 0)}%` : '—' }),
+      h('td.right', {}, h('strong', { text: k.achievement === null ? '—' : `${dec(k.achievement, 1)}%` })),
+      badge(
+        k.achievement === null ? 'b-draft'
+          : k.achievement >= 100 ? 'b-ok' : k.achievement >= 90 ? 'b-progress' : k.achievement >= 75 ? 'b-warn' : 'b-danger',
+        k.achievement_status || 'Belum diukur',
+      ),
+    ],
+    { onRow: (k) => { location.hash = `#/m/quality_objective/${k.id}`; }, empty: 'Belum ada indikator pada perspektif ini.' },
+  );
+
+  // Peta strategi. Urutan lapisan tetap 1..4 seperti dikirim server; CSS yang
+  // membalik tampilannya agar terbaca dari bawah ke atas.
+  const map = h('div.bsc-map', {}, ...d.perspectives.map((p, i) => {
+    const layer = h('div.bsc-layer', { style: `--bsc-tone:${scoreColor(p.score)}` },
+      h('div', {},
+        h('h4', {}, `${i + 1}. ${p.short}`, h('span.bsc-en', { text: p.en })),
+        h('div.small.muted', { text: `${p.kpiCount} indikator · ${p.achieved} tercapai · ${p.atRisk} di bawah 90%` })),
+      h('div', {},
+        h('div.bar-track', {},
+          h('div.bar-fill', { style: `width:${Math.min(p.score ?? 0, 120) / 1.2}%;background:${scoreColor(p.score)}` })),
+        h('div.small.muted', { style: 'margin-top:.35rem' }, deltaChip(p.delta), ' dibanding tahun lalu')),
+      h('div.bsc-score', { style: `color:${scoreColor(p.score)}` },
+        p.score === null ? '—' : dec(p.score, 1),
+        h('small', { text: p.grade || 'belum terukur' })));
+
+    // Panah ditaruh SESUDAH lapisannya di DOM. Karena induknya
+    // column-reverse, panah itu muncul di bawah lapisan tersebut — yaitu tepat
+    // di antara dua lapisan. Menaruhnya sebelum lapisan menghasilkan satu panah
+    // menggantung di paling atas dan tidak ada panah di antara dua lapisan
+    // terbawah.
+    return i === 0 ? layer : h('div', {}, layer, h('div.bsc-arrow', { text: '▲ menopang' }));
+  }));
+
+  const objectiveTable = dataTable(
+    [{ label: 'Sasaran Strategis' }, { label: 'Perspektif' }, { label: 'Indikator', right: true }, { label: 'Tercapai', right: true }, { label: 'Skor', right: true }],
+    d.objectives,
+    (o) => [
+      h('td.small', { text: o.objective }),
+      h('td.small.muted', { text: (o.perspective || '—').replace(/^\d+ - /, '') }),
+      h('td.right', { text: num(o.kpiCount) }),
+      h('td.right', { text: num(o.achieved) }),
+      h('td.right', {}, h('span.badge', {
+        class: o.score === null ? 'b-draft' : o.score >= 100 ? 'b-ok' : o.score >= 90 ? 'b-progress' : o.score >= 75 ? 'b-warn' : 'b-danger',
+        text: o.score === null ? 'belum terukur' : `${dec(o.score, 1)}%`,
+      })),
+    ],
+    { empty: 'Belum ada sasaran strategis yang ditetapkan.' },
+  );
+
+  const ini = d.initiatives;
+
+  return h('div', {},
+    // Skor korporat berdiri sendiri: dijejerkan bersama empat perspektif dalam
+    // satu baris empat kolom, yang kelima justru turun sendirian ke baris baru.
+    h('div.grid', {},
+      stat('Skor Kartu Skor Berimbang', d.overall === null ? '—' : dec(d.overall, 1), {
+        sub: `${d.overallGrade || 'belum terukur'} · rata-rata keempat perspektif dengan bobot sama · tahun lalu ${d.overallPrevious === null ? '—' : dec(d.overallPrevious, 1)}`,
+        tone: scoreTone(d.overall),
+      })),
+    h('div.grid.cols-4', { style: 'margin-top:1rem' },
+      ...d.perspectives.map((p) => stat(p.short, p.score === null ? '—' : dec(p.score, 1), {
+        sub: `${p.achieved} dari ${p.kpiCount} indikator tercapai`,
+        tone: scoreTone(p.score),
+      }))),
+
+    card('Peta Strategi', map,
+      h('p.small.muted', { style: 'margin-top:.8rem', text: 'Dibaca dari bawah ke atas mengikuti logika sebab-akibat Kaplan & Norton: kompetensi dan budaya menopang proses internal, proses yang andal menghasilkan kepuasan pelanggan, dan pelanggan yang loyal menghasilkan kinerja keuangan. Perspektif terbawah yang lemah akan menjatuhkan lapisan di atasnya — meski hari ini angkanya masih terlihat baik.' })),
+
+    h('div.grid.cols-3', { style: 'margin-top:1rem' },
+      card('Skor per Perspektif', barList(
+        d.perspectives.map((p) => ({ label: p.short, value: p.score ?? 0 })),
+        { format: (v) => `${dec(v, 1)}%` },
+      )),
+      card('Status Pencapaian Indikator', donut(d.byStatus, { format: num })),
+      card('Inisiatif Strategis',
+        h('div.grid.cols-2', {},
+          stat('Perbaikan Berkelanjutan', num(ini.improvement), { sub: fmtCurrency(ini.improvementSaving) }),
+          stat('CAPA Berjalan', num(ini.capaOpen), { tone: ini.capaOpen ? 'warn' : 'ok' }),
+          stat('Perlakuan Risiko', num(ini.riskTreatment)),
+          stat('Pelatihan Terjadwal', num(ini.trainingPlanned))),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: `${num(ini.managementReviews)} tinjauan manajemen tahun berjalan.` }))),
+
+    card('10 Indikator Paling Tertinggal',
+      dataTable(
+        [{ label: 'Indikator' }, { label: 'Perspektif' }, { label: 'Target', right: true }, { label: 'Realisasi', right: true }, { label: 'Pencapaian', right: true }, { label: 'Unit Penanggung Jawab' }],
+        d.laggingKpis,
+        (k) => [
+          h('td.small', { text: k.title }),
+          h('td.small.muted', { text: (k.bsc_perspective || '—').replace(/^\d+ - /, '') }),
+          h('td.right', { text: dec(k.target, 2) }),
+          h('td.right', { text: dec(k.actual, 2) }),
+          h('td.right', {}, h('span.badge', {
+            class: k.achievement >= 100 ? 'b-ok' : k.achievement >= 90 ? 'b-progress' : k.achievement >= 75 ? 'b-warn' : 'b-danger',
+            text: `${dec(k.achievement, 1)}%`,
+          })),
+          h('td.small.muted', { text: k.owner_unit || '—' }),
+        ],
+        { onRow: (k) => { location.hash = `#/m/quality_objective/${k.id}`; }, empty: 'Belum ada indikator terukur.' },
+      )),
+
+    card('Sasaran Strategis, Diurutkan dari yang Paling Tertinggal', objectiveTable),
+
+    ...d.perspectives.map((p) => card(`${p.short} — ${p.kpiCount} indikator`, kpiTable(p.kpis))));
+}
+
+/* ------------------------------------------------------------- analitik */
+
+function analytics(d) {
+  const c = d.cards;
+
+  const orgTable = (rows, label) => dataTable(
+    // Judul kolom sengaja pendek: sembilan kolom dengan judul panjang mendorong
+    // dua kolom terakhir keluar layar, dan justru itulah dua kolom yang paling
+    // sering dicari — kepatuhan pelatihan dan sertifikat kedaluwarsa.
+    [
+      { label }, { label: 'Indeks', right: true }, { label: 'Insiden', right: true },
+      { label: 'Proaktif', right: true }, { label: 'Temuan', right: true },
+      { label: 'CAPA Telat', right: true }, { label: 'Keluhan', right: true },
+      { label: 'Pelatihan', right: true }, { label: 'Sert. Mati', right: true },
+    ],
+    rows,
+    (u) => [
+      h('td', { text: u.name }),
+      h('td.right', {}, h('span.badge', {
+        class: u.index >= 70 ? 'b-ok' : u.index >= 50 ? 'b-warn' : 'b-danger',
+        text: dec(u.index, 1),
+      })),
+      h('td.right', { text: num(u.incidents) }),
+      h('td.right', { text: num(u.proactive) }),
+      h('td.right', { text: num(u.findings) }),
+      h('td.right', { text: num(u.capaOverdue) }),
+      h('td.right', { text: num(u.complaints) }),
+      h('td.right', { text: u.trainingCompliance === null ? '—' : `${dec(u.trainingCompliance, 1)}%` }),
+      h('td.right', { text: num(u.expiredCerts) }),
+    ],
+    { empty: 'Belum ada unit yang dapat dibandingkan pada cakupan akses Anda.' },
+  );
+
+  const paretoCard = (title, p, color) => card(title,
+    !p.rows.length ? emptyState() : h('div', {}, ...p.rows.map((r) => h('div', { style: 'margin-bottom:.5rem' },
+      h('div.bar-row', { style: 'margin-bottom:.15rem' },
+        h('span', { title: r.label, text: r.label }),
+        h('div.bar-track', {}, h('div.bar-fill', { style: `width:${r.percent}%;background:${color}` })),
+        h('strong', { text: String(r.value) })),
+      h('div.small.muted', { text: `${dec(r.percent, 1)}% · kumulatif ${dec(r.cumulative, 1)}%` })))),
+    h('p.small.muted', { style: 'margin-top:.4rem', text: `Total ${num(p.total)} rekaman.` }));
+
+  const r = d.leadingLagging.correlation;
+  const corrText = r === null
+    ? 'Data belum cukup untuk menghitung hubungan antar deret (minimal tiga bulan berisi).'
+    : r <= -0.5 ? `Korelasi ${fmtDecimal(r, 2)} — kuat dan berlawanan arah: bulan dengan pelaporan proaktif tinggi cenderung berinsiden rendah. Inilah pola yang diharapkan.`
+      : r < -0.2 ? `Korelasi ${fmtDecimal(r, 2)} — berlawanan arah namun lemah.`
+        : r < 0.2 ? `Korelasi ${fmtDecimal(r, 2)} — praktis tidak ada hubungan pada periode ini.`
+          : `Korelasi ${fmtDecimal(r, 2)} — searah. Pelaporan yang naik bersamaan dengan insiden biasanya menandakan kesadaran melapor baru tumbuh setelah kejadian, bukan sebelum.`;
+
+  return h('div', {},
+    h('div.grid.cols-4', {},
+      stat('Total Rekaman', num(c.totalRecords), { sub: `${num(c.activeModules)} modul terisi` }),
+      stat('Rekaman 30 Hari Terakhir', num(c.recent30)),
+      stat('Rasio Pelaporan Proaktif', `${dec(c.proactiveRatio, 1)}×`, {
+        sub: 'laporan proaktif per satu insiden',
+        tone: c.proactiveRatio >= 10 ? 'ok' : c.proactiveRatio >= 5 ? '' : 'warn',
+      }),
+      stat('Rekaman Tidak Bergerak', num(c.staleRecords), {
+        sub: '> 30 hari masih di status awal',
+        tone: c.staleRecords ? 'warn' : 'ok',
+      }),
+      stat('Tindakan Lewat Jatuh Tempo', num(c.overdueOpen), { tone: c.overdueOpen ? 'danger' : 'ok' }),
+      stat('Rata-rata Penutupan CAPA', c.avgCapaClosure === null ? '—' : dec(c.avgCapaClosure, 1), { unit: 'hari' }),
+      stat('Unit Dibandingkan', num(c.branchesCompared), { sub: 'cabang dalam cakupan akses Anda' })),
+
+    card('Peringkat Kinerja QHSE Antar Cabang', orgTable(d.branches, 'Cabang'),
+      h('p.small.muted', { style: 'margin-top:.5rem', text: 'Indeks 0–100 adalah pembanding antar unit, bukan nilai mutlak. Pelaporan proaktif menaikkan indeks — unit yang melaporkan banyak near miss sedang bekerja dengan benar, bukan sedang berkinerja buruk. Insiden, CAPA lewat jatuh tempo dan sertifikat kedaluwarsa menurunkannya.' })),
+
+    card('Peringkat Kinerja QHSE Antar Pelabuhan', orgTable(d.ports, 'Pelabuhan')),
+
+    h('div.grid.cols-2', { style: 'margin-top:1rem' },
+      card('Indikator Proaktif (Leading) — Near Miss & Observasi', lineChart(d.leadingLagging.proactiveTrend, { color: PALETTE[1] })),
+      card('Indikator Hasil (Lagging) — Insiden', lineChart(d.leadingLagging.incidentTrend, { color: PALETTE[4] }))),
+
+    card('Hubungan Pelaporan Proaktif dengan Insiden',
+      h('p', { text: corrText }),
+      h('p.small.muted', { text: 'Korelasi bukan sebab-akibat. Angka ini menunjukkan pola yang layak ditanyakan pada rapat tinjauan, bukan kesimpulan yang bisa langsung dipakai.' })),
+
+    card(`Perbandingan Tahun ${d.year} dengan ${d.previousYear}`,
+      dataTable(
+        [{ label: 'Metrik' }, { label: d.previousYear, right: true }, { label: d.year, right: true }, { label: 'Perubahan', right: true }],
+        d.yearOverYear,
+        (y) => [
+          h('td.small', { text: y.label }),
+          h('td.right', { text: num(y.previous) }),
+          h('td.right', {}, h('strong', { text: num(y.current) })),
+          h('td.right', {}, y.change === null
+            ? h('span.small.muted', { text: '—' })
+            : h('span.badge', { class: y.change > 0 ? 'b-warn' : y.change < 0 ? 'b-ok' : 'b-draft', text: `${y.change > 0 ? '+' : ''}${dec(y.change, 1)}%` })),
+        ],
+      ),
+      h('p.small.muted', { style: 'margin-top:.5rem', text: 'Kenaikan tidak selalu buruk: naiknya near miss, inspeksi, audit dan pelatihan justru menandakan sistem berjalan. Yang perlu dibaca berpasangan adalah naiknya pelaporan proaktif berbarengan dengan turunnya insiden.' })),
+
+    h('div.grid.cols-2', { style: 'margin-top:1rem' },
+      paretoCard('Pareto Jenis Insiden', d.pareto.incidentType, PALETTE[4]),
+      paretoCard('Pareto Sumber Ketidaksesuaian', d.pareto.ncSource, PALETTE[2])),
+
+    h('div.grid.cols-2', { style: 'margin-top:1rem' },
+      paretoCard('Pareto Kategori Keluhan Pelanggan', d.pareto.complaintCategory, PALETTE[3]),
+      paretoCard('Pareto Bahaya Dominan (HIRA)', d.pareto.hazard, PALETTE[5])),
+
+    h('div.grid.cols-2', { style: 'margin-top:1rem' },
+      card('Kecepatan Penutupan Rekaman',
+        barList(d.closure.map((x) => ({ label: x.name, value: x.days ?? 0 })), { format: (v) => `${dec(v, 1)} hari`, color: PALETTE[6] }),
+        h('p.small.muted', { style: 'margin-top:.5rem', text: 'Rata-rata hari dari rekaman dibuat sampai ditutup, dihitung hanya atas rekaman yang benar-benar sudah tertutup.' })),
+      card('Rekaman Tidak Bergerak per Modul',
+        dataTable(
+          [{ label: 'Modul' }, { label: 'Rekaman', right: true }],
+          d.stale,
+          (s) => [
+            h('td.small', {}, `${s.icon} ${s.name}`),
+            h('td.right', {}, h('span.badge.b-warn', { text: num(s.count) })),
+          ],
+          { onRow: (s) => { location.hash = `#/m/${s.module}`; }, empty: 'Tidak ada rekaman yang tertahan di status awal.' },
+        ))),
+
+    h('div.grid.cols-2', { style: 'margin-top:1rem' },
+      card('15 Modul dengan Rekaman Terbanyak', barList(d.volumeByModule, { limit: 15, format: num })),
+      card('Sebaran Rekaman per Kelompok Modul', barList(d.volumeByGroup, { limit: 16, format: num, color: PALETTE[1] }))));
 }
 
 /* -------------------------------------------------- kompetensi & pelatihan */

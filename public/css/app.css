@@ -823,6 +823,37 @@ td.cell-truncate { max-width: 340px; overflow: hidden; text-overflow: ellipsis; 
 }
 .progress > span { display: block; height: 100%; background: linear-gradient(135deg, #0b7a3b 0%, #12a150 100%); }
 
+/* ==================================================== peta strategi (BSC) */
+
+/*
+ * Peta strategi dibaca dari BAWAH ke ATAS: pembelajaran menopang proses,
+ * proses melayani pelanggan, pelanggan menghasilkan kinerja keuangan. Karena
+ * itu urutan lapisannya dibalik lewat column-reverse, bukan dengan mengurutkan
+ * datanya terbalik di JavaScript — datanya tetap urut 1..4 supaya sama dengan
+ * yang dikirim server.
+ */
+.bsc-map { display: flex; flex-direction: column-reverse; gap: .55rem; }
+
+.bsc-layer {
+  display: grid; grid-template-columns: minmax(150px, 26%) 1fr auto; gap: .9rem;
+  align-items: center; padding: .85rem 1rem;
+  background: var(--q-gradient-surface-2); border: 1px solid var(--card-ring);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--bsc-tone, var(--brand));
+}
+.bsc-layer h4 { margin: 0; font-size: .92rem; }
+.bsc-layer .bsc-en { display: block; font-size: .72rem; color: var(--text-dim); font-weight: 400; }
+.bsc-layer .bsc-score { font-size: 1.35rem; font-weight: 700; line-height: 1; text-align: right; }
+.bsc-layer .bsc-score small { display: block; font-size: .7rem; font-weight: 400; color: var(--text-dim); }
+
+/* Panah sebab-akibat antar lapisan. */
+.bsc-arrow { text-align: center; color: var(--text-dim); font-size: .78rem; line-height: 1; margin: .55rem 0; }
+
+@media (max-width: 700px) {
+  .bsc-layer { grid-template-columns: 1fr; gap: .5rem; }
+  .bsc-layer .bsc-score { text-align: left; }
+}
+
 /* =============================================================== matriks */
 
 .perm-matrix td:first-child { position: sticky; left: 0; background: var(--surface); }

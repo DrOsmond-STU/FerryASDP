@@ -67,8 +67,14 @@ const COMPUTED = {
   sumHours: (r) => round(n(r.employee_hours) + n(r.contractor_hours) + n(r.crew_hours), 2),
 
   kpiAchievement: (r) => {
-    if (!has(r.actual) || !has(r.target) || n(r.target) === 0) return null;
+    if (!has(r.actual) || !has(r.target)) return null;
     const lowerBetter = String(r.polarity || '').startsWith('Semakin Rendah');
+    // Target nol ("nihil kecelakaan", "nihil ketidaksesuaian mayor") tidak bisa
+    // dinyatakan sebagai rasio, tetapi justru itulah bentuk sasaran yang paling
+    // sering dipakai di QHSE. Maknanya biner: terpenuhi atau tidak. Dibiarkan
+    // null, indikator seperti ini menghilang diam-diam dari kartu skor.
+    if (n(r.target) === 0) return lowerBetter ? (n(r.actual) === 0 ? 100 : 0) : null;
+    if (lowerBetter && n(r.actual) === 0) return 100;
     return round(lowerBetter ? (n(r.target) / n(r.actual)) * 100 : (n(r.actual) / n(r.target)) * 100, 2);
   },
   kpiStatus: (r) => {
@@ -78,6 +84,17 @@ const COMPUTED = {
     if (a >= 90) return 'Hampir Tercapai';
     if (a >= 75) return 'Perlu Perhatian';
     return 'Tidak Tercapai';
+  },
+
+  /**
+   * Skor terbobot Balanced Scorecard. Pencapaian dipotong pada 120% supaya satu
+   * indikator yang melesat jauh - biasanya karena targetnya keliru dipasang
+   * terlalu rendah - tidak menutupi perspektif yang benar-benar tertinggal.
+   */
+  weightedScore: (r) => {
+    const a = COMPUTED.kpiAchievement(r);
+    if (a === null || !has(r.weight)) return null;
+    return round((Math.min(a, 120) * n(r.weight)) / 100, 2);
   },
 
   restCompliance: (r) => (n(r.hours_rest_24h) >= 10 && (!has(r.hours_rest_7d) || n(r.hours_rest_7d) >= 77) ? 1 : 0),

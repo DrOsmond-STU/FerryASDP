@@ -50,6 +50,27 @@ const randInt = (min, max) => min + Math.floor(rnd() * (max - min + 1));
 
 /* ------------------------------------------------------------------ insert */
 
+/**
+ * Rentang hari dari rekaman dibuat sampai ditutup, per modul. Angkanya
+ * mengikuti praktik lapangan: keluhan pelanggan ditutup dalam hitungan hari,
+ * CAPA dalam hitungan minggu sampai bulan, penutupan kesenjangan kompetensi
+ * bisa satu semester karena menunggu jadwal pelatihan.
+ */
+const CLOSURE_LAG_DAYS = {
+  customer_complaint: [1, 7],
+  near_miss: [2, 16],
+  unsafe_action: [1, 10],
+  unsafe_condition: [2, 14],
+  incident: [5, 35],
+  marine_incident: [7, 45],
+  non_conformity: [10, 65],
+  capa: [14, 90],
+  skill_gap: [30, 180],
+  training_competency: [1, 3],
+  internal_audit: [5, 25],
+  work_permit: [1, 3],
+};
+
 let created = 0;
 
 function insert(moduleKey, data, { status, org = {}, createdAt } = {}) {
@@ -80,7 +101,17 @@ function insert(moduleKey, data, { status, org = {}, createdAt } = {}) {
   row.created_at = createdAt || nowIso();
   row.updated_by = row.created_by;
   row.updated_at = row.created_at;
-  if (mod.workflow.find((s) => s.key === row.status)?.terminal) row.closed_at = row.created_at;
+  /**
+   * Rekaman yang sudah tertutup diberi jarak penutupan yang wajar per jenisnya.
+   * Menyamakan closed_at dengan created_at membuat setiap metrik "kecepatan
+   * penutupan" jatuh ke nol hari — terlihat sempurna dan tidak berarti apa pun.
+   * Dipotong pada hari ini supaya tidak ada rekaman yang ditutup di masa depan.
+   */
+  if (mod.workflow.find((s) => s.key === row.status)?.terminal) {
+    const [min, max] = CLOSURE_LAG_DAYS[mod.key] || [1, 21];
+    const closed = new Date(row.created_at).getTime() + randInt(min, max) * 86400000;
+    row.closed_at = new Date(Math.min(closed, Date.now())).toISOString();
+  }
 
   const cols = Object.keys(row);
   const res = run(
@@ -690,22 +721,58 @@ if (!hasRows('emergency_response')) {
 console.log('  Memuat rekaman mutu & pelanggan ...');
 
 if (!hasRows('quality_objective')) {
+  const HIGHER = 'Semakin Tinggi Semakin Baik';
+  const LOWER = 'Semakin Rendah Semakin Baik';
+  const L_G = '1 - Pembelajaran & Pertumbuhan';
+  const PROC = '2 - Proses Bisnis Internal';
+  const CUST = '3 - Pelanggan';
+  const FIN = '4 - Keuangan';
+
+  /**
+   * Kartu skor berimbang cabang penyeberangan.
+   * Kolom: nama, perspektif QHSE, perspektif BSC, sasaran strategis, satuan,
+   * target, realisasi, arah pencapaian, bobot dalam perspektifnya (%).
+   * Bobot tiap perspektif dijumlahkan tepat 100.
+   */
   const KPIS = [
-    ['Ketepatan waktu keberangkatan kapal', 'Mutu', '%', 95, 92.4, 'Semakin Tinggi Semakin Baik'],
-    ['Indeks kepuasan pengguna jasa', 'Pelayanan Pelanggan', 'indeks', 4.2, 4.05, 'Semakin Tinggi Semakin Baik'],
-    ['Frekuensi kecelakaan kerja (LTIFR)', 'K3', 'per 1 juta jam', 0.5, 0.62, 'Semakin Rendah Semakin Baik'],
-    ['Penyelesaian CAPA tepat waktu', 'Mutu', '%', 90, 84, 'Semakin Tinggi Semakin Baik'],
-    ['Kepatuhan baku mutu lingkungan', 'Lingkungan', '%', 100, 96, 'Semakin Tinggi Semakin Baik'],
-    ['Intensitas konsumsi BBM per trip', 'Energi', 'liter/trip', 480, 466, 'Semakin Rendah Semakin Baik'],
-    ['Ketersediaan movable bridge', 'Aset', '%', 98, 97.2, 'Semakin Tinggi Semakin Baik'],
-    ['Penyelesaian keluhan dalam 3x24 jam', 'Pelayanan Pelanggan', '%', 95, 97.5, 'Semakin Tinggi Semakin Baik'],
-    ['Pelaksanaan inspeksi keselamatan kapal', 'Keselamatan Pelayaran', '%', 100, 100, 'Semakin Tinggi Semakin Baik'],
-    ['Insiden keamanan informasi berdampak tinggi', 'Keamanan Informasi', 'kejadian', 0, 1, 'Semakin Rendah Semakin Baik'],
+    // --- Pembelajaran & Pertumbuhan: penopang seluruh lapisan di atasnya ---
+    ['Kepatuhan pelatihan wajib pegawai', 'K3', L_G, 'Memastikan setiap pekerja kompeten sebelum bertugas', '%', 95, 59.9, HIGHER, 30],
+    ['Jam pelatihan per pegawai', 'Mutu', L_G, 'Membangun kapabilitas pekerja secara berkelanjutan', 'jam/orang', 16, 7.1, HIGHER, 20],
+    ['Sertifikat kompetensi berlaku', 'K3', L_G, 'Memastikan setiap pekerja kompeten sebelum bertugas', '%', 100, 88, HIGHER, 25],
+    ['Indeks budaya keselamatan', 'K3', L_G, 'Menumbuhkan budaya keselamatan yang melapor tanpa takut', 'indeks', 4, 3.6, HIGHER, 15],
+    ['Insiden keamanan informasi berdampak tinggi', 'Keamanan Informasi', L_G, 'Mengamankan data dan sistem pendukung operasi', 'kejadian', 0, 1, LOWER, 10],
+
+    // --- Proses Bisnis Internal ---
+    ['Frekuensi kecelakaan kerja (LTIFR)', 'K3', PROC, 'Menihilkan kecelakaan kerja dan insiden pelayaran', 'per 1 juta jam', 0.5, 0.62, LOWER, 20],
+    ['Pelaksanaan inspeksi keselamatan kapal', 'Keselamatan Pelayaran', PROC, 'Menihilkan kecelakaan kerja dan insiden pelayaran', '%', 100, 100, HIGHER, 15],
+    ['Penyelesaian CAPA tepat waktu', 'Mutu', PROC, 'Menutup temuan secara tuntas dan tepat waktu', '%', 90, 84, HIGHER, 15],
+    ['Kepatuhan baku mutu lingkungan', 'Lingkungan', PROC, 'Mengoperasikan pelabuhan dan kapal secara taat lingkungan', '%', 100, 96, HIGHER, 15],
+    ['Ketersediaan movable bridge', 'Aset', PROC, 'Menjaga keandalan fasilitas kritis pelabuhan', '%', 98, 97.2, HIGHER, 15],
+    ['Pelaksanaan audit internal sesuai program', 'Mutu', PROC, 'Menutup temuan secara tuntas dan tepat waktu', '%', 100, 90, HIGHER, 10],
+    ['Risiko tinggi dengan perlakuan berjalan', 'Mutu', PROC, 'Mengendalikan risiko sebelum menjadi kejadian', '%', 100, 82, HIGHER, 10],
+
+    // --- Pelanggan ---
+    ['Ketepatan waktu keberangkatan kapal', 'Mutu', CUST, 'Meningkatkan keandalan jadwal penyeberangan', '%', 95, 92.4, HIGHER, 30],
+    ['Indeks kepuasan pengguna jasa', 'Pelayanan Pelanggan', CUST, 'Meningkatkan kepuasan pengguna jasa penyeberangan', 'indeks', 4.2, 4.05, HIGHER, 25],
+    ['Penyelesaian keluhan dalam 3x24 jam', 'Pelayanan Pelanggan', CUST, 'Menyelesaikan keluhan dengan cepat dan tuntas', '%', 95, 97.5, HIGHER, 20],
+    ['Keluhan pelanggan berulang', 'Pelayanan Pelanggan', CUST, 'Menyelesaikan keluhan dengan cepat dan tuntas', '%', 5, 8.3, LOWER, 15],
+    ['Ketersediaan fasilitas ramah disabilitas', 'Pelayanan Pelanggan', CUST, 'Meningkatkan kepuasan pengguna jasa penyeberangan', '%', 100, 86, HIGHER, 10],
+
+    // --- Keuangan ---
+    ['Intensitas konsumsi BBM per trip', 'Energi', FIN, 'Menurunkan biaya operasi tanpa mengurangi keselamatan', 'liter/trip', 480, 466, LOWER, 25],
+    ['Biaya pemeliharaan tak terencana', 'Aset', FIN, 'Menurunkan biaya operasi tanpa mengurangi keselamatan', '% dari total', 25, 31, LOWER, 20],
+    ['Penghematan dari program efisiensi energi', 'Energi', FIN, 'Menghasilkan penghematan dari program perbaikan', 'juta rupiah', 900, 1120, HIGHER, 20],
+    ['Serapan anggaran pelatihan', 'Mutu', FIN, 'Menggunakan anggaran secara tepat sasaran', '%', 95, 91.6, HIGHER, 15],
+    ['Biaya akibat insiden dan klaim', 'K3', FIN, 'Menurunkan biaya operasi tanpa mengurangi keselamatan', 'juta rupiah', 350, 412, LOWER, 20],
   ];
-  KPIS.forEach(([title, perspective, unit, target, actual, polarity], i) => {
+
+  KPIS.forEach(([title, perspective, bsc, objective, unit, target, actual, polarity, weight], i) => {
     insert('quality_objective', {
       title,
       perspective,
+      bsc_perspective: bsc,
+      strategic_objective: objective,
+      weight,
       period: String(new Date().getFullYear()),
       frequency: 'Bulanan',
       formula: 'Realisasi dibandingkan target periode berjalan.',
@@ -713,10 +780,32 @@ if (!hasRows('quality_objective')) {
       target,
       actual,
       polarity,
-      owner_unit: pick(['Divisi Operasi', 'Divisi QHSE', 'Divisi Teknik', 'Divisi Pelayanan'], i),
+      owner_unit: pick(['Divisi Operasi', 'Divisi QHSE', 'Divisi Teknik', 'Divisi Pelayanan', 'Divisi SDM', 'Divisi Keuangan'], i),
       analysis: 'Pencapaian dipengaruhi kondisi cuaca dan kepadatan operasional pada periode puncak.',
       improvement_plan: 'Penguatan pemantauan mingguan dan tindak lanjut atas deviasi.',
+      strategic_initiative: 'Inisiatif ditindaklanjuti melalui program perbaikan berkelanjutan dan rapat tinjauan manajemen triwulanan.',
     }, { status: 'validated', org: i % 3 === 0 ? CORPORATE : pick(SITES, i) });
+  });
+
+  // Periode tahun lalu, agar dashboard analitik punya pembanding tahun ke tahun.
+  const LAST_YEAR = String(new Date().getFullYear() - 1);
+  KPIS.forEach(([title, perspective, bsc, objective, unit, target, actual, polarity, weight], i) => {
+    const drift = 0.9 + rnd() * 0.16;
+    insert('quality_objective', {
+      title,
+      perspective,
+      bsc_perspective: bsc,
+      strategic_objective: objective,
+      weight,
+      period: LAST_YEAR,
+      frequency: 'Bulanan',
+      unit,
+      target,
+      actual: Number((actual * drift).toFixed(2)),
+      polarity,
+      owner_unit: pick(['Divisi Operasi', 'Divisi QHSE', 'Divisi Teknik', 'Divisi Pelayanan', 'Divisi SDM', 'Divisi Keuangan'], i),
+      analysis: `Realisasi ${LAST_YEAR} menjadi dasar penetapan target tahun berjalan.`,
+    }, { status: 'closed', org: i % 3 === 0 ? CORPORATE : pick(SITES, i), createdAt: `${LAST_YEAR}-12-20T09:00:00.000Z` });
   });
 }
 

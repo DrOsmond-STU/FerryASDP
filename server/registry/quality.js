@@ -7,6 +7,19 @@ export const group = { code: 'C', key: 'quality', name: 'Quality Management', ic
 
 const ROOT_CAUSE_METHOD = ['5 Why', 'Fishbone (Ishikawa)', 'Fault Tree Analysis', 'FMEA', 'Pareto', 'Brainstorming Terstruktur'];
 
+/**
+ * Empat perspektif Balanced Scorecard (Kaplan & Norton). Berawalan angka agar
+ * urutan sebab-akibatnya terbaca sendiri dan dapat diurutkan tanpa tabel
+ * pemetaan terpisah: pembelajaran menopang proses, proses melayani pelanggan,
+ * pelanggan menghasilkan kinerja keuangan.
+ */
+const BSC_PERSPECTIVES = [
+  { value: '1 - Pembelajaran & Pertumbuhan', label: '1 - Pembelajaran & Pertumbuhan (Learning & Growth)' },
+  { value: '2 - Proses Bisnis Internal', label: '2 - Proses Bisnis Internal (Internal Business Process)' },
+  { value: '3 - Pelanggan', label: '3 - Pelanggan (Customer)' },
+  { value: '4 - Keuangan', label: '4 - Keuangan (Financial)' },
+];
+
 export default [
   m({
     key: 'quality_objective',
@@ -19,7 +32,21 @@ export default [
     standards: ['ISO 9001:2015 §6.2', 'ISO 45001:2018 §6.2', 'ISO 14001:2015 §6.2'],
     fields: [
       req('title', 'Nama Indikator'),
-      sel('perspective', 'Perspektif', ['Mutu', 'K3', 'Lingkungan', 'Energi', 'Aset', 'Keamanan Informasi', 'Keselamatan Pelayaran', 'Pelayanan Pelanggan']),
+      sel('perspective', 'Perspektif QHSE', ['Mutu', 'K3', 'Lingkungan', 'Energi', 'Aset', 'Keamanan Informasi', 'Keselamatan Pelayaran', 'Pelayanan Pelanggan']),
+      sel('bsc_perspective', 'Perspektif Balanced Scorecard', BSC_PERSPECTIVES, {
+        group: 'Balanced Scorecard',
+        help: 'Menentukan lapisan indikator ini pada peta strategi.',
+      }),
+      f('strategic_objective', 'Sasaran Strategis', 'text', {
+        group: 'Balanced Scorecard',
+        placeholder: 'Meningkatkan keandalan jadwal penyeberangan',
+      }),
+      num('weight', 'Bobot dalam Perspektif (%)', {
+        group: 'Balanced Scorecard', min: 0, max: 100,
+        help: 'Kosongkan bila seluruh indikator dalam perspektif ini berbobot sama.',
+      }),
+      num('weighted_score', 'Skor Terbobot', { computed: 'weightedScore', readonly: true, group: 'Balanced Scorecard' }),
+      f('strategic_initiative', 'Inisiatif Strategis', 'textarea', { group: 'Balanced Scorecard' }),
       req('period', 'Periode', 'text', { placeholder: '2026-01 atau 2026' }),
       sel('frequency', 'Frekuensi Pengukuran', ['Harian', 'Mingguan', 'Bulanan', 'Triwulanan', 'Semesteran', 'Tahunan']),
       f('formula', 'Formula Perhitungan'),

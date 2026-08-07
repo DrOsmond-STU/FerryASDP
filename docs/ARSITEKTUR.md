@@ -110,11 +110,12 @@ Kelompok `governance` selalu termasuk paket apa pun karena berisi data rujukan
 
 ## 8. Pengujian
 
-`scripts/smoke-test.js` menjalankan 100 pemeriksaan terhadap server yang berjalan, meliputi
+`scripts/smoke-test.js` menjalankan 121 pemeriksaan terhadap server yang berjalan, meliputi
 autentikasi, batas RBAC per peran, keamanan tingkat baris, CRUD, perhitungan nilai turunan,
 transisi alur kerja, keterkaitan CAPA, seluruh dashboard, ekspor, penghapusan, endpoint
 publik halaman depan, pembatasan modul berdasarkan paket, dashboard komersial, serta siklus
 kompetensi & pelatihan (matriks wajib, kesenjangan kompetensi, masa berlaku sertifikat dan
-persetujuan berjenjang pendaftaran). Pengujian
+persetujuan berjenjang pendaftaran), aritmetika kartu skor berimbang, serta dashboard
+analitik lintas modul. Pengujian
 menggunakan sesi terpisah per peran sehingga benar-benar memverifikasi perilaku produksi,
 bukan sekadar memanggil fungsi internal.
