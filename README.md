@@ -22,7 +22,7 @@ permintaan uji coba.
 npm install          # hanya memerlukan Express; basis data memakai node:sqlite bawaan Node 22
 npm run seed         # memuat master data, 12 akun demo dan ±1.830 rekaman contoh
 npm start            # http://localhost:3000
-npm run check        # 162 pemeriksaan end-to-end terhadap server yang sedang berjalan
+npm run check        # 175 pemeriksaan end-to-end terhadap server yang sedang berjalan
 npm run i18n         # laporan cakupan terjemahan Indonesia → Inggris
 ```
 
@@ -320,11 +320,15 @@ paket yang sama dengan daftar rekaman. Widget tidak dapat dipakai sebagai jalan 
 melihat data cabang lain. Warna teks dihitung otomatis dari luminansi latar yang dipilih,
 supaya latar gelap tidak menghasilkan tulisan yang tak terbaca.
 
-**Dwibahasa Indonesia & Inggris** — bahasa dipilih per pengguna dan tersimpan pada akunnya,
-bukan hanya di peramban, sehingga auditor yang masuk dari perangkat lain tetap menemukan
-aplikasi dalam bahasa yang ia pilih. Angka dan tanggal ikut berpindah lokal: pemisah desimal
-Indonesia (koma) dan Inggris (titik) berbeda, dan angka keselamatan yang terbaca 1.234 di satu
-bahasa serta 1,234 di bahasa lain adalah kekeliruan yang mahal.
+**Dwibahasa Indonesia & Inggris** — sakelar **ID | EN** berdiri di bilah atas aplikasi dan di
+bilah halaman depan, selalu terlihat: fitur dwibahasa yang harus dicari dulu di dalam dialog
+sama saja dengan tidak ada. Bahasa yang dipilih tersimpan pada akun, bukan hanya di peramban,
+sehingga auditor yang masuk dari perangkat lain tetap menemukan aplikasi dalam bahasa yang ia
+pilih; pengunjung yang memilih bahasa di halaman depan membawanya masuk ke akunnya.
+
+Angka dan tanggal ikut berpindah lokal: pemisah desimal Indonesia (koma) dan Inggris (titik)
+berbeda, dan angka keselamatan yang terbaca 1.234 di satu bahasa serta 1,234 di bahasa lain
+adalah kekeliruan yang mahal.
 
 Bahasa Indonesia adalah sumber kebenaran. Label isian, opsi pilihan dan nama status ditulis
 dalam bahasa Indonesia di registry, lalu **diterjemahkan di server** melalui kamus yang dikunci
@@ -334,9 +338,19 @@ modul cukup diterjemahkan satu kali. **Nilai** opsi tidak pernah ikut diterjemah
 labelnya: kalau nilainya ikut berubah, rekaman yang dibuat dalam bahasa Inggris tidak akan
 cocok dengan penyaring dalam bahasa Indonesia.
 
+Halaman depan ikut dwibahasa. Pengunjung belum punya sesi, jadi bahasanya disimpan di peramban
+dan dikirim sebagai parameter `lang` pada permintaan publik — nama kelompok modul, kalimat
+paket dan pesan formulir datang dari server sudah dalam bahasa yang dipilih.
+
+Label grafik dashboard berasal dari **isi kolom**, bukan dari teks tetap antarmuka, jadi
+diterjemahkan tersendiri — dan hanya yang memang berupa nilai pilihan registry: nama kapal,
+nama pegawai dan judul rekaman tetap dalam bahasa aslinya, karena itu data operasional.
+
 Istilah yang belum ada di kamus tampil dalam bahasa Indonesia — bukan kosong, bukan kunci
 mentah. `npm run i18n` melaporkan cakupannya, dan `npm run i18n -- --missing` mencetak persis
-apa yang masih tertinggal.
+apa yang masih tertinggal. Laporan itu juga menghitung istilah yang **luput dari penandanya**:
+penanda yang konservatif pernah membuat laporan menulis 100% padahal "Investigasi",
+"Tervalidasi" dan "Tindak Lanjut" masih tampil bahasa Indonesia pada lencana status.
 
 **Jejak audit** — setiap pembuatan, perubahan (beserta daftar kolom yang berubah), transisi
 status, penghapusan, ekspor, unggah lampiran dan percobaan login tercatat.
