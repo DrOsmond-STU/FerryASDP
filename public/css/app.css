@@ -286,6 +286,11 @@ button:disabled { cursor: not-allowed; }
 }
 .lnd-topbar .lang-btn { color: #cfe4f4; }
 .lnd-topbar .lang-btn:hover { color: #fff; }
+.lnd-topbar .themeswitch {
+  border-color: rgba(157, 198, 228, .28); background: rgba(255, 255, 255, .08); box-shadow: none;
+}
+.lnd-topbar .theme-btn { color: #cfe4f4; }
+.lnd-topbar .theme-btn:hover { color: #fff; }
 
 .lnd-hero {
   position: relative; overflow: hidden;
@@ -559,7 +564,27 @@ button:disabled { cursor: not-allowed; }
   background: var(--q-gradient-ink); color: #fff; box-shadow: var(--shadow-brand);
 }
 
-.lnd-topbar-cta .langswitch { align-self: center; }
+/* Sakelar tema memakai bentuk yang sama dengan sakelar bahasa: dua kendali
+   sejenis yang berdampingan harus terbaca sebagai satu keluarga. Bedanya
+   isinya ikon, jadi lebarnya dipatok agar ketiganya sama besar. */
+.themeswitch {
+  display: inline-flex; flex: none; padding: 2px;
+  border-radius: 999px; border: 1px solid var(--card-ring);
+  background: var(--q-gradient-surface-2); box-shadow: var(--shadow-xs);
+}
+.themeswitch .theme-btn {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  width: 30px; padding: .22rem 0; border-radius: 999px; min-height: 0;
+  font-size: .82rem; line-height: 1.2; text-align: center;
+  color: var(--text-dim); transition: background 140ms ease, color 140ms ease;
+}
+.themeswitch .theme-btn:hover { color: var(--text); }
+.themeswitch .theme-btn.active {
+  background: var(--q-gradient-ink); color: #fff; box-shadow: var(--shadow-brand);
+}
+
+.lnd-topbar-cta .langswitch,
+.lnd-topbar-cta .themeswitch { align-self: center; }
 
 .userchip {
   display: flex; align-items: center; gap: .6rem; padding: .3rem .55rem .3rem .35rem;
@@ -915,6 +940,12 @@ td.cell-truncate { max-width: 340px; overflow: hidden; text-overflow: ellipsis; 
    hanya keterangan, sedangkan sakelar bahasa dan menu akun adalah kendali. */
 @media (max-width: 700px) {
   .topbar > .badge.small { display: none; }
+}
+/* Ruang bilah atas habis lebih dulu daripada kegunaannya. Tema paling mudah
+   dilepas: ia tetap dapat diubah dari menu akun, dan mode gelap ponsel
+   umumnya sudah diatur di tingkat sistem. */
+@media (max-width: 560px) {
+  .topbar > .themeswitch { display: none; }
 }
 
 /* ==================================================== peta strategi (BSC) */

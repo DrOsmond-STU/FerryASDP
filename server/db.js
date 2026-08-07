@@ -95,6 +95,8 @@ CREATE TABLE IF NOT EXISTS users (
   contractor_id INTEGER,
   active INTEGER NOT NULL DEFAULT 1,
   language TEXT NOT NULL DEFAULT 'id',
+  -- 'system' berarti mengikuti pengaturan perangkat, bukan sebuah tema.
+  theme TEXT NOT NULL DEFAULT 'system',
   must_change_password INTEGER NOT NULL DEFAULT 0,
   failed_attempts INTEGER NOT NULL DEFAULT 0,
   locked_until TEXT,
@@ -214,6 +216,7 @@ export function migrate() {
   // ikut terbawa.
   const userCols = new Set(all('PRAGMA table_info(users)').map((c) => c.name));
   if (!userCols.has('language')) db.exec("ALTER TABLE users ADD COLUMN language TEXT NOT NULL DEFAULT 'id'");
+  if (!userCols.has('theme')) db.exec("ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'system'");
 
   for (const mod of MODULES) {
     const cols = COMMON_COLUMNS.map(([name, type]) => `"${name}" ${type}`);

@@ -12,8 +12,9 @@
  * datang dari server sudah dalam bahasa yang dipilih.
  */
 import { api } from './api.js';
-import { h, mount, toast, fmtNumber, languageSwitch } from './ui.js';
+import { h, mount, toast, fmtNumber, languageSwitch, themeSwitch } from './ui.js';
 import { t, tp, lang, setLang, storedLang } from './i18n.js';
+import { theme, setTheme, storedTheme } from './theme.js';
 
 const rupiah = (v) => (v ? `Rp ${fmtNumber(v)}` : '—');
 const juta = (v) => (v
@@ -137,6 +138,10 @@ function topbar(root, options) {
         // Sakelar bahasa berdiri paling kiri di antara tombol ajakan supaya
         // pengunjung berbahasa Inggris tidak perlu membaca satu paragraf pun
         // dalam bahasa Indonesia sebelum menemukannya.
+        // Tema cukup mengganti variabel CSS; halaman tidak digambar ulang,
+        // sehingga isian yang sedang diketik pada formulir uji coba tidak
+        // hilang hanya karena pengunjung menyalakan mode gelap.
+        themeSwitch(setTheme),
         languageSwitch((next) => {
           if (next === lang()) return;
           setLang(next);
@@ -195,6 +200,7 @@ function loginPanel(message, onLoggedIn) {
         // adalah kejutan yang tidak perlu. Hanya dikirim bila pengunjung
         // memang memilih — bukan sekadar memakai bawaan.
         if (storedLang()) await api.put('/api/auth/language', { language: lang() }).catch(() => {});
+        if (storedTheme()) await api.put('/api/auth/theme', { theme: theme() }).catch(() => {});
         await onLoggedIn();
       } catch (err) {
         error.textContent = err.message;

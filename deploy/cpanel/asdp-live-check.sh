@@ -154,6 +154,25 @@ BASE_PUBLIC=https://asdp.semestateknologiutama.com
   echo "sakelar terkirim ke peramban : $(curl -s -m 25 "$BASE_PUBLIC/js/ui.js" | grep -c 'languageSwitch')"
 
   echo
+  echo "--- tema terang & gelap ---"
+  # Palet gelapnya sudah ada sejak lama; yang baru adalah kendalinya. Karena
+  # itu yang diperiksa bukan warnanya melainkan: tiga pilihan terdaftar, tema
+  # tersimpan pada akun, dan sakelarnya benar-benar terkirim ke peramban.
+  JAR3=$(mktemp)
+  curl -s -m 25 -c "$JAR3" -o /dev/null -X POST "$BASE_PUBLIC/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d '{"username":"corporate.qhse","password":"Asdp#2026Qhse"}'
+  echo "daftar tema  : $(curl -s -m 25 -b "$JAR3" "$BASE_PUBLIC/api/meta" | grep -o '"themes":\[[^]]*\]' | head -1)"
+  echo "tema akun    : $(curl -s -m 25 -b "$JAR3" "$BASE_PUBLIC/api/meta" | grep -o '"theme":"[a-z]*"' | head -1)"
+  echo "tema ditolak : $(curl -s -m 25 -b "$JAR3" -o /dev/null -w '%{http_code}' -X PUT "$BASE_PUBLIC/api/auth/theme" \
+    -H 'Content-Type: application/json' -d '{"theme":"sepia"}') (harus 400)"
+  rm -f "$JAR3"
+  echo "theme.js terkirim   : $(curl -s -m 25 "$BASE_PUBLIC/js/theme.js" | grep -c 'export function setTheme')"
+  echo "palet gelap tegas   : $(curl -s -m 25 "$BASE_LOCAL/css/app.css" | grep -c "data-theme='dark'")"
+  echo "palet terang tegas  : $(curl -s -m 25 "$BASE_LOCAL/css/app.css" | grep -c "data-theme='light'")"
+  echo "gaya sakelar tema   : $(curl -s -m 25 "$BASE_LOCAL/css/app.css" | grep -c 'themeswitch')"
+
+  echo
   echo "--- header keamanan (publik) ---"
   curl -s -m 25 -D - -o /dev/null "$BASE_PUBLIC/" | grep -iE '^(HTTP/|content-security-policy|x-frame-options|x-content-type-options|referrer-policy|strict-transport)' | head -8
 

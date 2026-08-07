@@ -20,11 +20,20 @@ const num = (v) => (v === null || v === undefined ? '—' : fmtNumber(v));
 const dec = (v, d = 2) => (v === null || v === undefined ? '—' : fmtDecimal(v, d));
 
 /** Bawaan gaya sebuah widget baru. */
+/**
+ * Warna latar SENGAJA kosong pada bawaannya.
+ *
+ * Widget yang warnanya belum pernah dipilih harus ikut tema — latar putih
+ * yang dipatok akan tetap putih ketika seluruh halaman berpindah ke mode
+ * gelap, dan papan itu berubah menjadi deretan kartu terang yang menyilaukan
+ * di atas bidang gelap. Yang dipilih administrator tetap dihormati apa
+ * adanya; yang tidak pernah dipilih mengikuti palet.
+ */
 const DEFAULT_STYLE = () => ({
   accent: '#1189c1',
   gradient: true,
-  gradientFrom: '#ffffff',
-  gradientTo: '#eef5fa',
+  gradientFrom: null,
+  gradientTo: null,
   gradientAngle: 135,
   opacity: 1,
   textColor: null,
@@ -76,10 +85,19 @@ function parseHex(v) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-/** Warna teks efektif sebuah widget: pilihan pengguna, atau kontras otomatis. */
+/** Latar yang benar-benar dipilih administrator, bukan bawaan yang ikut tema. */
+const chosenBackground = (s) => s.gradientFrom || s.gradientTo || null;
+
+/**
+ * Warna teks efektif sebuah widget: pilihan pengguna, kontras otomatis
+ * terhadap latar yang dipilihnya, atau — bila latarnya ikut tema — tidak
+ * ditentukan sama sekali supaya ikut warna teks tema.
+ */
 export function widgetText(style = {}) {
   const s = { ...DEFAULT_STYLE(), ...style };
-  const auto = s.gradient ? readableOn(s.gradientFrom, s.gradientTo) : readableOn(s.gradientFrom);
+  const auto = chosenBackground(s)
+    ? (s.gradient ? readableOn(s.gradientFrom || s.gradientTo, s.gradientTo || s.gradientFrom) : readableOn(s.gradientFrom))
+    : null;
   return { text: s.textColor || auto, title: s.titleColor || s.textColor || auto };
 }
 
@@ -96,9 +114,11 @@ function widgetStyle(w) {
     `opacity:${s.opacity}`,
     `--w-accent:${s.accent}`,
   ];
-  bits.push(s.gradient
-    ? `background:linear-gradient(${s.gradientAngle}deg, ${s.gradientFrom || '#ffffff'} 0%, ${s.gradientTo || '#eef5fa'} 100%)`
-    : `background:${s.gradientFrom || 'var(--surface)'}`);
+  const chosen = chosenBackground(s);
+  if (!chosen) bits.push('background:var(--q-gradient-surface)');
+  else if (s.gradient) {
+    bits.push(`background:linear-gradient(${s.gradientAngle}deg, ${s.gradientFrom || chosen} 0%, ${s.gradientTo || chosen} 100%)`);
+  } else bits.push(`background:${chosen}`);
   if (!s.shadow) bits.push('box-shadow:none');
   if (!s.border) bits.push('border-color:transparent');
   const colours = widgetText(s);
@@ -364,15 +384,25 @@ function openEditor(container, def) {
         }),
         h('span.small', { text: t('Gunakan gradasi dua warna') })))));
 
-    panel.appendChild(field(s.gradient ? 'Warna awal gradasi' : 'Warna latar', colour(s.gradientFrom || '#ffffff', (v) => { s.gradientFrom = v; redrawStyleOnly(); })));
+    panel.appendChild(field(t(s.gradient ? 'Warna awal gradasi' : 'Warna latar'), colour(s.gradientFrom || '#ffffff', (v) => { s.gradientFrom = v; redrawStyleOnly(); })));
     if (s.gradient) {
-      panel.appendChild(field('Warna akhir gradasi', colour(s.gradientTo || '#eef5fa', (v) => { s.gradientTo = v; redrawStyleOnly(); })));
+      panel.appendChild(field(t('Warna akhir gradasi'), colour(s.gradientTo || '#eef5fa', (v) => { s.gradientTo = v; redrawStyleOnly(); })));
       panel.appendChild(field(`${t('Sudut gradasi')} — ${s.gradientAngle}°`, slider(0, 360, 5, s.gradientAngle, (v, label) => {
         s.gradientAngle = v;
         label.textContent = `${t('Sudut gradasi')} — ${v}°`;
         redrawStyleOnly();
       })));
     }
+
+    // Jalan kembali dari warna tetap ke warna yang ikut tema. Tanpa tombol ini
+    // sekali warna dipilih, widget itu selamanya terang — termasuk ketika
+    // seluruh papan dibaca dalam mode gelap.
+    panel.appendChild(field(t('Latar'), h('button.btn-sm', {
+      type: 'button',
+      disabled: !chosenBackground(s),
+      onclick: () => { s.gradientFrom = null; s.gradientTo = null; drawPanel(); redrawStyleOnly(); },
+      text: chosenBackground(s) ? t('Kembalikan mengikuti tema') : t('Sedang mengikuti tema'),
+    })));
 
     panel.appendChild(field(`${t('Transparansi')} — ${Math.round(s.opacity * 100)}%`, slider(15, 100, 5, Math.round(s.opacity * 100), (v, label) => {
       s.opacity = v / 100;

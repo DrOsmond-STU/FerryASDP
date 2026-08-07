@@ -1,5 +1,6 @@
 /** Small DOM + formatting helpers shared by every view. */
 import { t, lang } from './i18n.js';
+import { theme } from './theme.js';
 
 /** h('div.card', {onclick}, children) - terse element builder. */
 export function h(spec, props = {}, ...children) {
@@ -104,6 +105,54 @@ export function languageSwitch(onSwitch) {
   return h('div.langswitch', { role: 'group', 'aria-label': t('Bahasa') },
     button('id', 'ID', 'Bahasa Indonesia'),
     button('en', 'EN', 'English'));
+}
+
+/* --------------------------------------------------------------- tema */
+
+/**
+ * Sakelar tema: Terang | Gelap | Sistem.
+ *
+ * Tiga pilihan, bukan dua. Sakelar dua arah memaksa pengguna memilih satu
+ * tema tetap dan mematikan kemampuan tampilan mengikuti perangkat — pada
+ * ponsel yang berpindah gelap sendiri saat malam, itu terasa seperti
+ * kerusakan. "Sistem" adalah bawaannya, dan harus bisa dikembalikan.
+ */
+export function themeSwitch(onSwitch) {
+  const button = (code, icon, label) => h('button', {
+    type: 'button',
+    class: 'theme-btn',
+    dataset: { theme: code },
+    title: label,
+    'aria-label': label,
+    onclick: () => { onSwitch(code); sync(); },
+    text: icon,
+  });
+
+  const box = h('div.themeswitch', { role: 'group', 'aria-label': t('Tema tampilan') },
+    button('light', '☀', t('Terang')),
+    button('dark', '🌙', t('Gelap')),
+    // Lingkaran separuh gelap: lambang yang lazim untuk "otomatis", dan yang
+    // terpenting bukan matahari atau bulan — agar tidak terbaca sebagai tema
+    // ketiga, melainkan sebagai "biarkan perangkat yang menentukan".
+    button('system', '◐', t('Ikut perangkat')));
+
+  /**
+   * Tombol yang aktif diperbarui DI TEMPAT, tanpa menggambar ulang layar.
+   *
+   * Berpindah tema hanya mengubah nilai warna CSS — tidak ada satu pun teks
+   * yang perlu diambil ulang dari server. Menggambar ulang kerangka untuk itu
+   * akan membuang draf yang sedang disusun: administrator yang menekan tombol
+   * tema di tengah menyunting dashboard akan kehilangan susunannya.
+   */
+  function sync() {
+    for (const btn of box.querySelectorAll('.theme-btn')) {
+      const on = btn.dataset.theme === theme();
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+  sync();
+  return box;
 }
 
 /* -------------------------------------------------------------- badges */

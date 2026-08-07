@@ -3500,6 +3500,14 @@ if (!get('SELECT 1 FROM custom_dashboards LIMIT 1')) {
     opacity: 1, textColor: null, titleColor: null, radius: 16, shadow: true, border: true, ...extra,
   });
 
+  /**
+   * Widget tanpa warna latar: ikut tema terang/gelap. Dipakai untuk kartu
+   * grafik dan tabel, yang latar putihnya dulu bukan pilihan siapa pun
+   * melainkan sekadar bawaan — dan bawaan itu berubah menjadi kartu terang
+   * menyilaukan begitu papannya dibaca dalam mode gelap.
+   */
+  const styleTheme = (accent, extra = {}) => style(accent, null, null, extra);
+
   const layout = [
     {
       id: 'w1', title: 'Insiden Tahun Berjalan', kind: 'stat', body: '',
@@ -3524,27 +3532,27 @@ if (!get('SELECT 1 FROM custom_dashboards LIMIT 1')) {
     {
       id: 'w5', title: 'Tren Insiden 12 Bulan', kind: 'line', body: '',
       source: { module: 'incident', metric: 'trend', dateField: 'incident_date', period: 'all', limit: 10 },
-      layout: { span: 6, height: 300 }, style: style('#d13438', '#ffffff', '#f7fbfe'),
+      layout: { span: 6, height: 300 }, style: styleTheme('#d13438'),
     },
     {
       id: 'w6', title: 'Insiden per Klasifikasi', kind: 'donut', body: '',
       source: { module: 'incident', metric: 'groupBy', groupField: 'classification', period: 'all', limit: 8 },
-      layout: { span: 6, height: 300 }, style: style('#7c3aed', '#ffffff', '#f0eafb'),
+      layout: { span: 6, height: 300 }, style: styleTheme('#7c3aed'),
     },
     {
       id: 'w7', title: 'Peta Panas Risiko', kind: 'heatmap', body: '',
       source: { module: null, metric: 'risk', period: 'all', limit: 10 },
-      layout: { span: 5, height: 'auto' }, style: style('#1189c1', '#ffffff', '#eef5fa'),
+      layout: { span: 5, height: 'auto' }, style: styleTheme('#1189c1'),
     },
     {
       id: 'w8', title: 'Bahaya Dominan pada HIRA', kind: 'bar', body: '',
       source: { module: 'hira', metric: 'groupBy', groupField: 'hazard_type', period: 'all', limit: 8 },
-      layout: { span: 7, height: 'auto' }, style: style('#0e9488', '#ffffff', '#e3f4f2'),
+      layout: { span: 7, height: 'auto' }, style: styleTheme('#0e9488'),
     },
     {
       id: 'w9', title: 'Ketidaksesuaian Terbaru', kind: 'table', body: '',
       source: { module: 'non_conformity', metric: 'list', period: 'all', limit: 8, fields: ['title', 'category', 'source', 'found_date'] },
-      layout: { span: 8, height: 'auto' }, style: style('#1189c1', '#ffffff', '#f7fbfe'),
+      layout: { span: 8, height: 'auto' }, style: styleTheme('#1189c1'),
     },
     {
       id: 'w10', title: 'Cara memakai dashboard ini', kind: 'note',
@@ -3565,6 +3573,35 @@ if (!get('SELECT 1 FROM custom_dashboards LIMIT 1')) {
     ],
   );
   console.log('  Dashboard kustom contoh dibuat (10 widget).');
+}
+
+/*
+ * Perbaikan sekali jalan untuk basis data yang sudah berisi dashboard contoh
+ * versi lama: kartu grafik dan tabelnya menyimpan latar putih yang dulu hanya
+ * bawaan, dan latar itu tidak ikut berubah ketika papannya dibaca dalam mode
+ * gelap. Yang diubah HANYA yang nilainya masih persis seperti yang disemai —
+ * warna yang sudah disesuaikan administrator tidak disentuh.
+ */
+{
+  const board = get("SELECT id, layout FROM custom_dashboards WHERE key = 'ringkasan-direksi'");
+  if (board) {
+    const SEEDED_LIGHT = new Set(['w5', 'w6', 'w7', 'w8', 'w9']);
+    let widgets = [];
+    try { widgets = JSON.parse(board.layout || '[]'); } catch { widgets = []; }
+    let cleared = 0;
+    for (const w of widgets) {
+      if (!SEEDED_LIGHT.has(w.id)) continue;
+      if (w.style?.gradientFrom !== '#ffffff') continue;
+      w.style.gradientFrom = null;
+      w.style.gradientTo = null;
+      cleared += 1;
+    }
+    if (cleared) {
+      run('UPDATE custom_dashboards SET layout = ?, updated_at = ? WHERE id = ?',
+        [JSON.stringify(widgets), nowIso(), board.id]);
+      console.log(`  ${cleared} widget contoh dikembalikan mengikuti tema terang/gelap.`);
+    }
+  }
 }
 
 /* ------------------------------------------- langganan SaaS per cabang */

@@ -548,6 +548,38 @@ check('Halaman depan memasang sakelar bahasa', landingFile.includes('languageSwi
 const appFile = await fetch(`${BASE}/js/app.js`).then((r) => r.text());
 check('Bilah atas aplikasi memasang sakelar bahasa', appFile.includes('languageSwitch(switchLanguage)'));
 
+section('20. Tema terang & gelap');
+const metaTheme = (await corporate('/api/meta')).json;
+check('Daftar tema dilaporkan pada metadata',
+  Array.isArray(metaTheme.themes) && metaTheme.themes.join() === 'system,light,dark', String(metaTheme.themes));
+check('Tema bawaan mengikuti perangkat', metaTheme.user.theme === 'system', metaTheme.user.theme);
+
+const setDark = await corporate('/api/auth/theme', { method: 'PUT', body: { theme: 'dark' } });
+check('Tema dapat disimpan pada akun', setDark.status === 200 && setDark.json.theme === 'dark');
+check('Tema tersimpan terbawa pada profil', (await corporate('/api/meta')).json.user.theme === 'dark');
+const badTheme = await corporate('/api/auth/theme', { method: 'PUT', body: { theme: 'sepia' } });
+check('Tema yang tidak dikenal ditolak', badTheme.status === 400, String(badTheme.status));
+
+// `system` harus dapat dipilih kembali. Sakelar dua arah membuat pengguna
+// terkunci pada satu tema tetap dan tampilan berhenti mengikuti perangkat.
+const backToSystem = await corporate('/api/auth/theme', { method: 'PUT', body: { theme: 'system' } });
+check('Dapat kembali mengikuti perangkat', backToSystem.status === 200 && backToSystem.json.theme === 'system');
+check('Preferensi tema dapat dikembalikan', (await corporate('/api/meta')).json.user.theme === 'system');
+
+const themeAnon = await anon('/api/auth/theme', { method: 'PUT', body: { theme: 'dark' } });
+check('Tema tidak dapat diubah tanpa sesi', themeAnon.status === 401, String(themeAnon.status));
+
+const cssFile = await fetch(`${BASE}/css/app.css`).then((r) => r.text());
+check('Palet gelap tegas tersedia', cssFile.includes("[data-theme='dark']"));
+check('Palet terang tegas tersedia', cssFile.includes("[data-theme='light']"));
+check('Palet mengikuti perangkat tetap ada', cssFile.includes('prefers-color-scheme: dark'));
+check('Gaya sakelar tema tersedia', cssFile.includes('.themeswitch'));
+const themeFile = await fetch(`${BASE}/js/theme.js`).then((r) => r.text());
+check('Modul tema terkirim ke peramban', themeFile.includes('export function setTheme'));
+check('Mengikuti perangkat berarti atribut dilepas', themeFile.includes('delete document.documentElement.dataset.theme'));
+check('Bilah atas aplikasi memasang sakelar tema', appFile.includes('themeSwitch(switchTheme)'));
+check('Halaman depan memasang sakelar tema', landingFile.includes('themeSwitch('));
+
 console.log(`\n${'─'.repeat(56)}`);
 console.log(`  ${passed} lulus, ${failed} gagal`);
 console.log(`${'─'.repeat(56)}\n`);

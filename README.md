@@ -22,7 +22,7 @@ permintaan uji coba.
 npm install          # hanya memerlukan Express; basis data memakai node:sqlite bawaan Node 22
 npm run seed         # memuat master data, 12 akun demo dan ±1.830 rekaman contoh
 npm start            # http://localhost:3000
-npm run check        # 175 pemeriksaan end-to-end terhadap server yang sedang berjalan
+npm run check        # 191 pemeriksaan end-to-end terhadap server yang sedang berjalan
 npm run i18n         # laporan cakupan terjemahan Indonesia → Inggris
 ```
 
@@ -131,7 +131,8 @@ public/
   js/admin.js        layar administrasi
   js/customdash.js   penampil & penyunting dashboard (seret-lepas, warna, ukuran)
   js/i18n.js         kamus teks antarmuka + pengalih bahasa
-  css/app.css        tema terang & gelap
+  js/theme.js        tema terang / gelap / ikut perangkat
+  css/app.css        palet terang & gelap (token warna)
 ```
 
 Menambah modul baru = menambah satu deklarasi pada `server/registry/`.
@@ -345,6 +346,26 @@ paket dan pesan formulir datang dari server sudah dalam bahasa yang dipilih.
 Label grafik dashboard berasal dari **isi kolom**, bukan dari teks tetap antarmuka, jadi
 diterjemahkan tersendiri — dan hanya yang memang berupa nilai pilihan registry: nama kapal,
 nama pegawai dan judul rekaman tetap dalam bahasa aslinya, karena itu data operasional.
+
+**Tema terang & gelap** — sakelar **☀ | 🌙 | ◐** berdiri di bilah atas, bersebelahan dengan
+sakelar bahasa. Tiga pilihan, bukan dua: pilihan ketiga (◐) berarti **ikut perangkat**, dan
+itulah bawaannya. Sakelar dua arah memaksa pengguna memilih satu tema tetap dan mematikan
+kemampuan tampilan mengikuti perangkat — pada ponsel yang berpindah gelap sendiri saat malam,
+itu terasa seperti kerusakan, jadi "ikut perangkat" harus selalu bisa dikembalikan.
+
+Pilihannya tersimpan pada akun, sama seperti bahasa. Palet gelapnya berbasis navy, bukan abu-abu
+netral: turunan warna merek yang sama, sehingga birunya tetap terbaca sebagai warna yang sama di
+kedua mode. Di bidang gelap bayangan tidak memisahkan apa pun — mata tidak dapat melihat gelap di
+atas gelap — jadi cincin kartu berbalik menjadi garis penuh.
+
+Berpindah tema tidak menggambar ulang layar: seluruh warna berasal dari variabel CSS, dan
+mengganti satu atribut pada elemen akar sudah cukup. Akibatnya draf yang sedang disusun —
+susunan dashboard yang belum disimpan, formulir yang belum dikirim — tidak hilang hanya karena
+penggunanya menyalakan mode gelap.
+
+Widget dashboard kustom yang warnanya **belum pernah dipilih** ikut tema. Yang warnanya dipilih
+administrator dihormati apa adanya, dengan warna teks dihitung dari luminansi latarnya, dan dapat
+dikembalikan mengikuti tema lewat tombol pada panel penyunting.
 
 Istilah yang belum ada di kamus tampil dalam bahasa Indonesia — bukan kosong, bukan kunci
 mentah. `npm run i18n` melaporkan cakupannya, dan `npm run i18n -- --missing` mencetak persis

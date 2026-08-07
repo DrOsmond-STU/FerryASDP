@@ -23,6 +23,15 @@ import { subscriptionSummary, clearTenancyCache } from './tenancy.js';
 import { dashboardRouter } from './dashboards.js';
 import { adminRouter } from './admin.js';
 import { pickLang, isLang, localiseCatalogue, localiseRoles, localiseRiskBands, LANGS } from './i18n.js';
+
+/**
+ * Tema tampilan. `system` bukan sebuah tema melainkan penolakan memilih:
+ * ikut pengaturan perangkat, dan ikut berubah ketika perangkatnya berubah
+ * pada sore hari. Itu sebabnya ia tersimpan sebagai nilai tersendiri dan
+ * bukan diterjemahkan menjadi 'light' saat disimpan.
+ */
+const THEMES = ['system', 'light', 'dark'];
+const isTheme = (v) => THEMES.includes(v);
 import { customRouter } from './customdash.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -99,6 +108,14 @@ app.put('/api/auth/language', requireAuth, (req, res) => {
   res.json({ ok: true, language: lang });
 });
 
+app.put('/api/auth/theme', requireAuth, (req, res) => {
+  const theme = req.body?.theme;
+  if (!isTheme(theme)) return res.status(400).json({ error: 'Tema tidak dikenal / Unknown theme.' });
+  run('UPDATE users SET theme = ?, updated_at = ? WHERE id = ?', [theme, new Date().toISOString(), req.user.id]);
+  logAudit({ user: req.user, action: 'user.theme', detail: theme, ip: req.ip });
+  res.json({ ok: true, theme });
+});
+
 app.post('/api/auth/password', requireAuth, (req, res, next) => {
   try {
     changePassword(req.user, { currentPassword: req.body?.currentPassword, newPassword: req.body?.newPassword });
@@ -126,6 +143,7 @@ function publicUser(user) {
     vessel_id: user.vessel_id,
     contractor_id: user.contractor_id,
     language: isLang(user.language) ? user.language : 'id',
+    theme: isTheme(user.theme) ? user.theme : 'system',
     must_change_password: !!user.must_change_password,
   };
 }
@@ -144,6 +162,7 @@ app.get('/api/meta', requireAuth, (req, res) => {
     },
     lang,
     languages: LANGS,
+    themes: THEMES,
     ...localiseCatalogue(catalogue(), lang),
     roles: localiseRoles(ROLES, lang),
     riskBands: localiseRiskBands(RISK_BANDS, lang),

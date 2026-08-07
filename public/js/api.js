@@ -1,5 +1,6 @@
 /** Thin fetch wrapper plus the client-side cache of registry metadata. */
 import { setLang } from './i18n.js';
+import { setTheme } from './theme.js';
 
 async function request(path, { method = 'GET', body, raw = false } = {}) {
   const res = await fetch(path, {
@@ -50,6 +51,10 @@ export async function loadMeta() {
   // menemukan aplikasi dalam bahasa yang ia pilih.
   const meta = await api.get('/api/meta');
   setLang(meta.lang);
+  // Tema pun tersimpan pada akun, dengan alasan yang sama seperti bahasa:
+  // pengguna yang memilih gelap tidak ingin memilihnya lagi di setiap
+  // perangkat. `system` berarti ikut perangkat, dan itu pun sebuah pilihan.
+  setTheme(meta.user?.theme || 'system');
   state.meta = meta;
   state.user = meta.user;
   state.permissions = meta.permissions || {};

@@ -2,13 +2,14 @@
  * Application shell: authentication, layout, navigation and the hash router.
  */
 import { api, state, loadMeta, can, mod, entitled } from './api.js';
-import { h, mount, clear, toast, initials, modal, languageSwitch } from './ui.js';
+import { h, mount, clear, toast, initials, modal, languageSwitch, themeSwitch } from './ui.js';
 import { renderModuleList, renderRecordForm, renderRecordDetail } from './module.js';
 import { renderDashboard, DASHBOARDS } from './dashboards.js';
 import { renderAdmin, ADMIN_PAGES } from './admin.js';
 import { renderLanding } from './landing.js';
 import { renderCustomDashboard, listCustomDashboards, newDashboardDialog } from './customdash.js';
 import { t, lang, setLang, storedLang } from './i18n.js';
+import { theme, setTheme } from './theme.js';
 
 const root = document.getElementById('app');
 
@@ -199,9 +200,17 @@ function userMenu() {
             h('option', { value: 'id', selected: lang() === 'id', text: 'Bahasa Indonesia' }),
             h('option', { value: 'en', selected: lang() === 'en', text: 'English' })),
           h('div.help', { text: t('Dapat juga diubah lewat tombol ID / EN di bilah atas.') })),
+        h('div.field', { style: 'margin-top:.8rem' },
+          h('label', { text: t('Tema tampilan') }),
+          h('select', {
+            onchange: (e) => switchTheme(e.target.value),
+          },
+            h('option', { value: 'system', selected: theme() === 'system', text: t('Ikut perangkat') }),
+            h('option', { value: 'light', selected: theme() === 'light', text: t('Terang') }),
+            h('option', { value: 'dark', selected: theme() === 'dark', text: t('Gelap') })),
+          h('div.help', { text: t('Dapat juga diubah lewat tombol ☀ / 🌙 / ◐ di bilah atas.') })),
         h('div', { style: 'margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap' },
           h('button', { onclick: passwordDialog, text: t('Ubah kata sandi') }),
-          h('button', { onclick: toggleTheme, text: t('Ganti tema terang/gelap') }),
           h('button.btn-danger', { onclick: logout, text: t('Keluar') }))),
     }),
   },
@@ -246,12 +255,21 @@ async function switchLanguage(next) {
   await route();
 }
 
-function toggleTheme() {
-  const current = document.documentElement.dataset.theme
-    || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const next = current === 'dark' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = next;
-  localStorage.setItem('qhse-theme', next);
+/**
+ * Berpindah tema tidak menggambar ulang apa pun: seluruh warna berasal dari
+ * variabel CSS, dan mengganti atribut pada elemen akar sudah cukup. Berbeda
+ * dari bahasa, yang harus memuat ulang metadata dari server karena label
+ * isian dan nama status datang dari sana.
+ */
+async function switchTheme(next) {
+  if (next === theme()) return;
+  setTheme(next);
+  if (!state.user) return;
+  try {
+    await api.put('/api/auth/theme', { theme: next });
+  } catch {
+    // Preferensi gagal tersimpan bukan alasan menahan pergantian tampilan.
+  }
 }
 
 function passwordDialog() {
@@ -314,6 +332,7 @@ function renderShell() {
           h('button.menu-toggle.btn-ghost', { onclick: () => sidebar.classList.toggle('open'), text: '☰' }),
           crumb,
           h('div.spacer'),
+          themeSwitch(switchTheme),
           languageSwitch(switchLanguage),
           subscriptionChip(),
           h('span.badge.small', { text: state.meta.app.organisation }),
@@ -441,11 +460,10 @@ window.addEventListener('qhse:unauthorised', () => {
   }
 });
 
-const savedTheme = localStorage.getItem('qhse-theme');
-if (savedTheme) document.documentElement.dataset.theme = savedTheme;
-
-// Halaman depan tampil sebelum ada sesi, jadi bahasanya diambil dari peramban.
-// Setelah masuk, `loadMeta()` menggantinya dengan bahasa yang tersimpan di akun.
+// Halaman depan tampil sebelum ada sesi, jadi bahasa dan tema diambil dari
+// peramban. Setelah masuk, `loadMeta()` menggantinya dengan yang tersimpan di
+// akun. Tema sudah dipasang saat theme.js dimuat — sedini mungkin, supaya
+// pengguna mode gelap tidak melihat kedipan terang lebih dulu.
 const savedLang = storedLang();
 if (savedLang) setLang(savedLang);
 
