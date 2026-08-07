@@ -110,6 +110,7 @@ BASE_PUBLIC=https://asdp.semestateknologiutama.com
     echo "[$L] modul    : $(echo "$M" | grep -o '"key":"incident","name":"[^"]*","nameId":"[^"]*"' | head -1)"
     echo "[$L] kelompok : $(echo "$M" | grep -o '"code":"A","key":"governance","name":"[^"]*"' | head -1)"
     echo "[$L] peran    : $(echo "$M" | grep -o '"key":"sysadmin","level":1,"name":"[^"]*"' | head -1)"
+    echo "[$L] isian    : $(echo "$M" | grep -o '"name":"classification","label":"[^"]*"' | head -1)"
   done
   rm -f "$JAR"
 
@@ -141,10 +142,16 @@ BASE_PUBLIC=https://asdp.semestateknologiutama.com
 
   echo
   echo "--- berkas antarmuka sakelar bahasa ---"
-  echo "ui.js memuat languageSwitch : $(curl -s -m 25 "$BASE_PUBLIC/js/ui.js" | grep -c 'languageSwitch')"
-  echo "app.js memasang di bilah atas: $(curl -s -m 25 "$BASE_PUBLIC/js/app.js" | grep -c 'languageSwitch(switchLanguage)')"
-  echo "landing.js memasang sakelar  : $(curl -s -m 25 "$BASE_PUBLIC/js/landing.js" | grep -c 'languageSwitch(')"
-  echo "app.css memuat .langswitch   : $(curl -s -m 25 "$BASE_PUBLIC/css/app.css" | grep -c 'langswitch')"
+  # Diambil dari proses Node langsung, bukan lewat URL publik. Pemeriksaan ini
+  # menjawab "apakah kode barunya terpasang", dan jalur publik menambah satu
+  # kemungkinan gagal yang tidak ada hubungannya dengan itu: rangkaian panjang
+  # permintaan di atas sempat membuat sebagian unduhan pulang kosong, sehingga
+  # berkas yang jelas-jelas benar di disk terbaca sebagai 0.
+  echo "ui.js memuat languageSwitch  : $(curl -s -m 25 "$BASE_LOCAL/js/ui.js" | grep -c 'languageSwitch')"
+  echo "app.js memasang di bilah atas: $(curl -s -m 25 "$BASE_LOCAL/js/app.js" | grep -c 'languageSwitch(switchLanguage)')"
+  echo "landing.js memasang sakelar  : $(curl -s -m 25 "$BASE_LOCAL/js/landing.js" | grep -c 'languageSwitch(')"
+  echo "app.css memuat .langswitch   : $(curl -s -m 25 "$BASE_LOCAL/css/app.css" | grep -c 'langswitch')"
+  echo "sakelar terkirim ke peramban : $(curl -s -m 25 "$BASE_PUBLIC/js/ui.js" | grep -c 'languageSwitch')"
 
   echo
   echo "--- header keamanan (publik) ---"
