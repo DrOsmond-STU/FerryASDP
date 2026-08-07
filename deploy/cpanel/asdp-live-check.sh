@@ -114,6 +114,39 @@ BASE_PUBLIC=https://asdp.semestateknologiutama.com
   rm -f "$JAR"
 
   echo
+  echo "--- halaman depan dwibahasa (tanpa sesi) ---"
+  # Halaman depan dilihat sebelum ada sesi, jadi bahasanya dikirim sebagai
+  # parameter. Kalau dua bahasa menjawab teks yang sama persis, kamusnya tidak
+  # terpasang - dan itu tidak terlihat dari kode 200 saja.
+  for L in id en; do
+    O=$(curl -s -m 25 "$BASE_PUBLIC/api/public/overview?lang=$L")
+    P=$(curl -s -m 25 "$BASE_PUBLIC/api/public/plans?lang=$L")
+    echo "[$L] kelompok A : $(echo "$O" | grep -o '"code":"A","key":"governance","name":"[^"]*"' | head -1)"
+    echo "[$L] regulator  : $(echo "$O" | grep -o '"name":"[^"]*","items"' | head -1)"
+    echo "[$L] paket      : $(echo "$P" | grep -o '"tagline":"[^"]*"' | head -1)"
+    echo "[$L] dukungan   : $(echo "$P" | grep -o '"supportLevel":"[^"]*"' | head -1)"
+  done
+
+  echo
+  echo "--- label dashboard ikut berpindah bahasa ---"
+  JAR2=$(mktemp)
+  curl -s -m 25 -c "$JAR2" -o /dev/null -X POST "$BASE_PUBLIC/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d '{"username":"corporate.qhse","password":"Asdp#2026Qhse"}'
+  for L in id en; do
+    echo "[$L] jenis insiden : $(curl -s -m 25 -b "$JAR2" "$BASE_PUBLIC/api/dashboard/incident?lang=$L" | grep -o '"byType":\[[^]]*\]' | head -c 150)"
+    echo "[$L] status KPI    : $(curl -s -m 25 -b "$JAR2" "$BASE_PUBLIC/api/dashboard/bsc?lang=$L" | grep -o '"byStatus":\[[^]]*\]' | head -c 150)"
+  done
+  rm -f "$JAR2"
+
+  echo
+  echo "--- berkas antarmuka sakelar bahasa ---"
+  echo "ui.js memuat languageSwitch : $(curl -s -m 25 "$BASE_PUBLIC/js/ui.js" | grep -c 'languageSwitch')"
+  echo "app.js memasang di bilah atas: $(curl -s -m 25 "$BASE_PUBLIC/js/app.js" | grep -c 'languageSwitch(switchLanguage)')"
+  echo "landing.js memasang sakelar  : $(curl -s -m 25 "$BASE_PUBLIC/js/landing.js" | grep -c 'languageSwitch(')"
+  echo "app.css memuat .langswitch   : $(curl -s -m 25 "$BASE_PUBLIC/css/app.css" | grep -c 'langswitch')"
+
+  echo
   echo "--- header keamanan (publik) ---"
   curl -s -m 25 -D - -o /dev/null "$BASE_PUBLIC/" | grep -iE '^(HTTP/|content-security-policy|x-frame-options|x-content-type-options|referrer-policy|strict-transport)' | head -8
 
