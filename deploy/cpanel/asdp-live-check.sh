@@ -35,7 +35,7 @@ BASE_PUBLIC=https://asdp.semestateknologiutama.com
 
   echo
   echo "--- lewat Apache (URL publik) ---"
-  for path in /api/health /api/public/plans / /js/landing.js; do
+  for path in /api/health /api/public/plans / /js/landing.js /js/customdash.js; do
     code=$(curl -s -o /dev/null -w '%{http_code}' -m 25 "$BASE_PUBLIC$path")
     echo "$code  $path"
   done
@@ -86,6 +86,18 @@ BASE_PUBLIC=https://asdp.semestateknologiutama.com
   echo "kartu: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/dashboard/analytics" | head -c 320)"
   echo
   echo "kpi ber-perspektif: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/modules/quality_objective/records?size=1" | head -c 90)"
+
+  # Dashboard kustom disimpan sebagai data. Yang dicetak bukan hanya kode 200
+  # melainkan jumlah widget dan hasil hitung tiap widget, karena tata letak yang
+  # tersimpan tanpa data terhitung akan tetap menjawab 200 dengan papan kosong.
+  echo
+  echo "--- dashboard kustom ---"
+  echo "daftar: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/custom-dashboards" | head -c 240)"
+  echo
+  echo "isi: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/custom-dashboards/ringkasan-direksi" \
+    | sed -e 's/"layout":\[.*\],"theme"/"layout":[..],"theme"/' | head -c 620)"
+  echo
+  echo "katalog sumber widget: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/custom-dashboards/sources" | head -c 120)"
   rm -f "$JAR"
 
   echo
