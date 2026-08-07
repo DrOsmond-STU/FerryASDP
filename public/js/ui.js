@@ -122,8 +122,14 @@ export function statusBadge(statusKey, workflow = []) {
   return h('span.badge', { class: cls, text: label });
 }
 
-export const riskPill = (level) =>
-  level ? h('span.risk-pill', { class: `risk-${level}`, text: level }) : h('span.muted', { text: '—' });
+/**
+ * Warna lencana risiko dikunci oleh tingkat yang TERSIMPAN (selalu bahasa
+ * Indonesia), bukan oleh teks yang tampil. Kalau kelasnya ikut berpindah
+ * bahasa, `risk-High` tidak ada di CSS dan lencananya kehilangan warna —
+ * padahal warna itulah yang dibaca lebih dulu daripada tulisannya.
+ */
+export const riskPill = (level, label = level) =>
+  level ? h('span.risk-pill', { class: `risk-${level}`, text: label }) : h('span.muted', { text: '—' });
 
 /* -------------------------------------------------------------- toasts */
 

@@ -159,7 +159,7 @@ function risk(d) {
           h('thead', {}, h('tr', {}, h('th', { text: t('Kode') }), h('th', { text: t('Risiko') }), h('th', { text: t('Kategori') }), h('th', { text: t('Nilai') }), h('th', { text: t('Tingkat') }), h('th', { text: t('Residual') }))),
           h('tbody', {}, ...d.topRisks.map((r) => h('tr.clickable', { onclick: () => { location.hash = `#/m/risk_register/${r.id}`; } },
             h('td.mono', { text: r.code }), h('td', { text: r.title }), h('td.small', { text: r.risk_category || '—' }),
-            h('td', { text: num(r.risk_score) }), h('td', {}, riskPill(r.risk_level)), h('td', {}, riskPill(r.res_risk_level)))))))
+            h('td', { text: num(r.risk_score) }), h('td', {}, riskPill(r.risk_level, t(r.risk_level))), h('td', {}, riskPill(r.res_risk_level, t(r.res_risk_level))))))))
         : emptyState()));
 }
 

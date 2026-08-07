@@ -510,6 +510,8 @@ const EN = {
   '🗑 Hapus': '🗑 Delete',
   'Simpan Perubahan': 'Save Changes',
   'Simpan Rekaman': 'Save Record',
+  'Kode rekaman diterbitkan otomatis setelah disimpan.': 'The record code is issued automatically once saved.',
+  'Perubahan tercatat dalam jejak audit.': 'Changes are recorded in the audit trail.',
   'Rincian Rekaman': 'Record Details',
   Rincian: 'Details',
   'Alur Status': 'Workflow',

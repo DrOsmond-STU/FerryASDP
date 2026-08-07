@@ -37,6 +37,22 @@ const ORG_LABEL = { region: 'Regional', branch: 'Cabang', port: 'Pelabuhan', ves
 const optValue = (o) => (typeof o === 'string' ? o : o.value);
 const optLabel = (o) => (typeof o === 'string' ? o : o.label ?? o.value);
 
+/**
+ * Yang tersimpan pada rekaman adalah `value` pilihan — selalu bahasa Indonesia,
+ * di bahasa apa pun rekaman itu dibuat. Yang dibaca pengguna adalah `label`,
+ * dan label itu sudah diterjemahkan server. Tanpa pemetaan ini, formulir
+ * berbahasa Inggris menampilkan pilihan bahasa Inggris sementara tabel dan
+ * halaman rincian menampilkan nilai bahasa Indonesia untuk rekaman yang sama.
+ *
+ * `values` menampung kosakata bidang terhitung — tingkat risiko, status
+ * sertifikat — yang tidak dipilih pengguna namun tetap terbatas.
+ */
+function optionLabel(field, value) {
+  const vocabulary = field.options || field.values || [];
+  const found = vocabulary.find((o) => optValue(o) === value);
+  return found ? optLabel(found) : String(value);
+}
+
 /* ----------------------------------------------------------- value display */
 
 async function refLabel(type, id) {
@@ -61,7 +77,8 @@ export function displayValue(field, value, record) {
     case 'datetime':
       return h('span', { text: fmtDateTime(value) });
     case 'multiselect':
-      return h('div.chips', {}, ...(Array.isArray(value) ? value : [value]).map((v) => h('span.chip', { text: v })));
+      return h('div.chips', {}, ...(Array.isArray(value) ? value : [value])
+        .map((v) => h('span.chip', { text: optionLabel(field, v) })));
     case 'textarea':
       return h('div', { style: 'white-space:pre-wrap', text: String(value) });
     default:
@@ -70,8 +87,8 @@ export function displayValue(field, value, record) {
         refLabel(field.type, value).then((label) => { span.textContent = label; });
         return span;
       }
-      if (field.name.endsWith('risk_level')) return riskPill(value);
-      return h('span', { text: String(value) });
+      if (field.name.endsWith('risk_level')) return riskPill(value, optionLabel(field, String(value)));
+      return h('span', { text: optionLabel(field, String(value)) });
   }
 }
 
@@ -82,7 +99,10 @@ function cellValue(field, value) {
   if (field.type === 'currency') return fmtCurrency(value);
   if (field.type === 'number') return Number.isInteger(Number(value)) ? fmtNumber(value) : fmtDecimal(value, 2);
   if (field.type === 'date') return fmtDate(value);
-  if (Array.isArray(value)) return value.join(', ');
+  if (Array.isArray(value)) return value.map((v) => optionLabel(field, v)).join(', ');
+  // `values` menampung kosakata bidang terhitung — tingkat risiko, status
+  // sertifikat — yang tidak dipilih pengguna namun tetap terbatas.
+  if (field.options?.length || field.values?.length) return optionLabel(field, String(value));
   return String(value);
 }
 
@@ -200,7 +220,7 @@ function recordTable(module, data, view, refresh) {
     h('tr.clickable', { onclick: () => { location.hash = `#/m/${module.key}/${record.id}`; } },
       h('td.mono.nowrap', { text: record.code }),
       ...fields.map((f) => h('td.cell-truncate', { title: cellValue(f, record[f.name]) },
-        f.name.endsWith('risk_level') ? riskPill(record[f.name]) : cellValue(f, record[f.name]))),
+        f.name.endsWith('risk_level') ? riskPill(record[f.name], cellValue(f, record[f.name])) : cellValue(f, record[f.name]))),
       h('td', {}, statusBadge(record.status, module.workflow)),
       h('td.small.nowrap', { text: fmtDate(record.updated_at) }))));
 
@@ -301,7 +321,7 @@ export async function renderRecordForm(container, module, recordId) {
     h('div.page-head', {},
       h('div.grow', {},
         h('h1', {}, h('span', { text: module.icon }), editing ? `Ubah ${record.code}` : `${t('Rekaman Baru')} — ${module.nameId}`),
-        h('div.small.muted', { text: editing ? 'Perubahan tercatat dalam jejak audit.' : 'Kode rekaman diterbitkan otomatis setelah disimpan.' }))),
+        h('div.small.muted', { text: t(editing ? 'Perubahan tercatat dalam jejak audit.' : 'Kode rekaman diterbitkan otomatis setelah disimpan.') }))),
     h('div.card', {}, errorBox, form));
 
   async function save() {

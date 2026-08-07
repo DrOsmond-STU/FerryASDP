@@ -41,9 +41,22 @@ const buckets = {
   'Peran & tingkat risiko': new Map(),
 };
 
+/*
+ * Istilah yang TIDAK dikenali penanda namun juga tidak ada di kamus. Penanda
+ * konservatif punya sisi buruk yang tidak terlihat: istilah Indonesia yang
+ * kebetulan tidak memuat satu pun kata dalam daftar — "Investigasi",
+ * "Tervalidasi", "Tindak Lanjut" — jatuh ke luar hitungan sama sekali, dan
+ * laporannya menulis 100% padahal istilah itu tetap tampil bahasa Indonesia.
+ * Dikumpulkan terpisah supaya tidak ada yang bersembunyi di balik angka.
+ */
+const unflagged = new Map();
+
 const add = (bucket, text) => {
   if (typeof text !== 'string' || !text.trim() || NEUTRAL.test(text)) return;
-  if (!needsTranslation(text)) return;
+  if (!needsTranslation(text)) {
+    if (EN[text] === undefined) unflagged.set(text, (unflagged.get(text) || 0) + 1);
+    return;
+  }
   buckets[bucket].set(text, (buckets[bucket].get(text) || 0) + 1);
 };
 
@@ -92,12 +105,23 @@ const pct = ((totalDone / totalUnique) * 100).toFixed(1);
 const usePct = ((usesDone / totalUses) * 100).toFixed(1);
 console.log(`  ${'TOTAL'.padEnd(26)} ${String(totalUnique).padStart(6)} ${String(totalDone).padStart(8)} ${`${pct}%`.padStart(9)}  ${`${usePct}%`.padStart(11)}`);
 console.log(`\n  Kamus memuat ${Object.keys(EN).length} entri.`);
-console.log('  Istilah tanpa terjemahan tetap tampil dalam bahasa Indonesia.\n');
+console.log('  Istilah tanpa terjemahan tetap tampil dalam bahasa Indonesia.');
+if (unflagged.size) {
+  console.log(`\n  Selain itu ${unflagged.size} istilah di luar deteksi juga belum ada di kamus.`);
+  console.log('  Periksa sendiri: sebagian memang sudah berbahasa Inggris, sebagian tidak.');
+}
+console.log();
 
 if (showMissing) {
   missing.sort((a, b) => b.n - a.n || a.text.localeCompare(b.text));
   console.log(`  ${missing.length} istilah belum diterjemahkan:\n`);
   for (const m of missing) console.log(`  ${String(m.n).padStart(3)}×  [${m.bucket}]  ${m.text}`);
+  if (unflagged.size) {
+    console.log(`\n  ${unflagged.size} istilah di luar deteksi, belum di kamus:\n`);
+    for (const [text, n] of [...unflagged].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))) {
+      console.log(`  ${String(n).padStart(3)}×  ${text}`);
+    }
+  }
   console.log();
 }
 

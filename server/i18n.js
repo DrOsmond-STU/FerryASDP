@@ -60,9 +60,10 @@ const trField = (field, lang) => ({
   placeholder: field.placeholder ? tr(field.placeholder, lang) : field.placeholder,
   group: field.group ? tr(field.group, lang) : field.group,
   options: field.options ? field.options.map((o) => trOption(o, lang)) : field.options,
-  // Kosakata bidang terhitung: yang tersimpan tetap nilai Indonesianya, jadi
-  // yang dikirim ke antarmuka pun cukup diterjemahkan untuk ditampilkan.
-  values: field.values ? field.values.map((v) => tr(v, lang)) : field.values,
+  // Kosakata bidang terhitung dikirim dalam bentuk yang sama dengan opsi
+  // pilihan — {value,label} — karena yang tersimpan pada rekaman tetap nilai
+  // Indonesianya sedangkan yang dibaca pengguna adalah labelnya.
+  values: field.values ? field.values.map((v) => trOption(v, lang)) : field.values,
 });
 
 /** Katalog modul yang sudah berpindah bahasa, siap dipakai antarmuka apa adanya. */
