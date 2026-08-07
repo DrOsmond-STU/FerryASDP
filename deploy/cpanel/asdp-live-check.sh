@@ -73,6 +73,19 @@ BASE_PUBLIC=https://asdp.semestateknologiutama.com
   echo "matriks: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/modules/training_matrix/records?size=1" | head -c 90)"
   echo "gap:     $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/modules/skill_gap/records?size=1" | head -c 90)"
   echo "sertif:  $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/modules/employee_certification/records?size=1" | head -c 90)"
+
+  # Kartu skor yang indikatornya belum bertanda perspektif akan menjawab 200
+  # dengan empat perspektif kosong. Skor dan jumlah indikatornya ikut dicetak.
+  echo
+  echo "--- kartu skor berimbang & analitik ---"
+  echo "dashboard bsc: $(curl -s -m 25 -b "$JAR" -o /dev/null -w '%{http_code}' "$BASE_PUBLIC/api/dashboard/bsc")"
+  curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/dashboard/bsc" \
+    | sed -e 's/,"kpis":\[[^]]*\]//g' | head -c 700
+  echo
+  echo "dashboard analitik: $(curl -s -m 25 -b "$JAR" -o /dev/null -w '%{http_code}' "$BASE_PUBLIC/api/dashboard/analytics")"
+  echo "kartu: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/dashboard/analytics" | head -c 320)"
+  echo
+  echo "kpi ber-perspektif: $(curl -s -m 25 -b "$JAR" "$BASE_PUBLIC/api/modules/quality_objective/records?size=1" | head -c 90)"
   rm -f "$JAR"
 
   echo
