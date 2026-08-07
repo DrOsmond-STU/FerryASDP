@@ -4,15 +4,22 @@ Berkas di direktori ini adalah **salinan** dari yang berjalan di server. Aslinya
 hanya ada di `/home/semestat/` dan akan hilang seluruhnya bila akun hosting itu
 dibersihkan.
 
-## Status per 6 Agustus 2026
+## Status per 7 Agustus 2026, 07.31 WIB
 
 | Bagian | Keadaan |
 |---|---|
-| Proses aplikasi (Express, port 3500) | **berjalan** — RSS 68,8 MB |
-| Basis data SQLite | **tersemai** — 1.426 rekaman, 12 pengguna |
+| Proses aplikasi (Express, port 3500) | **berjalan** — pid 2657583, RSS 74,2 MB |
+| Modul terpasang | **116 modul dalam 15 kelompok** (`/api/health`) |
+| Basis data SQLite | **tersemai** — 1.794 rekaman, 12 pengguna |
 | Jalur publik lewat Apache | **200** pada `/`, `/api/health`, `/api/public/plans`, aset statis |
 | Redirect HTTP → HTTPS | **301** |
 | Alur masuk lewat URL publik | **200** (login, `/api/meta`, dashboard langganan) |
+| Kelompok P — pelatihan | **200** dengan isi: katalog 43, matriks 72, kesenjangan 10, sertifikat 25 |
+| Header keamanan | CSP, X-Frame-Options, nosniff, Referrer-Policy, HSTS 2 tahun |
+
+Penambahan kelompok P dipasang di atas basis data yang sudah berjalan:
+penyemaian aditif menambah **368 rekaman** dan tidak menyentuh 1.426 rekaman
+yang sudah ada.
 
 ## Bentuk pemasangan
 
