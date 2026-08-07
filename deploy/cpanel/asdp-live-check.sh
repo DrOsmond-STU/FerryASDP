@@ -35,7 +35,7 @@ BASE_PUBLIC=https://asdp.semestateknologiutama.com
 
   echo
   echo "--- lewat Apache (URL publik) ---"
-  for path in /api/health /api/public/plans / /js/landing.js /js/customdash.js /js/i18n.js; do
+  for path in /api/health /api/public/plans / /js/landing.js /js/customdash.js /js/i18n.js /js/theme.js; do
     code=$(curl -s -o /dev/null -w '%{http_code}' -m 25 "$BASE_PUBLIC$path")
     echo "$code  $path"
   done
